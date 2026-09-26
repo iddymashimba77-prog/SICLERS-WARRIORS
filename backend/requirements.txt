@@ -1,0 +1,12 @@
+# Sickler's Warriors — Backend Dependencies
+# Pin versions for reproducible builds across dev / test / staging / production.
+
+Django==6.1.1
+djangorestframework==3.18.1
+djangorestframework-simplejwt==5.5.1
+django-cors-headers==4.9.0
+drf-spectacular==0.30.0
+
+psycopg[binary]==3.3.5
+python-dotenv==1.2.3
+Pillow==12.3.0
