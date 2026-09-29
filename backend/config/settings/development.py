@@ -18,6 +18,7 @@ CORS_ALLOW_ALL_ORIGINS = True  # noqa: F405
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F405
     "anon": "1000/minute",
     "user": "2000/minute",
+    "auth": "120/minute",
 }
 
 # Console email in dev

@@ -12,4 +12,6 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
 
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["auth"] = "1000000/minute"  # noqa: F405
+
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"  # noqa: F405

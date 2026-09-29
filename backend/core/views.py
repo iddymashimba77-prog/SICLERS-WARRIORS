@@ -47,6 +47,25 @@ def health_ready(request):
         overall = "degraded"
         status_code = http_status.HTTP_503_SERVICE_UNAVAILABLE
 
+    # Cache check (Stage 4.18): a read/write round-trip must succeed for the
+    # cache backend actually in use (LocMem or Redis). Never raises; a cache
+    # failure degrades readiness so orchestrators pull the process while the
+    # cache-dependent hot paths still serve from the database.
+    try:
+        from django.core.cache import cache
+
+        cache.set("healthcheck_probe", 1, timeout=5)
+        value = cache.get("healthcheck_probe")
+        checks["cache"] = "ok" if value == 1 else "unavailable"
+        if value != 1:
+            overall = "degraded"
+            status_code = http_status.HTTP_503_SERVICE_UNAVAILABLE
+    except Exception as exc:
+        logger.warning("Health check — cache unavailable: %s", exc)
+        checks["cache"] = "unavailable"
+        overall = "degraded"
+        status_code = http_status.HTTP_503_SERVICE_UNAVAILABLE
+
     return Response(
         {"status": overall, "version": APP_VERSION, "checks": checks},
         status=status_code,

@@ -14,8 +14,13 @@ are built, following the documented system design (Stage 3).
 |---|-------|--------|
 | 4.1 | Development Foundation | ✅ Complete |
 | 4.2 | Backend Foundation & Core APIs | ⏳ Planned |
-| 4.3 | Admin Web Foundation | ⏳ Planned |
-| 4.4+ | Feature build-out (auth, medical, blood, community, emergency, AI) | ⏳ Planned |
+| 4.3 | Admin Web Foundation | ✅ Complete (auth, gates) |
+| 4.4 | Roles & Permissions | ✅ Complete (gate green) |
+| 4.5 | User & Medical Profile | ✅ Complete (Postgres + Flutter) |
+| 4.6 | Medication & Health Tracking | ✅ Complete (backend gates + Flutter) |
+| 4.8 | Blood Donation & Emergency Response | ✅ Complete (gate green + Flutter) |
+| 4.9 | Emergency & SOS System | ✅ Complete (gate green + Flutter) |
+| 4.10 | Community & Communication | ✅ Complete (gate green + Flutter) |
 | 4.x | Admin Dashboard + Role Access + QA Gates | ⏳ Planned |
 
 ## Stage 4.1 scope (this release)

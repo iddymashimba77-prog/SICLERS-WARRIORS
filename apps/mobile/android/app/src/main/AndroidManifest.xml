@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for all API traffic in release builds. Debug/profile flavours
+         already declare it for tooling; the main manifest must carry it so
+         release builds can reach the backend. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Sickler's Warriors"
         android:name="${applicationName}"

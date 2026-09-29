@@ -1,0 +1,102 @@
+:root {
+  color-scheme: light;
+  --sw-primary: #c81e3a;
+  --sw-primary-hover: #b31a33;
+  --sw-dark-red: #9f1530;
+  --sw-red-soft: #fdecef;
+  --sw-navy: #0b1f3d;
+  --sw-navy-soft: #12294d;
+  --sw-blue: #1b5fae;
+  --sw-blue-soft: #eaf3fb;
+  --sw-bg: #f5f7fa;
+  --sw-surface: #ffffff;
+  --sw-text: #172033;
+  --sw-text-2: #667085;
+  --sw-text-muted: #98a2b3;
+  --sw-border: #e4e7ec;
+  --sw-success: #16803c;
+  --sw-warning: #b7791f;
+  --sw-error: #c81e3a;
+  --sw-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Dark mode — re-resolves every token without touching component code. */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --sw-primary: #dc2f4c;
+  --sw-primary-hover: #e44862;
+  --sw-dark-red: #c4203d;
+  --sw-red-soft: #3a1620;
+  /* --sw-navy doubles as heading text *and* sidebar background; under dark it
+     becomes the light heading color and the navy surfaces are re-pinned to a
+     fixed dark in the shell stylesheet. */
+  --sw-navy: #e8eef7;
+  --sw-navy-soft: #12294d;
+  --sw-blue: #6ea8f5;
+  --sw-blue-soft: #183253;
+  --sw-bg: #0d1524;
+  --sw-surface: #141e32;
+  --sw-text: #e7ecf5;
+  --sw-text-2: #a6b2c7;
+  --sw-text-muted: #7a87a0;
+  --sw-border: #27334d;
+  --sw-success: #46c878;
+  --sw-warning: #eeb23a;
+  --sw-error: #ff5c76;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font: 400 14px/1.5 var(--sw-font);
+  color: var(--sw-text);
+  background: var(--sw-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--sw-blue);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Focus visibility (accessibility) */
+:focus-visible {
+  outline: 2px solid var(--sw-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--sw-navy);
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+button {
+  font-family: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

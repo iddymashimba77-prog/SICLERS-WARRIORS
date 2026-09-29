@@ -22,6 +22,8 @@ _ERROR_CODE_MAP = {
     (http_status.HTTP_409_CONFLICT, None): "CONFLICT",
     (http_status.HTTP_429_TOO_MANY_REQUESTS, None): "RATE_LIMITED",
     (http_status.HTTP_500_INTERNAL_SERVER_ERROR, None): "INTERNAL_ERROR",
+    (http_status.HTTP_502_BAD_GATEWAY, None): "BAD_GATEWAY",
+    (http_status.HTTP_503_SERVICE_UNAVAILABLE, None): "SERVICE_UNAVAILABLE",
 }
 
 
