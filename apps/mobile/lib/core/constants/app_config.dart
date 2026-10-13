@@ -21,7 +21,7 @@ library;
 
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 
 class AppConfig {
   AppConfig._();
@@ -32,6 +32,11 @@ class AppConfig {
   /// Base URL including the `/api` prefix, e.g. `http://localhost:8000/api`.
   static String get apiBaseUrl {
     if (_override.isNotEmpty) return _override;
+    const String kLiveApi = 'https://sicklers-api.onrender.com/api';
+    // Default to live API in release builds; keep emulator-friendly defaults in dev
+    if (kReleaseMode) {
+      return kLiveApi;
+    }
     if (!kIsWeb && Platform.isAndroid) {
       // Android emulator/tablet maps the host loopback to 10.0.2.2.
       return 'http://10.0.2.2:8000/api';
