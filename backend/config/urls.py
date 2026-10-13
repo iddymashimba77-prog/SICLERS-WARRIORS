@@ -65,6 +65,7 @@ urlpatterns = [
     *api_urlpatterns("api/"),
     # Versioned base (api-design §7) — same views, new prefix.
     path("api/v1/", include((api_urlpatterns(""), "api_v1"), namespace="v1")),
+    path("", include("core.root_urls")),
     # OpenAPI schema — gated: DEBUG-only by default, admin.audit.read elsewhere
     # (Stage 4.17 §33). Rejects as 404.
     path(

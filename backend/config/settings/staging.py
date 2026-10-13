@@ -10,9 +10,9 @@ from .base import *  # noqa: F401,F403
 
 DEBUG = False
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")  # noqa: F405
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]  # noqa: F405
 
-CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")  # noqa: F405
+CORS_ALLOWED_ORIGINS = [h.strip() for h in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if h.strip()]  # noqa: F405
 
 # ---------------------------------------------------------------------------
 # Fail-closed secret/payment signing verification (Stage 4.17)
