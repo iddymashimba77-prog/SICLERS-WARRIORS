@@ -8,6 +8,8 @@ import '../../../auth/domain/auth_types.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/donations_repository.dart';
+import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 const List<double> _presetAmounts = [5000, 10000, 25000, 50000];
 
@@ -37,10 +39,7 @@ class DonationsPage extends StatelessWidget {
     final token = (authController ?? SessionScope.controllerOf(context))
         .accessToken;
     if (token == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.financialDonations)),
-        body: const Center(child: Text(AppStrings.notSignedIn)),
-      );
+      return const SignedOutGate();
     }
     return DonationsHomeView(
       accessToken: token,
@@ -333,7 +332,7 @@ class _ProgressSummary extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: AppShapes.xs,
           child: LinearProgressIndicator(
             value: percent / 100,
             minHeight: 8,

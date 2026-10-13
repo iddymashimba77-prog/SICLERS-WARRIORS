@@ -54,6 +54,30 @@ def orm_user(role_code, email=None, account_status="ACTIVE", **extra):
     return user
 
 
+def directory_facility():
+    """A verified facility from the seeded national directory (§6)."""
+    from facilities.models import Facility
+
+    facility = Facility.objects.filter(is_verified=True).order_by("name").first()
+    assert facility is not None, "facility directory seed migration did not run"
+    return facility
+
+
+def orm_patient_profile(user, **extra):
+    """Create the `patients.Patient` row for a user (identity for clinical data).
+
+    A treating facility is attached by default because the API now requires one
+    for profile completion; pass ``facility=None`` to model a profile that is
+    still incomplete.
+    """
+    from patients.models import Patient
+
+    extra.setdefault("facility", directory_facility())
+    return Patient.objects.create(
+        user=user, date_of_birth=extra.pop("date_of_birth", "2000-01-01"), **extra
+    )
+
+
 def client(user):
     c = JsonAPIClient()
     c.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(user).access_token}")

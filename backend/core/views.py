@@ -7,6 +7,7 @@ Health check endpoints for Sickler's Warriors.
 
 import logging
 
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -18,6 +19,7 @@ logger = logging.getLogger("sicklers.health")
 APP_VERSION = "1.0.0-dev"
 
 
+@extend_schema(responses={200: OpenApiTypes.OBJECT})
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health_live(request):
@@ -25,6 +27,7 @@ def health_live(request):
     return Response({"status": "ok", "version": APP_VERSION})
 
 
+@extend_schema(responses={200: OpenApiTypes.OBJECT})
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health_ready(request):

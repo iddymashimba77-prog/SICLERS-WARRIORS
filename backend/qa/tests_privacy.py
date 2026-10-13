@@ -68,19 +68,76 @@ class C10EmergencyGrantPrivacyTests(TestCase):
                 {"primary_diagnosis", "genotype", "medications", "allergies"}))
 
 
-class UnbuiltMedicalSurfacesTests(TestCase):
-    """Appointments / medical_records are scaffold-only (see 4.14 report).
+class MedicalSurfaceExposureTests(TestCase):
+    """Gate on what the medical surfaces may expose.
 
-    Asserting 404 documents that no PHI surface is being served and no
-    client can reach a route that does not exist.
+    ``appointments`` is a live, relationship-scoped surface, and
+    ``medical_records`` joined it in the clinical-records stage. The invariant
+    for both is therefore the same one: they are mounted, they are authenticated,
+    and they leak no one else's data or clinical notes. The older
+    "medical_records returns 404 because it was never built" gate is superseded
+    by the stronger assertions below.
     """
 
-    def test_appointments_router_not_mounted(self):
-        for path in ("/api/appointments/", "/api/appointments/upcoming/"):
+    def test_appointments_router_is_mounted_but_never_public(self):
+        for path in ("/api/appointments/", "/api/v1/appointments/"):
             with self.subTest(path=path):
-                self.assertEqual(h.APIClient().get(path).status_code, 404)
+                # Mounted, and unauthenticated callers are refused rather than
+                # handed a booking feed.
+                self.assertIn(h.APIClient().get(path).status_code, (401, 403))
 
-    def test_medical_records_router_not_mounted(self):
-        for path in ("/api/medical-records/", "/api/medical-records/vitals/"):
+    def test_appointment_list_carries_no_clinical_notes(self):
+        patient = h.orm_user("PATIENT")
+        h.orm_patient_profile(patient)
+        response = h.client(patient).get("/api/appointments/")
+        self.assertEqual(response.status_code, 200)
+        for row in response.data["results"]:
+            self.assertNotIn("notes", row)
+
+    def test_medical_records_router_is_mounted_but_never_public(self):
+        for path in (
+            "/api/medical-records/",
+            "/api/medical-records/history/",
+            "/api/v1/medical-records/",
+        ):
             with self.subTest(path=path):
-                self.assertEqual(h.APIClient().get(path).status_code, 404)
+                self.assertIn(h.APIClient().get(path).status_code, (401, 403))
+
+    def test_medical_record_list_carries_no_clinical_text(self):
+        """The chart list is metadata only; `description` opens on detail."""
+        patient = h.orm_user("PATIENT")
+        h.orm_patient_profile(patient)
+        response = h.client(patient).get("/api/medical-records/")
+        self.assertEqual(response.status_code, 200)
+        for row in response.data["results"]:
+            self.assertNotIn("description", row)
+
+    def test_medical_records_never_reaches_another_patient(self):
+        from django.utils import timezone
+
+        from medical_records import models as med_models
+
+        owner = h.orm_user("PATIENT")
+        owner_profile = h.orm_patient_profile(owner)
+        category = med_models.RecordCategory.objects.create(
+            code="QA_RESULT", name="QA result",
+        )
+        record = med_models.MedicalRecord.objects.create(
+            patient=owner_profile,
+            category=category,
+            title="Private result",
+            description="Hb 6.2 g/dL",
+            recorded_by=owner,
+            recorded_at=timezone.now(),
+        )
+
+        stranger = h.orm_user("PATIENT")
+        h.orm_patient_profile(stranger)
+        api = h.client(stranger)
+        self.assertEqual(
+            api.get(f"/api/medical-records/{record.uid}/").status_code, 404,
+        )
+        listing = api.get("/api/medical-records/")
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing.data["count"], 0)
+        self.assertNotIn("Hb 6.2", str(listing.data))

@@ -99,6 +99,10 @@ class Medication(TimestampedModel):
         default="ORAL",
     )
     frequency = models.CharField(max_length=40)  # free text (no approved enum)
+    # The prescriber's directions to the patient ("take with food", "avoid
+    # alcohol"). Kept separate from `MedicationSchedule.notes`, which describes a
+    # single reminder time rather than the medicine as a whole.
+    instructions = models.TextField(blank=True)
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
     prescribed_by = models.ForeignKey(

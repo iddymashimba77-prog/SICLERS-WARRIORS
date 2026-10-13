@@ -30,6 +30,11 @@ account starts PENDING and is unusable in clinical flows until APPROVED.
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.utils import timezone
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+)
 from rest_framework import status as http_status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -37,7 +42,12 @@ from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveUpdateA
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 
-from accounts.models import SecurityEvent, VerificationDocument, User
+from accounts.models import (
+    PROFESSIONAL_ROLE_CODES,
+    SecurityEvent,
+    User,
+    VerificationDocument,
+)
 from accounts.permissions import IsAuthenticatedRespectStatus, require
 from audit.services import record_audit
 from core.pagination import CorePageNumberPagination
@@ -47,6 +57,11 @@ from .permissions import ChatAccess
 from .throttles import ChatCreateThrottle, ChatMessageThrottle
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(name="uid", type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+    ],
+)
 class ConversationViewSet(viewsets.GenericViewSet):
     lookup_field = "uid"
     lookup_url_kwarg = "uid"
@@ -99,11 +114,19 @@ class ConversationViewSet(viewsets.GenericViewSet):
 
     def _partner_error(self, creator, partner):
         if creator.is_patient:
-            if not partner.is_verified_doctor:
+            # C13b: a patient may open a care conversation with any *verified*
+            # professional — doctor, psychologist or social support worker. A
+            # pending, rejected or suspended applicant is not a professional yet,
+            # which is why this checks the registry and not the role.
+            if not partner.is_verified_professional:
                 return "You may only start a chat with a verified professional."
-        elif creator._has_active_role("DOCTOR", "HEALTHCARE_STAFF"):
+        elif creator._has_active_role(*PROFESSIONAL_ROLE_CODES, "HEALTHCARE_STAFF"):
             if not partner.is_patient:
-                return "A doctor-patient conversation must include a patient."
+                return "A professional-patient conversation must include a patient."
+            if not creator.is_verified_professional and creator._has_active_role(
+                *PROFESSIONAL_ROLE_CODES
+            ):
+                return "Your professional verification must be approved first."
         else:
             return "You may not start a conversation."
         return None
@@ -206,6 +229,7 @@ class ConversationViewSet(viewsets.GenericViewSet):
         return Response(serializers.ConversationSerializer(conversation, context={"request": request}).data)
 
 
+@extend_schema(responses={204: None})
 class MessageDeleteView(GenericAPIView):
     """DELETE /chat/conversations/{uid}/messages/{mid}/ — sender-only tombstone."""
 
@@ -293,6 +317,10 @@ class DoctorMeView(RetrieveUpdateAPIView):
         _audit_event(self.request.user, "PROFILE_UPDATED")
 
 
+@extend_schema(
+    request=serializers.DoctorVerificationSubmitSerializer,
+    responses=serializers.DoctorSelfSerializer,
+)
 class DoctorVerificationSubmitView(GenericAPIView):
     """POST /doctors/me/verification — submit/update documents (FR-DOC-002).
 
@@ -305,8 +333,8 @@ class DoctorVerificationSubmitView(GenericAPIView):
 
     def post(self, request):
         user = request.user
-        if not user._has_active_role("DOCTOR"):
-            raise PermissionDenied("A DOCTOR identity is required.")
+        if not user._has_active_role(*PROFESSIONAL_ROLE_CODES):
+            raise PermissionDenied("A professional identity is required.")
         doctor, _ = models.Doctor.objects.get_or_create(user=user)
         if doctor.verification_status in ("APPROVED", "SUSPENDED"):
             raise ValidationError(
@@ -315,6 +343,41 @@ class DoctorVerificationSubmitView(GenericAPIView):
         serializer = serializers.DoctorVerificationSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        # Mandatory-document enforcement (C5): a professional applicant must
+        # attach at least a government-verified education/professional
+        # certificate and a National ID scan before the queue will review them.
+        submitted_doc_types = {
+            str(d.get("doc_type", "")).upper() for d in data.get("documents", [])
+        }
+        if not submitted_doc_types:
+            raise ValidationError(
+                {"documents": "Please attach your verification documents before submitting."}
+            )
+        if "NATIONAL_ID" not in submitted_doc_types:
+            raise ValidationError(
+                {"documents": "A National ID (NIDA) scan is required for verification."}
+            )
+        if not submitted_doc_types.intersection({"LICENSE", "CERTIFICATE"}):
+            raise ValidationError(
+                {"documents": "A government-verified education certificate or professional license is required."}
+            )
+        # The claimed type must match the account role that actually holds this
+        # profile, otherwise a DOCTOR could submit as a psychologist and inherit
+        # nothing, or (worse) the queue would file them under the wrong
+        # profession. The account role stays the source of privileges.
+        claimed_type = data.get("professional_type") or "DOCTOR"
+        expected_type = next(
+            (code for code in ("PSYCHOLOGIST", "SOCIAL_SUPPORT") if user._has_active_role(code)),
+            "DOCTOR",
+        )
+        if claimed_type != expected_type:
+            raise ValidationError({
+                "professional_type": (
+                    f"Your account is registered as {expected_type}; it cannot submit "
+                    f"a {claimed_type} verification."
+                )
+            })
+        doctor.professional_type = expected_type
         if data.get("license_number"):
             doctor.license_number = data["license_number"]
         if data.get("specialty"):
@@ -326,12 +389,22 @@ class DoctorVerificationSubmitView(GenericAPIView):
             if facility is None:
                 raise ValidationError({"facility_uid": "Facility not found."})
             doctor.facility = facility
+        previous_status = doctor.verification_status
         doctor.verification_status = "PENDING"
         doctor.rejection_reason = ""
         doctor.verified_by = None
         doctor.verified_at = None
         doctor.verification_expires_at = None
         doctor.save()
+
+        # A resubmit is a new decision, not an edit of the old one: the earlier
+        # rejection stays in the history with its reason.
+        services.record_decision(
+            doctor,
+            decision="RESUBMITTED" if previous_status == "REJECTED" else "SUBMITTED",
+            actor=user,
+            from_status=previous_status, to_status="PENDING",
+        )
 
         created_docs = []
         allowed_doc_types = {code for code, _ in VerificationDocument.DOC_TYPE}
@@ -363,18 +436,32 @@ class DoctorVerificationSubmitView(GenericAPIView):
 
 
 class DoctorDirectoryListView(ListAPIView):
-    """GET /doctors — public-subset registry (verified, active only)."""
+    """GET /doctors — public-subset registry (verified, active only).
+
+    `?professional_type=PSYCHOLOGIST` narrows to one profession. Without it the
+    list is every verified professional, which is the honest default now that the
+    registry holds more than one kind: a patient looking for psychological
+    support and a patient looking for a haematologist are both served by the same
+    route, and each filters.
+    """
 
     serializer_class = serializers.DoctorPublicSerializer
     permission_classes = [IsAuthenticatedRespectStatus, require("doctors.view")]
     pagination_class = CorePageNumberPagination
 
     def get_queryset(self):
-        return models.Doctor.objects.filter(
+        queryset = models.Doctor.objects.filter(
             verification_status="APPROVED", is_active=True,
         ).select_related("user", "facility")
+        professional_type = (self.request.query_params.get("professional_type") or "").strip().upper()
+        if professional_type:
+            if professional_type not in models.Doctor.PROFESSIONAL_TYPE_CODES:
+                raise ValidationError({"professional_type": "Unknown professional type."})
+            queryset = queryset.filter(professional_type=professional_type)
+        return queryset
 
 
+@extend_schema(responses=serializers.DoctorPublicSerializer)
 class DoctorDirectoryDetailView(GenericAPIView):
     """GET /doctors/{uid} — public-subset detail (doctor's user uid)."""
 
@@ -397,11 +484,23 @@ class AdminDoctorVerificationQueueView(ListAPIView):
     pagination_class = CorePageNumberPagination
 
     def get_queryset(self):
-        return models.Doctor.objects.filter(verification_status="PENDING").select_related(
-            "user", "facility"
-        )
+        queryset = models.Doctor.objects.filter(
+            verification_status="PENDING",
+        ).select_related("user", "facility")
+        professional_type = (
+            self.request.query_params.get("professional_type") or ""
+        ).strip().upper()
+        if professional_type:
+            if professional_type not in models.Doctor.PROFESSIONAL_TYPE_CODES:
+                raise ValidationError({"professional_type": "Unknown professional type."})
+            queryset = queryset.filter(professional_type=professional_type)
+        return queryset
 
 
+@extend_schema(
+    request=serializers.DoctorVerifySerializer,
+    responses=serializers.DoctorAdminSerializer,
+)
 class AdminDoctorVerifyView(GenericAPIView):
     """POST /admin/doctors/{uid}/verify — approve or reject (VO/ADM/SUP, C6).
 
@@ -424,6 +523,7 @@ class AdminDoctorVerifyView(GenericAPIView):
             raise ValidationError(
                 {"status": "Only pending (or rejected) applications can be decided."}
             )
+        previous_status = doctor.verification_status
         doctor.verification_status = "APPROVED" if approve else "REJECTED"
         doctor.verified_by = request.user
         doctor.verified_at = timezone.now()
@@ -432,6 +532,14 @@ class AdminDoctorVerifyView(GenericAPIView):
             "verification_status", "verified_by", "verified_at",
             "rejection_reason", "updated_at",
         ])
+        services.record_decision(
+            doctor,
+            decision="APPROVED" if approve else "REJECTED",
+            actor=request.user,
+            from_status=previous_status,
+            to_status=doctor.verification_status,
+            reason=reason[:2000],
+        )
         record_audit(
             actor=request.user, action_code="doctors.verify",
             resource_type="doctor", resource_id=doctor.pk, request=request,
@@ -443,6 +551,10 @@ class AdminDoctorVerifyView(GenericAPIView):
         )
 
 
+@extend_schema(
+    request=serializers.DoctorSuspendSerializer,
+    responses=serializers.DoctorAdminSerializer,
+)
 class AdminDoctorSuspendView(GenericAPIView):
     """POST /admin/doctors/{uid}/suspend — reason required, audited (FR-DOC-004)."""
 
@@ -458,12 +570,17 @@ class AdminDoctorSuspendView(GenericAPIView):
             raise ValidationError({"reason": "A suspension reason is required."})
         if doctor.verification_status == "SUSPENDED":
             raise ValidationError({"status": "This doctor is already suspended."})
+        previous_status = doctor.verification_status
         doctor.verification_status = "SUSPENDED"
         doctor.rejection_reason = reason
         doctor.verified_by = request.user
         doctor.save(update_fields=[
             "verification_status", "rejection_reason", "verified_by", "updated_at",
         ])
+        services.record_decision(
+            doctor, decision="SUSPENDED", actor=request.user,
+            from_status=previous_status, to_status="SUSPENDED", reason=reason[:2000],
+        )
         record_audit(
             actor=request.user, action_code="doctors.verify",
             resource_type="doctor", resource_id=doctor.pk, request=request,
@@ -472,4 +589,118 @@ class AdminDoctorSuspendView(GenericAPIView):
         _audit_event(request.user, "DOCTOR_SUSPENDED")
         return Response(
             serializers.DoctorAdminSerializer(doctor).data, status=http_status.HTTP_200_OK,
+        )
+
+
+@extend_schema(
+    request=serializers.DoctorSuspendSerializer,
+    responses=serializers.DoctorAdminSerializer,
+)
+class AdminDoctorReinstateView(GenericAPIView):
+    """POST /admin/doctors/{uid}/reinstate — reason required, audited.
+
+    Suspension is not a terminal state: without this, a licence that was
+    suspended in error could only be cleared by editing the row by hand, which
+    would leave the history claiming the doctor was still suspended. The
+    reinstatement is appended as its own decision rather than rewriting the
+    suspension, so the trail shows the suspension *and* its reversal.
+    """
+
+    permission_classes = [IsAuthenticatedRespectStatus, require("doctors.verify")]
+    parser_classes = [JSONParser]
+
+    def post(self, request, uid=None):
+        doctor = _resolve_doctor_or_404(uid)
+        serializer = serializers.DoctorSuspendSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reason = serializer.validated_data["reason"].strip()
+        if not reason:
+            raise ValidationError({"reason": "A reinstatement reason is required."})
+        if doctor.verification_status != "SUSPENDED":
+            raise ValidationError({"status": "Only a suspended doctor can be reinstated."})
+        previous_status = doctor.verification_status
+        doctor.verification_status = "APPROVED"
+        doctor.rejection_reason = ""
+        doctor.verified_by = request.user
+        doctor.verified_at = timezone.now()
+        doctor.save(update_fields=[
+            "verification_status", "rejection_reason", "verified_by",
+            "verified_at", "updated_at",
+        ])
+        services.record_decision(
+            doctor, decision="REINSTATED", actor=request.user,
+            from_status=previous_status, to_status="APPROVED", reason=reason[:2000],
+        )
+        record_audit(
+            actor=request.user, action_code="doctors.verify",
+            resource_type="doctor", resource_id=doctor.pk, request=request,
+            details={"action": "reinstate", "reason": reason[:500]},
+        )
+        _audit_event(request.user, "DOCTOR_REINSTATED")
+        return Response(
+            serializers.DoctorAdminSerializer(doctor).data, status=http_status.HTTP_200_OK,
+        )
+
+
+@extend_schema(responses=OpenApiTypes.OBJECT)
+class DoctorVerificationHistoryView(GenericAPIView):
+    """GET /doctors/{uid}/verification-history — the append-only trail (FR-DOC-007).
+
+    Two audiences, one route:
+
+    * the doctor themselves may read their own trail at any time — "why was I
+      rejected?" has to be answerable to the person who was rejected;
+    * a VO/ADM/SUP with ``doctors.verify`` may read any doctor's trail as part of
+      the C6 workflow.
+
+    Everyone else gets a 404 rather than a 403, so the endpoint never confirms
+    that a particular licence application exists.
+    """
+
+    permission_classes = [IsAuthenticatedRespectStatus]
+    parser_classes = [JSONParser]
+
+    def get(self, request, uid=None):
+        doctor = _resolve_doctor_or_404(uid)
+        user = request.user
+        is_self = doctor.user_id == user.id
+        is_reviewer = user.has_perm_code("doctors.verify")
+        if not (is_self or is_reviewer):
+            raise NotFound("Verification history not found.")
+        rows = doctor.verification_decisions.select_related("actor").order_by(
+            "-decided_at", "-pk",
+        )
+        data = serializers.DoctorVerificationDecisionSerializer(rows, many=True).data
+        return Response({
+            "doctor_uid": str(doctor.user.uid),
+            "verification_status": doctor.verification_status,
+            "count": len(data),
+            "decisions": data,
+        })
+
+
+@extend_schema(responses=serializers.DoctorVerificationDecisionSerializer(many=True))
+class AdminDoctorVerificationHistoryView(GenericAPIView):
+    """GET /admin/doctors/verification-history — the review queue's trail.
+
+    The queue view that pairs with `AdminDoctorVerifyView`: an officer can see
+    every decision already made across the registry before deciding the next
+    one, which is what C6's "reason + audit" requirement is for in practice.
+    """
+
+    permission_classes = [IsAuthenticatedRespectStatus, require("doctors.verify")]
+    parser_classes = [JSONParser]
+
+    def get(self, request):
+        decision = (request.query_params.get("decision") or "").strip().upper()
+        queryset = models.DoctorVerificationDecision.objects.select_related(
+            "actor", "doctor",
+        )
+        if decision:
+            if decision not in models.DoctorVerificationDecision.DECISIONS:
+                raise ValidationError({"decision": "Unknown decision filter."})
+            queryset = queryset.filter(decision=decision)
+        rows = queryset.order_by("-decided_at", "-pk")[:200]
+        return Response(
+            serializers.DoctorVerificationDecisionSerializer(rows, many=True).data,
         )

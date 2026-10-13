@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import 'app_card.dart';
+import '../../core/theme/app_shapes.dart';
 
 /// Sickler's Warriors — domain card variants (FRONTEND-1).
 ///
@@ -46,7 +47,7 @@ class MedicationCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppShapes.tile,
             ),
             child: Icon(Icons.medication_outlined, color: accent, size: 22),
           ),
@@ -103,7 +104,7 @@ class AppointmentCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             decoration: BoxDecoration(
               color: AppColors.blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppShapes.tile,
             ),
             child: Text(
               timeLabel,
@@ -157,7 +158,7 @@ class EducationCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: AppColors.blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppShapes.tile,
             ),
             child: const Icon(Icons.school_outlined, color: AppColors.blue),
           ),
@@ -210,7 +211,7 @@ class DonationCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: AppColors.success.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppShapes.tile,
             ),
             child: const Icon(
               Icons.favorite_outline,
@@ -277,7 +278,7 @@ class BloodCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: AppColors.emergency.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppShapes.tile,
             ),
             child: Text(
               groupLabel ?? 'B',

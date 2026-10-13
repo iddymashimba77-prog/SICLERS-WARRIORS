@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   listEducationContent,
   reviewEducationContent,
@@ -7,6 +7,8 @@ import {
   updateEducation,
   publishEducation,
   deleteEducation,
+  uploadEducationDocument,
+  removeEducationDocument,
   type EducationDraft,
   type EducationCategoryOption,
 } from '../lib/api/admin';
@@ -17,6 +19,22 @@ import { pushToast } from '../components/ui';
 import type { AdminEducationItemRow } from '../lib/api/types';
 
 const EMPTY_DRAFT: EducationDraft = { title: '', body: '', category: '', cover_url: '' };
+
+/** Mirrors the backend allow-list in ``education.services.DOCUMENT_ALLOWED_EXTENSIONS``. */
+const DOC_ACCEPT = '.pdf,.pptx,.docx,.jpg,.jpeg,.png,.webp';
+const DOC_MAX_BYTES = 20 * 1024 * 1024;
+
+function formatBytes(bytes?: number | null): string {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** A document can only change while the article is out of the public library. */
+function isDocumentEditable(status: string): boolean {
+  return status !== 'PUBLISHED';
+}
 
 export function EducationContentPage() {
   const [status, setStatus] = useState('');
@@ -71,6 +89,7 @@ export function EducationContentPage() {
                 onDelete={async () => setDeleting(e)}
                 onApprove={() => { setApprove(true); setSubject(e); }}
                 onReject={() => { setApprove(false); setSubject(e); }}
+                onDocument={(file) => syncDocument(e, file)}
               />
             ))}
           </div>
@@ -124,6 +143,41 @@ export function EducationContentPage() {
     </>
   );
 
+  /**
+   * ``file === null`` removes the handout. Pre-checks mirror the server rules
+   * so an obvious mistake fails instantly instead of after a slow upload; the
+   * server still revalidates every byte.
+   */
+  async function syncDocument(item: AdminEducationItemRow, file: File | null) {
+    if (file) {
+      const dot = file.name.lastIndexOf('.');
+      const extension = dot === -1 ? '' : file.name.slice(dot).toLowerCase();
+      if (!DOC_ACCEPT.split(',').includes(extension)) {
+        pushToast('error', 'Choose a PDF, PPTX, DOCX, JPEG, PNG or WebP file.');
+        return;
+      }
+      if (file.size > DOC_MAX_BYTES) {
+        pushToast('error', 'That file is larger than 20 MB.');
+        return;
+      }
+    }
+    setBusy(true);
+    try {
+      if (file) {
+        await uploadEducationDocument(item.uid, file);
+        pushToast('success', 'Handout attached.');
+      } else {
+        await removeEducationDocument(item.uid);
+        pushToast('success', 'Handout removed.');
+      }
+      reload();
+    } catch (e) {
+      pushToast('error', friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function act(_key: string, fn: () => Promise<void>) {
     setBusy(true);
     try {
@@ -137,14 +191,31 @@ export function EducationContentPage() {
   }
 }
 
-function EditorCard({ item, onEdit, onPublish, onDelete, onApprove, onReject }: {
+function EditorCard({ item, onEdit, onPublish, onDelete, onApprove, onReject, onDocument }: {
   item: AdminEducationItemRow;
   onEdit: () => void;
   onPublish: () => Promise<void>;
   onDelete: () => Promise<void>;
   onApprove: () => void;
   onReject: () => void;
+  onDocument: (file: File | null) => Promise<void>;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const editable = isDocumentEditable(item.status);
+
+  async function pick(file: File | null) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      await onDocument(file);
+    } finally {
+      setUploading(false);
+      // Reset so re-picking the same file still fires a change event.
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
   return (
     <div className="sw-card" style={{ padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
@@ -159,6 +230,7 @@ function EditorCard({ item, onEdit, onPublish, onDelete, onApprove, onReject }: 
           <StatusChip status={item.status} />
         </div>
       </div>
+      <HandoutRow item={item} editable={editable} uploading={uploading} onPick={pick} onDocument={onDocument} fileRef={fileRef} />
       <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
         {item.status === 'DRAFT' || item.status === 'REJECTED' || item.status === 'ARCHIVED' ? (
           <Button variant="secondary" onClick={onEdit}>Edit</Button>
@@ -175,6 +247,72 @@ function EditorCard({ item, onEdit, onPublish, onDelete, onApprove, onReject }: 
             <Button variant="danger" onClick={onReject}>Reject</Button>
           </>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+function HandoutRow({ item, editable, uploading, onPick, onDocument, fileRef }: {
+  item: AdminEducationItemRow;
+  editable: boolean;
+  uploading: boolean;
+  onPick: (file: File | null) => void;
+  onDocument: (file: File | null) => Promise<void>;
+  fileRef: React.RefObject<HTMLInputElement>;
+}) {
+  const attached = !!item.document_url;
+  return (
+    <div
+      style={{
+        marginTop: 12, padding: 12, borderRadius: 'var(--sw-radius-sm)', background: 'var(--sw-surface-2)',
+        border: '1px solid var(--sw-border, #e3e3e8)',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ minWidth: 0 }}>
+          <strong style={{ fontSize: 13 }}>Handout (downloadable)</strong>
+          {attached ? (
+            <p style={{ margin: '4px 0 0', fontSize: 13 }}>
+              <a href={item.document_url ?? undefined} target="_blank" rel="noreferrer noopener" download={item.document_name ?? undefined}>
+                {item.document_name || 'document'}
+              </a>
+              {item.document_size ? (
+                <span style={{ color: 'var(--sw-text-2)' }}>
+                  {' '}· {formatBytes(item.document_size)}
+                </span>
+              ) : null}
+            </p>
+          ) : (
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--sw-text-2)' }}>
+              No file attached. PDF, PPTX, DOCX, JPEG, PNG or WebP up to 20&nbsp;MB.
+            </p>
+          )}
+        </div>
+        {editable ? (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              ref={fileRef}
+              type="file"
+              accept={DOC_ACCEPT}
+              style={{ display: 'none' }}
+              onChange={(e) => onPick(e.target.files?.[0] ?? null)}
+            />
+            <Button
+              variant="secondary"
+              loading={uploading}
+              onClick={() => fileRef.current?.click()}
+            >
+              {attached ? 'Replace file' : 'Attach file'}
+            </Button>
+            {attached ? (
+              <Button variant="danger" onClick={() => onDocument(null)}>Remove</Button>
+            ) : null}
+          </div>
+        ) : (
+          <span style={{ fontSize: 12, color: 'var(--sw-text-2)' }}>
+            Unpublish the article to change its handout.
+          </span>
+        )}
       </div>
     </div>
   );

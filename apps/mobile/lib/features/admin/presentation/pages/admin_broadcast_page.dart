@@ -7,6 +7,7 @@ import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/admin_models.dart';
 import '../../data/admin_repository.dart';
 import '../widgets/admin_widgets.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// System broadcast (ADMIN-3) — POST /api/admin/notifications/broadcast/
 /// creates IN_APP SYSTEM notifications for the chosen audience
@@ -123,7 +124,7 @@ class _BroadcastViewState extends State<_BroadcastView> {
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
                 color: AppColors.success.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: AppShapes.tile,
               ),
               child: Text(
                 'Sent to ${_result!.recipientCount} recipient(s)'

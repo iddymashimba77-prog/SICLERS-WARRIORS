@@ -11,6 +11,7 @@ import '../controllers/auth_controller.dart';
 import '../pages/continue_as_page.dart';
 import '../pages/doctor_verification_page.dart';
 import '../pages/organization_verification_page.dart';
+import '../pages/role_workspace_page.dart';
 import '../../domain/auth_types.dart';
 import 'session_router.dart';
 import 'session_scope.dart';
@@ -110,6 +111,8 @@ class SessionRouterView extends StatelessWidget {
         return const DoctorVerificationPage();
       case '/org-status':
         return const OrganizationVerificationPage();
+      case '/role-workspace':
+        return const RoleWorkspacePage();
       case '/shell':
       default:
         return const MainShell();

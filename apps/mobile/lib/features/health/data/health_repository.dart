@@ -236,6 +236,24 @@ class HealthRepository {
         .toList();
   }
 
+  /// Stage 4.6 — verified prescriber reads one patient's symptom log
+  /// (`GET /api/symptoms/?patient=<uid>`). The backend still denies this to
+  /// patients and to users without the clinical gate.
+  Future<List<Symptom>> listSymptomsForPatient({
+    required String access,
+    required String patientUid,
+  }) async {
+    final uri = _uri(['symptoms']).replace(
+      queryParameters: {'patient': patientUid},
+    );
+    final res = await _client
+        .get(uri, headers: _headers(access))
+        .timeout(_timeout);
+    return _listPayload(res)
+        .map((e) => Symptom.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<Symptom> recordSymptom({
     required String access,
     required Map<String, dynamic> payload,

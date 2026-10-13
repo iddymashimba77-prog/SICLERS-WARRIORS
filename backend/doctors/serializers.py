@@ -22,6 +22,9 @@ class UserBriefSerializer(serializers.Serializer):
     uid = serializers.UUIDField(read_only=True)
     display_name = serializers.SerializerMethodField()
 
+    class Meta:
+        ref_name = "DoctorUserBrief"
+
     def get_display_name(self, obj) -> str:
         return display_name(obj)
 
@@ -126,13 +129,13 @@ class DoctorSelfSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Doctor
         fields = [
-            "uid", "license_number", "specialty", "registration_body",
-            "facility_uid", "verification_status", "verified_at",
-            "verification_expires_at", "rejection_reason", "is_active",
-            "created_at", "updated_at",
+            "uid", "professional_type", "license_number", "specialty",
+            "registration_body", "facility_uid", "verification_status",
+            "verified_at", "verification_expires_at", "rejection_reason",
+            "is_active", "created_at", "updated_at",
         ]
         read_only_fields = [
-            "uid", "verification_status", "verified_at",
+            "uid", "professional_type", "verification_status", "verified_at",
             "verification_expires_at", "rejection_reason", "is_active",
             "created_at", "updated_at",
         ]
@@ -153,7 +156,10 @@ class DoctorPublicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Doctor
-        fields = ["uid", "display_name", "specialty", "registration_body", "facility", "verification_status"]
+        fields = [
+            "uid", "professional_type", "display_name", "specialty",
+            "registration_body", "facility", "verification_status",
+        ]
 
     def get_display_name(self, obj) -> str:
         return display_name(obj.user)
@@ -167,13 +173,25 @@ class DoctorAdminSerializer(DoctorSelfSerializer):
 
     display_name = serializers.SerializerMethodField()
     email = serializers.EmailField(source="user.email", read_only=True)
+    verification_documents = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Doctor
-        fields = DoctorSelfSerializer.Meta.fields + ["display_name", "email"]
+        fields = DoctorSelfSerializer.Meta.fields + [
+            "display_name", "email", "verification_documents",
+        ]
 
     def get_display_name(self, obj) -> str:
         return display_name(obj.user)
+
+    def get_verification_documents(self, obj) -> list:
+        """Submission attachments for the reviewer: type/status/file name and the
+        ``id`` to open through the audited admin document endpoint — never the
+        file contents or the storage key."""
+        from accounts.serializers import VerificationDocumentReviewSerializer
+
+        docs = obj.user.verification_documents.order_by("created_at")
+        return VerificationDocumentReviewSerializer(docs, many=True).data
 
 
 class DoctorVerificationSubmitSerializer(serializers.Serializer):
@@ -189,6 +207,14 @@ class DoctorVerificationSubmitSerializer(serializers.Serializer):
     registration_body = serializers.CharField(required=False, allow_blank=True, max_length=200)
     facility_uid = serializers.UUIDField(required=False, allow_null=True)
     documents = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+    professional_type = serializers.ChoiceField(
+        choices=models.Doctor.PROFESSIONAL_TYPE_CODES, required=False, default="DOCTOR",
+        help_text=(
+            "Which professional this applicant is. A claim only: it decides which "
+            "documents and which role the officer checks, and it is never a "
+            "privilege grant. Default DOCTOR."
+        ),
+    )
 
 
 class DoctorVerifySerializer(serializers.Serializer):
@@ -202,3 +228,31 @@ class DoctorSuspendSerializer(serializers.Serializer):
     """POST /admin/doctors/{uid}/suspend — reason required (suspension)."""
 
     reason = serializers.CharField(max_length=1000)
+
+
+class DoctorVerificationDecisionSerializer(serializers.ModelSerializer):
+    """One immutable verification decision row (FR-DOC-006/007, C6).
+
+    The `Doctor` row carries only the current status, so this is the only place
+    a rejected-then-approved applicant still shows their earlier rejection and
+    the reason given for it.
+    """
+
+    actor_uid = serializers.UUIDField(source="actor.uid", read_only=True)
+    actor_name = serializers.SerializerMethodField()
+    doctor_uid = serializers.UUIDField(source="doctor.user.uid", read_only=True)
+    license_number = serializers.CharField(source="doctor.license_number", read_only=True)
+
+    class Meta:
+        model = models.DoctorVerificationDecision
+        fields = [
+            "uid", "doctor_uid", "license_number", "decision", "from_status",
+            "to_status", "reason", "details", "actor_uid", "actor_name", "decided_at",
+        ]
+        read_only_fields = fields
+
+    def get_actor_name(self, obj) -> str:
+        if obj.actor is None:
+            return "System"
+        name = f"{obj.actor.first_name} {obj.actor.last_name}".strip()
+        return name or obj.actor.email

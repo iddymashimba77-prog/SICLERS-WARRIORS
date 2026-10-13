@@ -18,6 +18,7 @@ boundary (§14).
 
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, OuterRef, Q, Subquery
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import mixins, status as http_status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -52,6 +53,7 @@ class CommunityPostViewSet(viewsets.GenericViewSet):
     lookup_field = "uid"
     lookup_url_kwarg = "uid"
     serializer_class = serializers.CommunityPostSerializer
+    queryset = models.CommunityPost.objects.none()
     permission_classes = [CommunityAccess]
     parser_classes = [JSONParser]
     pagination_class = CorePageNumberPagination
@@ -212,6 +214,11 @@ class CommentListCreateView(GenericAPIView):
     parser_classes = [JSONParser]
     pagination_class = CorePageNumberPagination
 
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return serializers.CommentCreateSerializer
+        return serializers.CommentSerializer
+
     def get_post(self):
         post = models.CommunityPost.objects.filter(
             uid=self.kwargs["uid"], deleted_at__isnull=True,
@@ -270,6 +277,11 @@ class CommentDetailView(GenericAPIView):
     permission_classes = [IsAuthenticatedRespectStatus]
     parser_classes = [JSONParser]
 
+    def get_serializer_class(self):
+        if self.request.method == "PATCH":
+            return serializers.CommentCreateSerializer
+        return serializers.CommentSerializer
+
     def get_object(self):
         comment = models.Comment.objects.select_related("author").filter(
             pk=self.kwargs["pk"], post__uid=self.kwargs["uid"], post__deleted_at__isnull=True,
@@ -303,9 +315,13 @@ class CommentDetailView(GenericAPIView):
         return Response(status=http_status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(responses=OpenApiTypes.OBJECT)
 class ReportCreateView(GenericAPIView):
     permission_classes = [IsAuthenticatedRespectStatus, require("community.report")]
     parser_classes = [JSONParser]
+
+    def get_serializer_class(self):
+        return serializers.ReportCreateSerializer
 
     def get_throttles(self):
         return [CommunityReportThrottle()]

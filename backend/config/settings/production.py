@@ -72,3 +72,17 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F405
 
 # Static
 STATICFILES_STORAGE = "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"  # noqa: F405
+
+# ---------------------------------------------------------------------------
+# Uploaded media (profile photos, news covers, education documents)
+# ---------------------------------------------------------------------------
+# Production expects object storage / a CDN in front of the API, so Django
+# does not serve media itself unless an operator opts in explicitly. Leaving
+# it on is safe (django.views.static.serve is range-aware) but it is the
+# deployer's call.
+SERVE_MEDIA = os.environ.get("SERVE_MEDIA", "false").lower() in (  # noqa: F405
+    "1",
+    "true",
+    "yes",
+    "on",
+)

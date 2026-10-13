@@ -56,7 +56,7 @@ export function DonationsPage() {
                 {data.map((d) => (
                   <tr key={d.uid}>
                     <td>{d.campaign_title || '—'}</td>
-                    <td>{d.donor_email || '—'}</td>
+                    <td>{d.donor_display || '—'}</td>
                     <td>
                       <strong>
                         {d.currency} {d.amount.toLocaleString()}
@@ -64,7 +64,9 @@ export function DonationsPage() {
                     </td>
                     <td><StatusChip status={d.status} /></td>
                     <td>
-                      {d.status === 'confirmed' || d.status === 'refunded' ? (
+                      {/* Statuses are upper-case from the API; only a COMPLETED
+                          donation can be refunded, and never twice. */}
+                      {d.status === 'COMPLETED' ? (
                         <Button variant="secondary" onClick={() => setRefunding(d)}>Refund</Button>
                       ) : (
                         <Badge>{d.status}</Badge>

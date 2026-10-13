@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_shapes.dart';
 
 /// Sickler's Warriors — badge / status pill (FRONTEND-1).
 ///
@@ -41,7 +42,7 @@ class AppBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: AppShapes.pill,
         border: Border.all(color: _accent.withValues(alpha: 0.25)),
       ),
       child: Row(

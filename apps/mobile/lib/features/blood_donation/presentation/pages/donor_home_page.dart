@@ -11,6 +11,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/blood_repository.dart';
 import 'blood_donation_page.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Blood donor home (FRONTEND-3): donor profile, availability and the open
 /// blood requests the backend makes visible to donors. Matching/compatibility
@@ -28,9 +29,7 @@ class DonorHomePage extends StatelessWidget {
     final session = authController ?? SessionScope.controllerOf(context);
     final token = session.accessToken;
     if (token == null) {
-      return const Scaffold(
-        body: SafeArea(child: Center(child: Text(AppStrings.notSignedIn))),
-      );
+      return const SignedOutGate();
     }
     return Scaffold(
       appBar: AppTopBar(

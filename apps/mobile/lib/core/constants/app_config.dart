@@ -1,19 +1,41 @@
-/// App-level configuration constants for Sickler's Warriors.
+/// Application configuration for Sickler's Warriors.
 ///
-/// The API base URL is the only backend touch-point here. It must NOT carry
-/// secrets, tokens or PHI (§24). Backend addresses are environment-specific;
-/// this file is the single override point for dev/staging/production.
+/// The API base URL is the single point that differs between run targets, so
+/// it is resolved at runtime instead of being hard-coded:
+///
+/// * **Android emulator / tablet emulator** — the host machine's loopback is
+///   reachable at `10.0.2.2`, so that is used (a physical Android device must
+///   be pointed at the host's LAN IP via `--dart-define`, see below).
+/// * **iOS simulator, iPad, desktop (Linux/macOS/Windows) and web** — the host
+///   loopback is simply `localhost`.
+///
+/// For a **physical device** on the same network, or any non-default target,
+/// pass the address at build/run time:
+///
+/// ```
+/// flutter run --dart-define=API_BASE_URL=http://192.168.1.20:8000/api
+/// ```
+///
+/// No secrets are ever stored here; the value is public.
 library;
+
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AppConfig {
   AppConfig._();
 
-  /// Backend API origin + version prefix. Trailing slash omitted.
-  ///
-  /// Defaults to the local Django dev server (see backend/config/urls.py).
-  /// Override at build time (e.g. `--dart-define=API_BASE_URL=...`).
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:8000/api',
-  );
+  /// Compile-time override (wins over the platform default when non-empty).
+  static const String _override = String.fromEnvironment('API_BASE_URL');
+
+  /// Base URL including the `/api` prefix, e.g. `http://localhost:8000/api`.
+  static String get apiBaseUrl {
+    if (_override.isNotEmpty) return _override;
+    if (!kIsWeb && Platform.isAndroid) {
+      // Android emulator/tablet maps the host loopback to 10.0.2.2.
+      return 'http://10.0.2.2:8000/api';
+    }
+    return 'http://localhost:8000/api';
+  }
 }

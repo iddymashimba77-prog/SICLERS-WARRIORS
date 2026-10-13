@@ -25,6 +25,8 @@ import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/widgets/dashboard_widgets.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../data/home_dashboard_loader.dart';
+import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Sickler's Warriors — patient Home dashboard (FRONTEND-2).
 ///
@@ -35,7 +37,9 @@ import '../../data/home_dashboard_loader.dart';
 class HomePage extends StatelessWidget {
   const HomePage({super.key, this.controller, this.loader});
 
-  static const String routeName = '/';
+  // Deliberately no `routeName`: the patient home is the first tab of
+  // [MainShell] ('/shell'). Registering '/' here as well would collide with
+  // PublicHomePage.routeName, and only the public home owns the root route.
 
   /// Shared session override (widget tests inject an authenticated controller).
   final AuthController? controller;
@@ -48,39 +52,12 @@ class HomePage extends StatelessWidget {
     final session = controller ?? SessionScope.controllerOf(context);
     final token = session.accessToken;
     if (token == null) {
-      return const _SignedOutHome();
+      return const SignedOutGate();
     }
     return HomeDashboardView(
       accessToken: token,
       session: session,
       loader: loader,
-    );
-  }
-}
-
-/// Signed-out fallback rendered when the shell is shown without a session.
-class _SignedOutHome extends StatelessWidget {
-  const _SignedOutHome();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () async {},
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          children: [
-            const AppHomeHeader(subtitle: AppStrings.appTagline),
-            const SizedBox(height: AppSpacing.xl),
-            EmptyStateView(
-              icon: Icons.lock_outline,
-              title: AppStrings.home,
-              message: AppStrings.notSignedIn,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -459,7 +436,7 @@ class _CheckInCard extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                   color: AppColors.blue.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: AppShapes.tile,
                 ),
                 child: const Icon(Icons.today_outlined, color: AppColors.blue),
               ),
@@ -531,8 +508,6 @@ class _MedicationsCard extends StatelessWidget {
           ? _EmptyInline(
               icon: Icons.medication_outlined,
               message: AppStrings.noMedications,
-              actionLabel: AppStrings.addFirstMedication,
-              onAction: onOpen,
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -916,40 +891,22 @@ class _DashCard extends StatelessWidget {
 
 /// Compact in-card empty placeholder (no fabricated data).
 class _EmptyInline extends StatelessWidget {
-  const _EmptyInline({
-    required this.icon,
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
+  const _EmptyInline({required this.icon, required this.message});
 
   final IconData icon;
   final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 18, color: AppColors.textMuted),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(message, style: theme.textTheme.bodySmall),
-              ),
-            ],
-          ),
-          if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            TextButton(onPressed: onAction, child: Text(actionLabel!)),
-          ],
+          Icon(icon, size: 18, color: AppColors.textMuted),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(message, style: theme.textTheme.bodySmall)),
         ],
       ),
     );

@@ -8,6 +8,9 @@
     POST /api/admin/content/news/                           content.news.manage
     GET/PATCH/DELETE /api/admin/content/news/{uid}/         content.news.manage
     POST /api/admin/content/news/{uid}/publish|unpublish|archive|feature/
+    POST /api/admin/content/news/{uid}/pin|unpin/            pinned to the top of the public list
+    POST /api/admin/content/news/{uid}/restore/               undo a soft delete
+    GET  /api/admin/content/news/?include_deleted=true       review deleted articles
     POST /api/admin/content/news/{uid}/cover/               multipart upload
     GET/POST /api/admin/content/ticker/                     content.ticker.manage
     GET/PATCH/DELETE /api/admin/content/ticker/{uid}/       content.ticker.manage

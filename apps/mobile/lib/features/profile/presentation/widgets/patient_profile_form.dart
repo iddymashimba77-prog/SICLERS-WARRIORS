@@ -10,12 +10,17 @@ class PatientProfileForm extends StatefulWidget {
     required this.onSubmit,
     this.onCancel,
     this.readOnly = false,
+    this.facilityLoader,
   });
 
   final PatientProfile initial;
   final Future<void> Function(PatientProfile updated) onSubmit;
   final VoidCallback? onCancel;
   final bool readOnly;
+
+  /// Loads the public facility directory. Injected so widget tests do not need
+  /// a live backend; omit it to hide the picker (read-only summary).
+  final Future<List<FacilityOption>> Function()? facilityLoader;
 
   @override
   State<PatientProfileForm> createState() => _PatientProfileFormState();
@@ -35,6 +40,8 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
   late final TextEditingController _notes;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _saving = false;
+  List<FacilityOption> _facilities = const [];
+  String? _facilityUid;
 
   @override
   void initState() {
@@ -53,6 +60,17 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
     _region = TextEditingController(text: p.addressRegion ?? '');
     _city = TextEditingController(text: p.addressCity ?? '');
     _notes = TextEditingController(text: p.notes);
+    _facilityUid = p.facilityUid;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFacilities());
+  }
+
+  /// Treats the server directory as the only source of truth for facilities —
+  /// the client never invents a clinic name (§6).
+  Future<void> _loadFacilities() async {
+    if (_facilities.isNotEmpty || widget.facilityLoader == null) return;
+    final rows = await widget.facilityLoader!();
+    if (!mounted || rows.isEmpty) return;
+    setState(() => _facilities = rows);
   }
 
   @override
@@ -75,6 +93,16 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    // The API rejects a profile with no treating facility; say so here rather
+    // than letting the request fail with a raw validation error.
+    if (!widget.readOnly && _facilityUid == null) {
+      setState(() => _saving = true);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(AppStrings.facilityRequired)));
+      setState(() => _saving = false);
+      return;
+    }
     setState(() => _saving = true);
     try {
       await widget.onSubmit(
@@ -89,6 +117,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
           emergencyContactRelation: _contactRelation.text,
           addressRegion: _region.text,
           addressCity: _city.text,
+          facilityUid: _facilityUid,
           notes: _notes.text,
         ),
       );
@@ -117,6 +146,44 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
       onChanged: widget.readOnly
           ? null
           : (v) => controller.value = TextEditingValue(text: v ?? ''),
+    );
+  }
+
+  /// Treating-facility picker (§6). Read-only mode shows the saved facility as
+  /// text; edit mode lists the server directory with no free-typing.
+  Widget _facilityField(bool readOnly) {
+    if (readOnly) {
+      final name = widget.initial.facilityName ?? _facilityUid;
+      return InputDecorator(
+        decoration: const InputDecoration(
+          labelText: AppStrings.treatingFacility,
+          prefixIcon: Icon(Icons.local_hospital_outlined),
+        ),
+        child: Text(
+          (name == null || name.isEmpty) ? AppStrings.facilityNotSet : name,
+          style: TextStyle(
+            color: (name == null || name.isEmpty)
+                ? Theme.of(context).disabledColor
+                : null,
+          ),
+        ),
+      );
+    }
+    return DropdownButtonFormField<String>(
+      initialValue: _facilityUid,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: AppStrings.treatingFacility,
+        prefixIcon: const Icon(Icons.local_hospital_outlined),
+        helperText: _facilities.isEmpty
+            ? AppStrings.facilityDirectoryUnavailable
+            : AppStrings.facilityRequired,
+      ),
+      items: [
+        for (final f in _facilities)
+          DropdownMenuItem(value: f.uid, child: Text(f.label, overflow: TextOverflow.ellipsis)),
+      ],
+      onChanged: (v) => setState(() => _facilityUid = v),
     );
   }
 
@@ -245,6 +312,11 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
               prefixIcon: Icon(Icons.location_city_outlined),
             ),
           ),
+          const SizedBox(height: 24),
+          Text(AppStrings.treatingFacility.toUpperCase(),
+              style: Theme.of(context).textTheme.labelSmall),
+          const SizedBox(height: 8),
+          _facilityField(readOnly),
           const SizedBox(height: 24),
           TextFormField(
             controller: _notes,

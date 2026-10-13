@@ -202,6 +202,52 @@ class BloodMatch {
 }
 
 /// Client for the approved blood-network endpoints.
+
+/// One immutable blood-request decision (`FR-BLD-011/012`).
+///
+/// `actor_name` and `reason` are the decider's own words: the requester is
+/// entitled to read why their request was rejected, so this projection is shown
+/// verbatim rather than reduced to a status.
+class BloodRequestDecision {
+  const BloodRequestDecision({
+    required this.uid,
+    required this.decision,
+    required this.actorName,
+    required this.decidedAt,
+    this.fromStatus = '',
+    this.toStatus = '',
+    this.reason = '',
+    this.details = const {},
+  });
+
+  factory BloodRequestDecision.fromJson(Map<String, dynamic> json) =>
+      BloodRequestDecision(
+        uid: (json['uid'] as String?) ?? '',
+        decision: (json['decision'] as String?) ?? '',
+        actorName: (json['actor_name'] as String?) ?? '',
+        decidedAt: (json['decided_at'] as String?) ?? '',
+        fromStatus: (json['from_status'] as String?) ?? '',
+        toStatus: (json['to_status'] as String?) ?? '',
+        reason: (json['reason'] as String?) ?? '',
+        details: (json['details'] as Map<String, dynamic>?) ?? const {},
+      );
+
+  final String uid;
+  final String decision;
+  final String actorName;
+  final String decidedAt;
+  final String fromStatus;
+  final String toStatus;
+  final String reason;
+  final Map<String, dynamic> details;
+
+  /// The transition this row recorded, e.g. `PENDING_VERIFICATION → VERIFIED`.
+  String get transition =>
+      fromStatus.isEmpty ? toStatus : '$fromStatus → $toStatus';
+
+  bool get isRejection => decision.toUpperCase().contains('REJECT');
+}
+
 class BloodRepository {
   BloodRepository({required this.tokenStore, http.Client? client})
       : _client = client ?? http.Client();
@@ -230,8 +276,14 @@ class BloodRepository {
       details.forEach((field, msgs) {
         fieldErrors[field] = [for (final m in msgs is List ? msgs : [msgs]) '$m'];
       });
+      // Some DRF paths answer with `{"detail": ...}` rather than the project
+      // envelope; both carry a message worth showing.
+      final detail = map['detail'];
       return AuthException(
-        (err['message'] as String?) ?? 'Request failed.',
+        (err['message'] as String?) ??
+            (detail?.toString().trim().isNotEmpty == true
+                ? detail.toString()
+                : 'Request failed.'),
         code: (err['code'] as String?) ?? 'API_ERROR',
         statusCode: res.statusCode,
         fieldErrors: fieldErrors,
@@ -323,6 +375,32 @@ class BloodRepository {
         )
         .timeout(_timeout);
     return BloodRequest.fromJson(_body(res));
+  }
+
+
+  /// The append-only decision trail for one request (`FR-BLD-012`).
+  ///
+  /// This endpoint answers a bare list rather than a paginated envelope, and it
+  /// is reached through the same owner/donor gate as the request itself, so a
+  /// refusal is the server's call to make — never a filtered client list.
+  Future<List<BloodRequestDecision>> listDecisions({
+    required String access,
+    required String requestUid,
+  }) async {
+    final res = await _client
+        .get(
+          _uri(['blood', 'requests', requestUid, 'decisions']),
+          headers: _headers(access),
+        )
+        .timeout(_timeout);
+    // The status is checked before decoding so a JSON error envelope becomes the
+    // server's own message rather than a parse failure.
+    if (res.statusCode >= 400) throw _errorFrom(res, res.body);
+    final payload = jsonDecode(res.body);
+    final rows = payload is List ? payload : (_body(res)['results'] as List<dynamic>?);
+    return (rows ?? const [])
+        .map((e) => BloodRequestDecision.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<BloodMatch>> listMatches({

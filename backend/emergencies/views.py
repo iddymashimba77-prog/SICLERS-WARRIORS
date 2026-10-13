@@ -21,6 +21,7 @@ import logging
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import mixins, status as http_status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import (
@@ -273,6 +274,7 @@ class EmergencyAccessGrantViewSet(
         ).distinct()
 
 
+@extend_schema(responses={200: OpenApiTypes.OBJECT})
 class EmergencyAdminMonitoringView(GenericAPIView):
     """GET /admin/emergency — SUP/ADM (C4) live feed (FR-EMG-005/006).
 

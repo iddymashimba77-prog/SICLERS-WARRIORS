@@ -309,6 +309,65 @@ void main() {
             .having((e) => e.code, 'code', 'PERMISSION_DENIED')),
       );
     });
+
+    test('listDoctorQueue parses the submitted verification documents', () async {
+      final client = MockClient((request) async {
+        expect(request.url.path, '/api/admin/doctors/verification-queue/');
+        return http.Response(
+          jsonEncode({
+            'data': {
+              'results': [
+                {
+                  'uid': 'd-1',
+                  'email': 'doc@example.com',
+                  'display_name': 'Dr. Test',
+                  'verification_status': 'PENDING',
+                  'verification_documents': [
+                    {
+                      'id': 7,
+                      'doc_type': 'CERTIFICATE',
+                      'status': 'PENDING',
+                      'file_name': 'degree.pdf',
+                      'uploaded_at': '2026-09-10T08:00:00Z',
+                    },
+                    {
+                      'id': 8,
+                      'doc_type': 'NATIONAL_ID',
+                      'status': 'PENDING',
+                      'file_name': 'nida.jpg',
+                    },
+                  ],
+                }
+              ],
+            }
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      final doctors = await _repo(client).listDoctorQueue(access: _token);
+      final docs = doctors.single.verificationDocuments;
+      expect(docs.map((d) => d.id), [7, 8]);
+      expect(docs.map((d) => d.docType), ['CERTIFICATE', 'NATIONAL_ID']);
+      expect(docs.first.fileName, 'degree.pdf');
+    });
+
+    test('fetchVerificationDocument streams bytes with bearer auth', () async {
+      final client = MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/admin/verification-documents/7/');
+        expect(request.headers['Authorization'], 'Bearer $_token');
+        return http.Response.bytes(
+          [1, 2, 3, 4],
+          200,
+          headers: {'content-type': 'image/jpeg'},
+        );
+      });
+      final doc = await _repo(client)
+          .fetchVerificationDocument(access: _token, id: 7);
+      expect(doc.contentType, 'image/jpeg');
+      expect(doc.bytes, [1, 2, 3, 4]);
+    });
   });
 
   group('AdminDashboardPage widgets', () {

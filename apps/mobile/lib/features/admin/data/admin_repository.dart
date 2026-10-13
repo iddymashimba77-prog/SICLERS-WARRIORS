@@ -178,6 +178,32 @@ class AdminRepository {
     return _map(res, AdminDoctor.fromJson);
   }
 
+  /// GET /api/admin/verification-documents/{id}/ — the audited bytes of one
+  /// submitted document, for a reviewer holding doctors.verify/facilities.verify.
+  ///
+  /// Returned as raw bytes (never a public URL) so the caller can preview an
+  /// image in-app or hand a PDF to the device's own viewer.
+  Future<AdminDocumentBytes> fetchVerificationDocument({
+    required String access,
+    required int id,
+  }) async {
+    final res = await _client
+        .get(_uri(['admin', 'verification-documents', '$id']), headers: {
+          'Accept': '*/*',
+          'Authorization': 'Bearer $access',
+        })
+        .timeout(_timeout);
+    if (res.statusCode == 401) {
+      throw const AuthException('Session expired. Please sign in again.',
+          code: 'TOKEN_EXPIRED', statusCode: 401);
+    }
+    if (res.statusCode >= 400) throw _errorFrom(res, res.body);
+    return AdminDocumentBytes(
+      bytes: res.bodyBytes,
+      contentType: res.headers['content-type'] ?? 'application/octet-stream',
+    );
+  }
+
   Future<void> decideDoctor({
     required String access,
     required String uid,
@@ -192,6 +218,25 @@ class AdminRepository {
         )
         .timeout(_timeout);
     _responseBody(res);
+  }
+
+  /// The append-only verification trail for one doctor (`FR-DOC-007`).
+  ///
+  /// The review queue reads the same route the applicant reads, so an officer
+  /// sees earlier refusals before deciding the next case.
+  Future<List<AdminDoctorVerificationDecision>> listDoctorVerificationHistory({
+    required String access,
+    required String uid,
+  }) async {
+    final res = await _client
+        .get(_uri(['doctors', uid, 'verification-history']),
+            headers: _headers(access))
+        .timeout(_timeout);
+    final rows = _responseBody(res)['decisions'];
+    return [
+      for (final row in (rows is List ? rows : const <dynamic>[]))
+        AdminDoctorVerificationDecision.fromJson(row as Map<String, dynamic>),
+    ];
   }
 
   Future<void> suspendDoctor({

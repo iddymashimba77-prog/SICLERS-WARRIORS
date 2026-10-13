@@ -24,6 +24,7 @@ import logging
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import mixins, status as http_status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import (
@@ -217,6 +218,15 @@ class BloodRequestViewSet(
             if key and "idempotency_key" in str(exc):
                 raise IdempotencyConflict({"idempotency_key": "Duplicate idempotency key."})
             raise
+        services.record_decision(
+            request_obj, decision="SUBMITTED", actor=user,
+            from_status="", to_status=request_obj.status,
+            details={
+                "blood_group_needed": request_obj.blood_group_needed,
+                "units": request_obj.units,
+                "urgency": request_obj.urgency,
+            },
+        )
         record_audit(
             actor=user, action_code="blood_requests.create",
             resource_type="blood_request", resource_id=request_obj.pk,
@@ -235,16 +245,23 @@ class BloodRequestViewSet(
         if request_obj.status in ("FULFILLED", "EXPIRED", "CANCELLED", "REJECTED"):
             raise ValidationError({"status": "This request is already closed."})
         reason = request.data.get("reason", "")
+        previous_status = request_obj.status
         models.BloodRequest.objects.filter(pk=request_obj.pk).update(
             status="CANCELLED", updated_at=timezone.now(),
         )
         # Stage 4.20: a cancelled request must not leave open matches active —
         # cascade SUGGESTED/NOTIFIED/ACCEPTED → EXPIRED so the match surfaces
         # never show live matches against a closed request (consistency).
-        models.BloodMatch.objects.filter(
+        expired_matches = models.BloodMatch.objects.filter(
             request=request_obj,
             status__in=("SUGGESTED", "NOTIFIED", "ACCEPTED"),
         ).update(status="EXPIRED")
+        services.record_decision(
+            request_obj, decision="CANCELLED", actor=user,
+            from_status=previous_status, to_status="CANCELLED",
+            reason=str(reason)[:2000],
+            details={"expired_matches": expired_matches},
+        )
         record_audit(
             actor=user, action_code="blood_requests.cancel",
             resource_type="blood_request", resource_id=request_obj.pk,
@@ -359,6 +376,30 @@ class BloodRequestViewSet(
             status=http_status.HTTP_201_CREATED,
         )
 
+    @action(detail=True, methods=["get"], url_path="decisions",
+            permission_classes=[IsAuthenticatedRespectStatus, BloodAccess],
+            parser_classes=[JSONParser])
+    def decisions(self, request, uid=None, **kwargs):
+        """GET /blood/requests/{uid}/decisions — the append-only trail (FR-BLD-012).
+
+        Scoped through `get_object()`, so the owner/admin read gate applies and an
+        ineligible donor is refused before any row is serialized. This is what
+        makes "why was my request rejected?" answerable after the fact: the
+        `BloodRequest` row only remembers the latest decision.
+        """
+        request_obj = self.get_object()
+        user = request.user
+        is_owner = request_obj.created_by_id == user.id
+        if not (is_owner or user.is_admin):
+            if not (user.is_blood_donor and services.eligible_donor(request_obj, user)):
+                raise PermissionDenied("This request is not available to you.")
+        rows = request_obj.decisions.select_related("actor").order_by(
+            "-decided_at", "-pk",
+        )
+        return Response(
+            serializers.BloodRequestDecisionSerializer(rows, many=True).data,
+        )
+
     @action(detail=False, methods=["get"], url_path="verification-queue")
     def verification_queue(self, request):
         """GET /admin/blood/verification-queue — PENDING_VERIFICATION (BR-005)."""
@@ -377,11 +418,16 @@ class BloodRequestViewSet(
 # ---------------------------------------------------------------------------
 
 
+@extend_schema(
+    request=OpenApiTypes.OBJECT,
+    responses=serializers.BloodRequestSerializer,
+)
 class BloodRequestVerifyView(GenericAPIView):
     """POST /admin/blood/requests/{uid}/verify — VO/ADM (C6, BR-005)."""
 
     lookup_field = "uid"
     queryset = models.BloodRequest.objects.all()
+    serializer_class = serializers.BloodRequestSerializer
     permission_classes = [IsAuthenticatedRespectStatus, require("blood_requests.verify")]
     parser_classes = [JSONParser]
 
@@ -389,10 +435,16 @@ class BloodRequestVerifyView(GenericAPIView):
         request_obj = self.get_object()
         if request_obj.status != "PENDING_VERIFICATION":
             raise ValidationError({"status": "Only pending requests can be verified."})
+        previous_status = request_obj.status
         request_obj.status = "ACTIVE"
         request_obj.verified_by = request.user
         request_obj.verified_at = timezone.now()
         request_obj.save(update_fields=["status", "verified_by", "verified_at", "updated_at"])
+        services.record_decision(
+            request_obj, decision="VERIFIED", actor=request.user,
+            from_status=previous_status, to_status="ACTIVE",
+            reason=str((request.data or {}).get("reason", ""))[:2000],
+        )
         record_audit(
             actor=request.user, action_code="blood_requests.verify",
             resource_type="blood_request", resource_id=request_obj.pk,
@@ -402,11 +454,16 @@ class BloodRequestVerifyView(GenericAPIView):
         return Response(serializers.BloodRequestSerializer(request_obj).data)
 
 
+@extend_schema(
+    request=OpenApiTypes.OBJECT,
+    responses=serializers.BloodRequestSerializer,
+)
 class BloodRequestRejectView(GenericAPIView):
-    """POST /admin/blood/requests/{uid}/reject — reason required (BR-005)."""
+    """POST /admin/blood/requests/{uid}/reject — VO/ADM (C6, BR-005)."""
 
     lookup_field = "uid"
     queryset = models.BloodRequest.objects.all()
+    serializer_class = serializers.BloodRequestSerializer
     permission_classes = [IsAuthenticatedRespectStatus, require("blood_requests.verify")]
     parser_classes = [JSONParser]
 
@@ -417,11 +474,16 @@ class BloodRequestRejectView(GenericAPIView):
             raise ValidationError({"status": "Only pending requests can be rejected."})
         if not reason:
             raise ValidationError({"reason": "A rejection reason is required."})
+        previous_status = request_obj.status
         request_obj.status = "REJECTED"
         request_obj.verified_by = request.user
         request_obj.verified_at = timezone.now()
         request_obj.rejection_reason = reason
         request_obj.save(update_fields=["status", "verified_by", "verified_at", "rejection_reason", "updated_at"])
+        services.record_decision(
+            request_obj, decision="REJECTED", actor=request.user,
+            from_status=previous_status, to_status="REJECTED", reason=reason[:2000],
+        )
         record_audit(
             actor=request.user, action_code="blood_requests.reject",
             resource_type="blood_request", resource_id=request_obj.pk,
@@ -431,12 +493,17 @@ class BloodRequestRejectView(GenericAPIView):
         return Response(serializers.BloodRequestSerializer(request_obj).data)
 
 
+@extend_schema(
+    request=serializers.BloodMatchRespondSerializer,
+    responses=serializers.BloodMatchSerializer,
+)
 class BloodMatchRespondView(GenericAPIView):
     """POST /blood/matches/{id}/respond — donor C9 own-match response (FR-BLD-009)."""
 
     permission_classes = [IsAuthenticatedRespectStatus, require("blood_requests.respond")]
     parser_classes = [JSONParser]
     queryset = models.BloodMatch.objects.select_related("request", "donor")
+    serializer_class = serializers.BloodMatchSerializer
 
     def post(self, request, match_id=None):
         if not self.request.user.is_blood_donor:
@@ -463,6 +530,10 @@ class BloodMatchRespondView(GenericAPIView):
         return Response(serializers.BloodMatchSerializer(match).data)
 
 
+@extend_schema(
+    request=OpenApiTypes.OBJECT,
+    responses=OpenApiTypes.OBJECT,
+)
 class RunMatchingView(GenericAPIView):
     """POST /admin/blood/run-matching — SUP/ADM (C6), FR-BLD-008.
 
@@ -473,6 +544,7 @@ class RunMatchingView(GenericAPIView):
     permission_classes = [IsAuthenticatedRespectStatus, require("blood_matches.run")]
     parser_classes = [JSONParser]
     queryset = models.BloodRequest.objects.all()
+    serializer_class = serializers.BloodRequestSerializer
 
     def post(self, request):
         request_uid = (request.data or {}).get("request_uid")
@@ -480,10 +552,10 @@ class RunMatchingView(GenericAPIView):
             request_obj = models.BloodRequest.objects.filter(uid=request_uid).first()
             if request_obj is None:
                 raise NotFound("Request not found.")
-            created = services.run_matching(request_obj)
+            created = services.run_matching(request_obj, actor=request.user)
             counts = {str(request_obj.uid): len(created)}
         else:
-            counts = services.run_matching_for_all()
+            counts = services.run_matching_for_all(actor=request.user)
         record_audit(
             actor=request.user, action_code="blood_matches.run",
             resource_type="blood_request_count", resource_id=None,

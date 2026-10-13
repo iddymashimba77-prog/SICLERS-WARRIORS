@@ -15,6 +15,7 @@ Approved broadcast contract (api-design §M / §21 notification admin):
 """
 
 from django.db import transaction
+from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, serializers as drf_serializers, status as http_status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -22,6 +23,8 @@ from rest_framework.views import APIView
 from accounts.models import Role, User
 from accounts.permissions import IsAuthenticatedRespectStatus
 from audit.services import record_audit
+
+from .admin_serializers import AdminBroadcastOut
 
 MAX_USERS_AUDIENCE = 500
 ALLOWED_TYPES = {"SYSTEM"}
@@ -71,6 +74,7 @@ class AdminBroadcastIn(drf_serializers.Serializer):
         return attrs
 
 
+@extend_schema(request=AdminBroadcastIn, responses={201: AdminBroadcastOut})
 class AdminBroadcastView(APIView):
     """Broadcast across an approved audience. Creates IN_APP SYSTEM rows."""
 
@@ -78,8 +82,6 @@ class AdminBroadcastView(APIView):
 
     @transaction.atomic
     def post(self, request):
-        from .admin_serializers import AdminBroadcastOut
-
         serializer = AdminBroadcastIn(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

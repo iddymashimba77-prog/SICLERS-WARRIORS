@@ -47,6 +47,18 @@ export function updateAccess(access: string): void {
   saveSession({ ...s, access });
 }
 
+/**
+ * Persist a rotated token pair. Refresh tokens rotate on every use
+ * (`ROTATE_REFRESH_TOKENS` + `BLACKLIST_AFTER_ROTATION`), so storing only the
+ * new access would leave the stored refresh blacklisted and kill the session
+ * on the next rotation.
+ */
+export function updateTokens(access: string, refresh?: string): void {
+  const s = loadSession();
+  if (!s) return;
+  saveSession(refresh ? { ...s, access, refresh } : { ...s, access });
+}
+
 export function clearSession(): void {
   localStorage.removeItem(KEY);
 }

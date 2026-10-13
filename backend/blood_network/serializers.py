@@ -147,3 +147,30 @@ class DonationEventCreateSerializer(serializers.Serializer):
 
 class BloodMatchRespondSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=["ACCEPT", "DECLINE"])
+
+class BloodRequestDecisionSerializer(serializers.ModelSerializer):
+    """One immutable decision row (FR-BLD-011).
+
+    ``actor_uid``/``actor_name`` are included so the requester can see *who*
+    decided without a second call. ``reason`` is the decider's own justification
+    and is shown verbatim because it is exactly what the patient is entitled to
+    read and contest.
+    """
+
+    actor_uid = serializers.UUIDField(source="actor.uid", read_only=True)
+    actor_name = serializers.SerializerMethodField()
+    request_uid = serializers.UUIDField(source="request.uid", read_only=True)
+
+    class Meta:
+        model = models.BloodRequestDecision
+        fields = [
+            "uid", "request_uid", "decision", "from_status", "to_status",
+            "reason", "details", "actor_uid", "actor_name", "decided_at",
+        ]
+        read_only_fields = fields
+
+    def get_actor_name(self, obj) -> str:
+        if obj.actor is None:
+            return "System"
+        name = f"{obj.actor.first_name} {obj.actor.last_name}".strip()
+        return name or obj.actor.email

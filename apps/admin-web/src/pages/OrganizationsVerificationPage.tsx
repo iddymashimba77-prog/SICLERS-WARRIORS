@@ -4,16 +4,19 @@ import { useAsync } from '../lib/useAsync';
 import { friendlyError } from '../lib/auth/AuthContext';
 import { Badge, Button, EmptyState, ErrorState, LoadingState, PageHeader, Select, StatusChip } from '../components/ui';
 import { pushToast } from '../components/ui';
-import { DecisionModal } from './shared';
+import { DecisionModal, SubmittedDocuments } from './shared';
 import type { AdminFacilityRow } from '../lib/api/types';
 
-const TYPES = ['', 'hospital', 'clinic', 'blood_bank', 'research'];
+/** Backend `FACILITY_TYPE` choices (upper-cased by the view before filtering). */
+const TYPES = ['', 'HOSPITAL', 'CLINIC', 'LABORATORY', 'BLOOD_BANK', 'PHARMACY', 'OTHER'];
 const TYPES_LABEL: Record<string, string> = {
   '': 'All types',
-  hospital: 'Hospital',
-  clinic: 'Clinic',
-  blood_bank: 'Blood bank',
-  research: 'Research',
+  HOSPITAL: 'Hospital',
+  CLINIC: 'Clinic',
+  LABORATORY: 'Laboratory',
+  BLOOD_BANK: 'Blood bank',
+  PHARMACY: 'Pharmacy',
+  OTHER: 'Other',
 };
 
 export function OrganizationsVerificationPage() {
@@ -45,10 +48,9 @@ export function OrganizationsVerificationPage() {
       <div className="sw-toolbar">
         <Select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status" style={{ maxWidth: 220 }}>
           <option value="">All statuses</option>
-          <option value="PENDING_VERIFICATION">PENDING_VERIFICATION</option>
-          <option value="VERIFIED">VERIFIED</option>
-          <option value="rejected">REJECTED</option>
-          <option value="SUSPENDED">SUSPENDED</option>
+          {/* The view accepts only `verified` / `pending` (lower-case). */}
+          <option value="pending">Pending verification</option>
+          <option value="verified">Verified</option>
         </Select>
         <Select value={fType} onChange={(e) => setFType(e.target.value)} aria-label="Filter by type" style={{ maxWidth: 220 }}>
           {TYPES.map((t) => (
@@ -68,6 +70,7 @@ export function OrganizationsVerificationPage() {
                   <th scope="col">Organization</th>
                   <th scope="col">Type</th>
                   <th scope="col">Status</th>
+                  <th scope="col">Documents</th>
                   <th scope="col">Actions</th>
                 </tr>
               </thead>
@@ -80,7 +83,8 @@ export function OrganizationsVerificationPage() {
                       <span style={{ color: 'var(--sw-text-muted)', fontSize: 12 }}>{f.operator_email}</span>
                     </td>
                     <td><Badge tone="blue">{f.facility_type || '—'}</Badge></td>
-                    <td><StatusChip status={f.verification_status} /></td>
+                    <td><StatusChip status={f.is_verified ? 'VERIFIED' : 'PENDING'} /></td>
+                    <td><SubmittedDocuments documents={f.verification_documents} /></td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <Button variant="secondary" style={{ marginRight: 6 }} onClick={() => { setApprove(true); setSubject(f); }}>
                         Verify

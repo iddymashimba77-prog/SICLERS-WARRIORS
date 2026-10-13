@@ -128,16 +128,56 @@ Legend: **WP** = Write path (pessimistic, server-ack), **RO** = Read path.
 ## MED — Medical records (medical feature)
 
 ### MED-001 Medical Record List
-- Purpose: own records list, category chips.
+- Purpose: own records list, status filter chips, entry to detail and chart
+  history.
+- Implemented by `MedicalRecordsView` against `GET /medical-records`. The read
+  set is whatever the server returned — consents, relationship and role are
+  already applied there, so the page applies no client-side filter and
+  fabricates nothing: an empty API result renders the honest empty state.
+- The list projection deliberately carries no `description`, so a chart note
+  cannot appear on a row that was never opened.
 - API: `GET /patients/me/medical-records`; clinician variant `GET /doctors/me/patients/{uid}/medical-records`.
 - Permissions: own (O) / C2/3 (granted). Sensitive: high — "Medical Records · Private" + lock.
 - Components: `RecordCard`, filter chips, FAB (add where permitted), `EmptyState`.
 - States: loading | empty | error; sync states for offline (records not cached).
 
 ### MED-002 Medical Record Detail
-- API: `GET /patients/me/medical-records/{id}` (own) / grantee variant.
+- API: `GET /medical-records/{id}` (own) / grantee variant; the nested
+  `GET /patients/{uid}/medical-records/{id}` is the approved alternative shape.
 - Sensitive: full PHI; `SensitiveScreenLock`; no screenshots affordance.
 - Actions: add file (author scope), share/consent entry, edit/delete (own C16).
+- Implemented by `MedicalRecordDetailPage`. The action bar is driven entirely by
+  the server's projection: `can_edit` decides whether a status change is offered
+  at all, while the per-record visibility switch is always available because a
+  patient may always opt a record out of the consent-derived read set. Both
+  changes are confirmed first and a status change always prompts for a reason,
+  because the server stores that reason on the append-only history row.
+
+### MED-005 Record visibility + status
+- `POST /medical-records/{id}/visibility` (`is_consent_visible`) is the narrowest
+  privacy control the app owns; `POST /medical-records/{id}/status` moves a record
+  between `DRAFT`/`ACTIVE`/`REVOKED`/`EXPIRED` for callers with edit rights.
+- Implemented inside MED-002's action bar rather than as its own screen: both are
+  one decision away from the record they affect.
+
+### MED-006 Chart history
+- `GET /medical-records/{id}/history` for one record, `GET
+  /medical-records/history` for the whole chart. Implemented by
+  `MedicalRecordHistoryPage`, which renders the append-only trail with the actor
+  and the status transition; a `System` actor is labelled as such rather than
+  rendered as a person.
+- The `details` projection is non-PHI by construction (field names, counts,
+  statuses, file names), which is why it can sit next to the record.
+
+### MED-007 Attachment download
+- The server returns `download_path`, never a resolvable URL, so
+  `MedicalRecordsRepository.downloadFile` performs an authorized call and the app
+  writes the bytes to a private temp directory before handing them to the
+  platform opener. Nothing is written to shared storage and no link exists to
+  paste into a chat.
+- `file_name` is untrusted server input: it is reduced to a path-safe local name
+  before use, so a stored name like `../../etc/passwd` cannot escape the
+  download folder.
 
 ### MED-003 Document Viewer
 - Purpose: view attached medical files via signed URL; no cache beyond session.
@@ -182,6 +222,11 @@ Legend: **WP** = Write path (pessimistic, server-ack), **RO** = Read path.
 
 ### MEDT-002 Medication Add/Edit
 - API: `POST/PATCH /medications`. Validation: name, dose+unit, frequency, start ≤ today.
+- Carries `instructions` (`FR-MED-007`): the prescriber's directions for the
+  patient, bounded at 2000 characters by the server and shown on MEDT-002's
+  detail as its own card. Instructions are deliberately separate from
+  `MedicationSchedule.notes`, which describes one reminder time rather than the
+  medicine as a whole.
 
 ### MEDT-003 Schedule
 - API: `GET/POST /medications/{id}/schedule`, `PATCH/DELETE /schedule/{sid}`.
@@ -203,18 +248,34 @@ Legend: **WP** = Write path (pessimistic, server-ack), **RO** = Read path.
 
 ### APP-001 Appointment List
 - API: `GET /appointments`. Statuses shown via `StatusBadge` (SCHEDULED→CONFIRMED→COMPLETED/NO_SHOW/MISSED/CANCELLED).
+- Implemented by `ClinicView`. The read set is the server's — own, consented or
+  assigned — and the upcoming/past split is the `upcoming` query parameter, not
+  a client-side filter. Signed out, the page states that it needs a sign-in
+  rather than showing an empty calendar.
 
 ### APP-002 Appointment Detail
 - API: `GET /appointments/{id}`; action buttons per current state (§42 state machine).
+- Implemented by `AppointmentDetailPage`. A completed, cancelled or missed visit
+  offers neither cancel nor reschedule: the server keeps its history and the
+  screen says the visit can no longer be changed.
 
 ### APP-003 Appointment Request
 - API: `POST /appointments` (idempotency key). Validation: purpose, doctor/facility, future date/time.
+- Implemented by `AppointmentFormPage`. Both pickers read verified registries:
+  facilities from `GET /facilities/` and clinicians from `GET /doctors/`. The
+  clinic is pre-selected only when the directory returns exactly one venue — with
+  several, the patient names the one they are going to. No facility is ever
+  typed as free text and none is hardcoded.
 
 ### APP-004 Reschedule
 - API: `POST /appointments/{id}/reschedule`. Shows current + candidate picker.
+- The same form, opened with the existing visit: type, venue and reminders are
+  kept and only the slot moves.
 
 ### APP-005 Cancel Appointment
 - API: `POST /appointments/{id}/cancel`. `DestructiveDialog` before submit.
+- A reason is required and cannot be dismissed: the server records it against the
+  appointment, so a silent cancel would lose the only explanation of the change.
 
 ---
 
@@ -242,6 +303,16 @@ Legend: **WP** = Write path (pessimistic, server-ack), **RO** = Read path.
 
 ### BLOOD-007 Donation History
 - API: donation events + requests (immutable). Shared with facility-visible only.
+
+### BLOOD-008 Request decision history
+- Purpose: answer "why was my request rejected?" after the fact. API:
+  `GET /blood/requests/{uid}/decisions` (`FR-BLD-011/012`).
+- Implemented by `BloodDecisionHistoryPage`, reached from BLOOD-003. The request
+  row remembers only its latest status, so this trail is the only place an
+  earlier refusal and the decider's reason stay readable. The reason is shown
+  verbatim because the requester is entitled to read and contest it; the
+  endpoint is reached through the same owner/donor gate as the request itself,
+  so a refusal is the server's call to make.
 
 ---
 
@@ -289,6 +360,25 @@ Legend: **WP** = Write path (pessimistic, server-ack), **RO** = Read path.
 
 ### DOC-007 Doctor Profile
 - API: profile + education CE. Public subset shown to patients (name, specialty, verified).
+
+### DOC-008 Verification history
+- Purpose: the append-only trail behind the current status (`FR-DOC-006/007`).
+- API: `GET /doctors/{uid}/verification-history`. Readable by the applicant and by
+  a reviewer holding `doctors.verify`; everyone else gets a 404 so the route never
+  confirms that a particular licence application exists.
+- Implemented by `DoctorVerificationHistoryPage` for the applicant and by the
+  admin queue's history page for a reviewer — both read the same route, so an
+  officer sees earlier refusals before deciding the next case.
+
+### DOC-009 Verified care directory
+- Purpose: the care directory (`FR-CARE-001`). API: `GET /doctors/`, optionally
+  `?professional_type=`.
+- Implemented by `DoctorDirectoryView`. The server narrows the list to approved,
+  active professionals, so there is no client-side "hide the unverified" pass
+  that could be wrong; the projection is the public subset, so a row cannot
+  render a contact detail or licence number. The profession filter is a server
+  query parameter, never a client-side split. The same registry feeds the
+  clinician picker in APP-003.
 
 ---
 
@@ -364,6 +454,38 @@ Legend: **WP** = Write path (pessimistic, server-ack), **RO** = Read path.
 
 ### EDU-005 Bookmarks
 - Local list + JIT fetch `GET /education/content/{id}`.
+
+### EDU-006 Handout download (FR-EDU-005)
+- Shown on the article detail when `document_url` is present; opens the file in
+  the system viewer (`url_launcher`). Nothing is cached by the app.
+
+### EDU-007 My articles (doctor authoring)
+- Route `/daktari/elimu`, reached from the doctor hub. Reads the author's own
+  rows in every status via `GET /education/content?mine=1`, filters by status,
+  and manages the handout with `POST`/`DELETE /education/content/{id}/document`.
+  Attach/replace/remove controls disappear while an article is `PUBLISHED`,
+  because the server refuses a handout change until it is unpublished.
+
+### EDU-008 Article composer (doctor authoring)
+- Pushed from EDU-007 with no argument to create a draft, or with an existing
+  row to edit it. Writes `POST /education/content` or `PATCH
+  /education/content/{id}`; the category is a separate reference endpoint
+  (`GET /education/categories`) because a stored article holds a *code*, not a
+  label.
+- The editorial actions on EDU-007 mirror the server's status rules rather than
+  guessing: `canEdit` is `education.models.EDITABLE_STATUSES`, `canSubmit` is
+  `SUBMITTABLE_STATUSES`, and delete is offered only for a never-published
+  `DRAFT`. Submit is confirmed in a dialog, then `POST
+  /education/content/{id}/submit`.
+- Validation mirrors the server's `TITLE_MAX` (200) and `BODY_MAX` (50 000). The
+  title field uses `MaxLengthEnforcement.none` deliberately: the default silently
+  truncates a long paste, and losing the end of a sentence in a patient handout
+  is worse than a red counter.
+- The composer pops `true` rather than raising a toast — a `SnackBar` on a route
+  that is about to pop is destroyed with it, so EDU-007 confirms the write
+  instead.
+- States: loading categories | save in flight | field errors | server refusal
+  (the composer stays open so the draft is not lost).
 
 ---
 
@@ -462,9 +584,9 @@ Legend: **WP** = Write path (pessimistic, server-ack), **RO** = Read path.
 | MED/CONS | 8 | MED-001..005, MED-007, CONS-001..003 |
 | MEDT | 6 | MEDT-001..006 |
 | APP | 5 | APP-001..005 |
-| BLOOD | 7 | BLOOD-001..007 |
+| BLOOD | 8 | BLOOD-001..008 |
 | EMG | 6 | EMG-001..006 |
-| DOC | 7 | DOC-001..007 |
+| DOC | 9 | DOC-001..009 |
 | CAR | 6 | CAR-001..006 |
 | COM | 5 | COM-001,002,003,005,006 |
 | CHAT | 4 | CHAT-001..004 |

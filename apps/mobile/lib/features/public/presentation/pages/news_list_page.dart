@@ -8,6 +8,7 @@ import '../../data/content_repository.dart';
 import '../../domain/content_models.dart';
 import '../widgets/content_widgets.dart';
 import 'news_detail_page.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// Public news archive: category filter + paginated "load more" list.
 ///
@@ -207,7 +208,7 @@ class _NewsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: AppShapes.large,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,

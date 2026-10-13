@@ -17,6 +17,7 @@ import '../../domain/content_models.dart';
 import '../widgets/content_widgets.dart';
 import 'news_detail_page.dart';
 import 'news_list_page.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// Public landing page for Sickler's Warriors (FINALIZE public home).
 ///
@@ -151,6 +152,42 @@ class _PublicHomePageState extends State<PublicHomePage> {
 
 // ===================================================================== header
 
+/// Persistent SOS affordance in the public header: the crisis path is never
+/// more than one tap away, on top of the emergency strip further down.
+class _HeaderSosButton extends StatelessWidget {
+  const _HeaderSosButton({this.compact = false});
+
+  /// Icon-only on the compact toolbar, where a labelled button would squeeze
+  /// the brand mark out of the app bar.
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final hint = s.tr('home.sosHint');
+    void go() => goTo(context, '/emergency');
+    if (compact) {
+      return IconButton(
+        key: const ValueKey('public-header-sos'),
+        tooltip: hint,
+        onPressed: go,
+        color: AppColors.emergency,
+        icon: const Icon(Icons.emergency_outlined),
+      );
+    }
+    return Tooltip(
+      message: hint,
+      child: TextButton.icon(
+        key: const ValueKey('public-header-sos'),
+        onPressed: go,
+        style: TextButton.styleFrom(foregroundColor: AppColors.emergency),
+        icon: const Icon(Icons.emergency_outlined, size: 18),
+        label: Text(s.tr('home.sos')),
+      ),
+    );
+  }
+}
+
 class _PublicHeader extends StatelessWidget {
   const _PublicHeader({required this.isDesktop});
 
@@ -190,6 +227,8 @@ class _PublicHeader extends StatelessWidget {
                 ),
               ],
               const SizedBox(width: AppSpacing.md),
+              const _HeaderSosButton(),
+              const SizedBox(width: AppSpacing.sm),
               const _PublicThemeToggle(),
               const _PublicLanguageToggle(),
               const SizedBox(width: AppSpacing.xs),
@@ -207,6 +246,7 @@ class _PublicHeader extends StatelessWidget {
               ),
             ]
           : [
+              const _HeaderSosButton(compact: true),
               const _PublicThemeToggle(),
               const _PublicLanguageToggle(),
               TextButton(
@@ -240,6 +280,24 @@ class _PublicHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                ListTile(
+                  leading: const Icon(
+                    Icons.emergency_outlined,
+                    color: AppColors.emergency,
+                  ),
+                  title: Text(
+                    s.tr('home.sosHint'),
+                    style: const TextStyle(
+                      color: AppColors.emergency,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    goTo(context, '/emergency');
+                  },
+                ),
+                const Divider(color: AppColors.border),
                 for (final entry in entries) ...[
                   _MobileMenuCategory(
                     title: entry.key,
@@ -251,7 +309,6 @@ class _PublicHeader extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                 ],
-                const Divider(color: AppColors.border),
                 ListTile(
                   leading: const Icon(Icons.person_add_alt_1),
                   title: Text(s.tr('common.createAccount')),
@@ -434,47 +491,119 @@ class _TopTickerBannerState extends State<_TopTickerBanner> {
 
   @override
   Widget build(BuildContext context) {
-        if (!_loaded || _items.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    if (!_loaded || _items.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
     final urgent = _items.first.isUrgent;
     final text = _items.map((e) => e.message).join('        •        ');
-    return SliverToBoxAdapter(
-      child: Material(
-        color: urgent ? AppColors.emergency : AppColors.navy,
-        child: SafeArea(
-          bottom: false,
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.sm,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  urgent ? Icons.emergency : Icons.campaign_outlined,
-                  size: 18,
-                  color: Colors.white,
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: _TickerMarquee(
-                    text: text,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+    // Pinned so the announcement stays on screen while the page scrolls. As a
+    // plain SliverToBoxAdapter it was the first thing to scroll away, which is
+    // the opposite of what an urgent announcement must do.
+    return SliverPersistentHeader(
+      pinned: true,
+      delegate: _TickerHeaderDelegate(
+        background: urgent ? AppColors.emergency : AppColors.navy,
+        text: text,
+        urgent: urgent,
+        showLinkIcon: _items.first.linkUrl.isNotEmpty,
+        imageUrl: _items.first.hasImage ? _items.first.imageUrl : '',
+      ),
+    );
+  }
+}
+
+/// Fixed height of the pinned ticker band (icon row + vertical padding).
+const double _kTickerExtent = 40.0;
+
+/// Header delegate for the always-visible announcement band.
+class _TickerHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _TickerHeaderDelegate({
+    required this.background,
+    required this.text,
+    required this.urgent,
+    required this.showLinkIcon,
+    this.imageUrl = '',
+  });
+
+  final Color background;
+  final String text;
+  final bool urgent;
+  final bool showLinkIcon;
+  final String imageUrl;
+
+  @override
+  double get minExtent => _kTickerExtent;
+
+  @override
+  double get maxExtent => _kTickerExtent;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Material(
+      color: background,
+      // A pinned header must paint exactly `maxExtent`, otherwise the sliver
+      // geometry is invalid. Pinning the SizedBox to the extent keeps the band
+      // a fixed height whatever the text length or font scale.
+      child: SizedBox(
+        height: maxExtent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              if (imageUrl.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: AppShapes.pill,
+                  child: Image.network(
+                    imageUrl,
+                    width: 26,
+                    height: 26,
+                    fit: BoxFit.cover,
+                    // Ticker art can be an external URL; fall back to an <img>
+                    // element on web so CORS-less hosts still render.
+                    webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+                    errorBuilder: (_, __, ___) => const SizedBox(
+                      width: 26,
+                      height: 26,
                     ),
                   ),
                 ),
-                if (_items.first.linkUrl.isNotEmpty)
-                  const Icon(Icons.open_in_new, size: 14, color: Colors.white70),
+                const SizedBox(width: AppSpacing.sm),
               ],
-            ),
+              Icon(
+                urgent ? Icons.emergency : Icons.campaign_outlined,
+                size: 18,
+                color: Colors.white,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: _TickerMarquee(
+                  text: text,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              if (showLinkIcon)
+                const Icon(Icons.open_in_new, size: 14, color: Colors.white70),
+            ],
           ),
         ),
       ),
     );
   }
+
+  @override
+  bool shouldRebuild(_TickerHeaderDelegate oldDelegate) =>
+      oldDelegate.background != background ||
+      oldDelegate.text != text ||
+      oldDelegate.urgent != urgent ||
+      oldDelegate.showLinkIcon != showLinkIcon ||
+      oldDelegate.imageUrl != imageUrl;
 }
 
 /// Seamless horizontal crawl used by the top ticker band.
@@ -614,7 +743,7 @@ class _HeroSection extends StatelessWidget {
           subtitle,
           textAlign: isDesktop ? TextAlign.start : TextAlign.center,
           style: theme.textTheme.headlineSmall?.copyWith(
-            color: const Color(0xFFFDECEF),
+            color: AppColors.lightRed,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -673,7 +802,7 @@ class _HeroSection extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.navy, Color(0xFF0E2A4F), AppColors.blue],
+          colors: [AppColors.navy, AppColors.navyDeep, AppColors.blue],
         ),
       ),
       child: SafeArea(
@@ -718,7 +847,7 @@ class _HeroBrandPanel extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: .06),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: AppShapes.hero,
         border: Border.all(color: Colors.white.withValues(alpha: .14)),
       ),
       child: Column(
@@ -996,7 +1125,7 @@ class _NewsCarouselState extends State<_NewsCarousel> {
                       height: 8,
                       decoration: BoxDecoration(
                         color: i == _page ? AppColors.blue : AppColors.border,
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: AppShapes.xs,
                       ),
                     ),
                 ],
@@ -1023,8 +1152,8 @@ class _CarouselCard extends StatelessWidget {
     final theme = Theme.of(context);
     final s = AppLocalizations.of(context);
     return Material(
-      color: const Color(0xFFFDECEF),
-      borderRadius: BorderRadius.circular(20),
+      color: AppColors.lightRed,
+      borderRadius: AppShapes.large,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -1136,7 +1265,7 @@ class _CompactNewsCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Material(
       color: AppColors.surfaceMuted,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: AppShapes.large,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -1186,7 +1315,7 @@ class _CompactNewsRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppShapes.tile,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           child: Row(
@@ -1308,7 +1437,7 @@ class _ServiceSection extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: AppShapes.large,
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -1321,7 +1450,7 @@ class _ServiceSection extends StatelessWidget {
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: .1),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: AppShapes.tile,
                 ),
                 child: Icon(icon, color: accent, size: 26),
               ),
@@ -1457,7 +1586,7 @@ class _TrustItem extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: .1),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: AppShapes.tile,
           ),
           child: Icon(icon, size: 26, color: Colors.white),
         ),
@@ -1558,18 +1687,18 @@ class _Footer extends StatelessWidget {
             alignment: WrapAlignment.center,
             children: [
               for (final link in <_MenuLink>[
-                _MenuLink('Privacy', icon: Icons.privacy_tip_outlined,
-                    page: _infoPage('Privacy & Data Protection',
-                        'How Sickler\'s Warriors handles your personal and health information with care, transparency and your consent.')),
-                _MenuLink('Terms', icon: Icons.description_outlined,
-                    page: _infoPage('Terms of Service',
-                        'The rules and responsibilities that keep the community safe and fair for everyone.')),
-                _MenuLink('Consent', icon: Icons.how_to_reg_outlined,
-                    page: _infoPage('Consent & Control',
-                        'Choose what you share, who can see it, and withdraw consent at any time.')),
-                _MenuLink('Contact', icon: Icons.mail_outline,
-                    page: _infoPage('Contact the Team',
-                        'Reach out for support, partnership or feedback — the Warrior community is listening.')),
+                _MenuLink(s.tr('footer.privacy'), icon: Icons.privacy_tip_outlined,
+                    page: _infoPage(s.tr('footer.privacyTitle'),
+                        s.tr('footer.privacyBody'))),
+                _MenuLink(s.tr('footer.terms'), icon: Icons.description_outlined,
+                    page: _infoPage(s.tr('footer.termsTitle'),
+                        s.tr('footer.termsBody'))),
+                _MenuLink(s.tr('footer.consent'), icon: Icons.how_to_reg_outlined,
+                    page: _infoPage(s.tr('footer.consentTitle'),
+                        s.tr('footer.consentBody'))),
+                _MenuLink(s.tr('footer.contact'), icon: Icons.mail_outline,
+                    page: _infoPage(s.tr('footer.contactTitle'),
+                        s.tr('footer.contactBody'))),
               ])
                 _FooterLink(link: link),
             ],
@@ -1724,20 +1853,15 @@ Map<String, List<_MenuLink>> _megaMenusFor(AppLocalizations s) {
   return {
     s.tr('nav.about'): [
       _MenuLink(s.tr('about.about'), icon: Icons.volunteer_activism_outlined,
-          page: _infoPage(s.tr('about.about'),
-              'A community-led platform supporting people living with sickle cell disease and their families.')),
+          page: _infoPage(s.tr('about.about'), s.tr('about.aboutBody'))),
       _MenuLink(s.tr('about.mission'), icon: Icons.track_changes_outlined,
-          page: _infoPage(s.tr('about.mission'),
-              'Care, connection, education and urgent support — in reach for every warrior.')),
+          page: _infoPage(s.tr('about.mission'), s.tr('about.missionBody'))),
       _MenuLink(s.tr('about.howItWorks'), icon: Icons.account_tree_outlined,
-          page: _infoPage(s.tr('about.howItWorks'),
-              'From sign-up to care: four simple steps into the Warrior community.')),
+          page: _infoPage(s.tr('about.howItWorks'), s.tr('about.howItWorksBody'))),
       _MenuLink(s.tr('about.team'), icon: Icons.groups_outlined,
-          page: _infoPage(s.tr('about.team'),
-              'The people and organizations behind the platform.')),
+          page: _infoPage(s.tr('about.team'), s.tr('about.teamBody'))),
       _MenuLink(s.tr('about.contact'), icon: Icons.mail_outline,
-          page: _infoPage(s.tr('about.contact'),
-              'Reach out for support, partnership or feedback — the Warrior community is listening.')),
+          page: _infoPage(s.tr('about.contact'), s.tr('about.contactBody'))),
     ],
     s.tr('nav.health'): [
       _MenuLink(s.tr('act.healthDashboard'), icon: Icons.monitor_heart_outlined, route: '/health'),

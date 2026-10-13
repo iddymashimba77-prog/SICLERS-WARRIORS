@@ -70,7 +70,13 @@ def unpublish_news(article):
     article.status = "DRAFT"
     article.published_at = None
     article.featured = False
-    article.save(update_fields=["status", "published_at", "featured", "updated_at"])
+    # A pin is a promise to the public; withdrawing the article withdraws it.
+    article.pinned = False
+    article.pinned_at = None
+    article.pinned_by = None
+    article.save(update_fields=[
+        "status", "published_at", "featured", "pinned", "pinned_at", "pinned_by", "updated_at",
+    ])
     return article
 
 
@@ -78,7 +84,13 @@ def archive_news(article):
     if article.status == "ARCHIVED":
         raise ValueError("This article is already archived.")
     article.status = "ARCHIVED"
-    article.save(update_fields=["status", "updated_at"])
+    article.featured = False
+    article.pinned = False
+    article.pinned_at = None
+    article.pinned_by = None
+    article.save(update_fields=[
+        "status", "featured", "pinned", "pinned_at", "pinned_by", "updated_at",
+    ])
     return article
 
 
@@ -87,6 +99,61 @@ def set_featured(article, *, featured):
         raise ValueError("Only published news can be featured.")
     article.featured = bool(featured)
     article.save(update_fields=["featured", "updated_at"])
+    return article
+
+
+def set_pinned(article, *, pinned, actor=None):
+    """Pin/unpin a published article (§17/§18).
+
+    Pinning is meaningless for anything the public cannot read, so it is
+    refused outside PUBLISHED. Unpublishing or soft-deleting clears the pin
+    (see ``unpublish_news``/``soft_delete_news``) so a hidden article can
+    never sit at the top of the public list.
+    """
+    pinned = bool(pinned)
+    if pinned:
+        if article.status != "PUBLISHED":
+            raise ValueError("Only published news can be pinned.")
+        if article.deleted_at is not None:
+            raise ValueError("Restore the article before pinning it.")
+    article.pinned = pinned
+    article.pinned_at = timezone.now() if pinned else None
+    article.pinned_by = actor if pinned else None
+    article.save(update_fields=["pinned", "pinned_at", "pinned_by", "updated_at"])
+    return article
+
+
+def soft_delete_news(article, *, actor=None, reason=""):
+    """Remove an article from every public surface without destroying it.
+
+    Production editorial content is never hard-deleted (§18): the row is marked
+    deleted, archived if it was live, and unpinned, so it disappears from the
+    public API immediately while remaining restorable and auditable.
+    """
+    if article.deleted_at is not None:
+        return article
+    article.deleted_at = timezone.now()
+    article.deleted_by = actor
+    if article.status == "PUBLISHED":
+        article.status = "ARCHIVED"
+    article.pinned = False
+    article.pinned_at = None
+    article.pinned_by = None
+    article.save(update_fields=[
+        "deleted_at", "deleted_by", "status", "pinned", "pinned_at", "pinned_by", "updated_at",
+    ])
+    return article
+
+
+def restore_news(article, *, actor=None):
+    """Undo a soft delete, returning the article to ARCHIVED for review."""
+    if article.deleted_at is None:
+        return article
+    article.deleted_at = None
+    article.deleted_by = None
+    if article.status == "ARCHIVED":
+        article.status = "DRAFT"
+    article.save(update_fields=["deleted_at", "deleted_by", "status", "updated_at"])
     return article
 
 

@@ -27,6 +27,9 @@ class EducationAccess(permissions.BasePermission):
         "partial_update": "education.publish",
         "destroy": "education.publish",
         "submit": "education.publish",
+        # A document attachment is part of authoring the article, so it carries
+        # the same write code; object-level authorship is still enforced.
+        "document": "education.publish",
     }
 
     def _code_for(self, view):

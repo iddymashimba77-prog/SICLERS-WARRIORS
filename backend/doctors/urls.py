@@ -10,6 +10,9 @@ Doctor registry (database-design §3.4, endpoint-matrix §5):
     GET         /admin/doctors/verification-queue/
     POST        /admin/doctors/{uid}/verify/
     POST        /admin/doctors/{uid}/suspend/
+    POST        /admin/doctors/{uid}/reinstate/
+    GET         /doctors/{uid}/verification-history/     own trail or C6 reviewer
+    GET         /admin/doctors/verification-history/    C6 reviewer, whole registry
 """
 
 from django.urls import path
@@ -41,4 +44,19 @@ urlpatterns = router.urls + [
     ),
     path("admin/doctors/<uuid:uid>/verify/", views.AdminDoctorVerifyView.as_view(), name="admin-doctor-verify"),
     path("admin/doctors/<uuid:uid>/suspend/", views.AdminDoctorSuspendView.as_view(), name="admin-doctor-suspend"),
+    path(
+        "admin/doctors/<uuid:uid>/reinstate/",
+        views.AdminDoctorReinstateView.as_view(),
+        name="admin-doctor-reinstate",
+    ),
+    path(
+        "admin/doctors/verification-history/",
+        views.AdminDoctorVerificationHistoryView.as_view(),
+        name="admin-doctor-verification-history",
+    ),
+    path(
+        "doctors/<uuid:uid>/verification-history/",
+        views.DoctorVerificationHistoryView.as_view(),
+        name="doctor-verification-history",
+    ),
 ]

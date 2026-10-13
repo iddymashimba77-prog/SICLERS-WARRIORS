@@ -5,6 +5,7 @@ import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/admin_models.dart';
 import '../../data/admin_repository.dart';
+import '../widgets/admin_documents.dart';
 import '../widgets/admin_widgets.dart';
 
 /// Organization / facility administration (ADMIN-3) — GET /api/admin/facilities/
@@ -151,6 +152,11 @@ class _FacilityCard extends StatelessWidget {
                 style: theme.textTheme.bodySmall,
               ),
             ],
+            SubmittedDocumentsSection(
+              documents: facility.verificationDocuments,
+              repository: repository,
+              accessToken: accessToken,
+            ),
             const SizedBox(height: AppSpacing.sm),
             if (facility.isVerified)
               const Align(

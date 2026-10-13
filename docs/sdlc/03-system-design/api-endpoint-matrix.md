@@ -82,15 +82,19 @@
 | Module | Method | Endpoint | Auth | Permission | Consent | Object Rule | Audit | Notes |
 |---|---|---|---|---|---|---|---|---|
 | doctor | GET/PATCH | `/doctors/me` | T | `doctors.self_manage` (C5) | — | self | — | professional profile |
-| doctor | POST | `/doctors/me/verification` | T | `doctors.self_manage` | — | self | Y | submit/docs |
-| doctor | GET | `/doctors` | T | `doctors.view` | N | public subset | — | directory (name/specialty/verified) |
+| doctor | POST | `/doctors/me/verification` | T | `doctors.self_manage` | — | self (DOC/PSY/SOC) | Y | submit/docs; `professional_type` must match the account role |
+| doctor | GET | `/doctors` | T | `doctors.view` | N | public subset | — | directory (name/specialty/verified); `?professional_type=` |
 | doctor | GET | `/doctors/{uid}` | T | `doctors.view` | N | public subset | — | no personal contact leakage |
 | doctor | GET/POST/PATCH | `/doctors/me/availability` | T | `doctors.self_manage` | — | self | — | slots |
-| doctor | GET | `/doctors/me/patients` | T | `patients.view` C2/3 | C | relationship+consent | C4 | FR-DOC-005 |
+| doctor | GET | `/doctors/me/patients` | T | `patients.view` C2/3 | C | relationship+consent | C4 | FR-DOC-005, PSY/SOC too |
+| care team | POST | `/chat/conversations` | T | `chat.start` C13b | C | patient + verified professional | Y | partner must be APPROVED in the registry (DOC/PSY/SOC), FR-CARE-004 |
 | doctor | GET | `/doctors/me/patients/{uid}/medical-records` | T | `medical_records.view` C2/3 | C | relationship+consent | Y | never blanket |
 | doctor | GET | `/doctors/me/appointments` | T | `appointments.view` C2/3 | C | relationship+consent | — | schedule |
 | doctor | POST | `/admin/doctors/{uid}/verify` | T | `doctors.verify` (VO/ADM, C6) | — | — | Y | approve/reject |
-| doctor | POST | `/admin/doctors/{uid}/suspend` | T | `doctors.verify` | — | — | Y | suspension |
+| doctor | POST | `/admin/doctors/{uid}/suspend` | T | `doctors.verify` | — | — | Y | suspension, reason required |
+| doctor | POST | `/admin/doctors/{uid}/reinstate` | T | `doctors.verify` | — | — | Y | suspension reversal, reason required |
+| doctor | GET | `/doctors/{uid}/verification-history` | T | self or `doctors.verify` | — | own trail / C6 reviewer | — | BR-001 append-only, 404 for others |
+| doctor | GET | `/admin/doctors/verification-history` | T | `doctors.verify` (VO/ADM) | — | whole registry | — | `?decision=` filter, newest 200 |
 
 ## 6. Facilities (`/facilities`, `/admin/facilities`)
 
@@ -142,12 +146,47 @@
 | medrec | GET | `/patients/{uid}/medical-records/{id}/files/{fid}` | T | `medical_records.download` C2/3 | C | consent scope incl. file | Y | download |
 | encounter | GET/POST | `/clinical-encounters` | T | C15 | C | facility+consent | Y | `clinical_encounters` |
 
+### 9.1 Implemented chart surface (FR-MEDREC-001/002/006)
+
+Every route exists twice — once flat (`/medical-records/…`) and once under the
+approved nested shape (`/patients/{uid}/medical-records/…`). Both are served by
+**one** viewset, so the nested URL is not a second door around the read gate: it
+narrows the read set to the patient named in the path.
+
+| Module | Method | Endpoint | Permission | Consent | Object Rule | Audit | Notes |
+|---|---|---|---|---|---|---|---|
+| medrec | GET/POST | `/medical-records/` | `view` / `create` | O/C | own, or C15 clinical writer | Y | list is metadata only; `description` opens on detail |
+| medrec | GET | `/medical-records/{uid}/` | `view` | O/C | read set | Y(high) | every read appends `VIEWED` to the history |
+| medrec | PATCH | `/medical-records/{uid}/` | `update` | O/C | own self-entry, or C15 | Y | a clinician's note is not editable by the patient in place |
+| medrec | DELETE | `/medical-records/{uid}/` | `delete` | O | owner (C16) or C4 | Y | soft delete only; `deleted_at` is set |
+| medrec | POST | `/medical-records/{uid}/status/` | `update` | O | owner, or C15 | Y | `ARCHIVED` / `SUPPRESSED`; suppressed leaves the consent read set |
+| medrec | POST | `/medical-records/{uid}/visibility/` | `update` | O | owner only | Y | per-record opt-out of every consent-derived read |
+| medrec | GET/POST | `/medical-records/{uid}/files/` | `view` / `upload` | O/C | owner, or C15 | Y | PDF/JPEG/PNG ≤ 15 MB, magic-byte + extension verified |
+| medrec | GET/DELETE | `/medical-records/{uid}/files/{fid}/` | `view` / `upload` | O/C | reuses the chart read gate | Y | no public URL is ever returned |
+| medrec | GET | `/medical-records/files/{fid}/download` | `download` | O/C | chart read gate + `download` | Y | `FileResponse`, checksum stored on upload |
+| medrec | GET/POST | `/medical-records/{uid}/share/` | `view` | O | owner only | Y | narrowest grant: one record, one user, optional expiry |
+| medrec | POST | `/medical-records/{uid}/share/revoke/` | `view` | O | owner only | Y | immediate (FR-MEDREC-005) |
+| medrec | GET | `/medical-records/{uid}/history/` | `view` | O/C | read set | — | append-only trail for one record |
+| medrec | GET | `/medical-records/history/` | `view` | O/C | readable patients | — | chart-wide trail, last 200 rows |
+| catalog | GET | `/record-categories/` | authenticated | — | — | — | approved category vocabulary |
+| encounter | GET/POST | `/clinical-encounters/` | C15 | C | clinical writer + consent | Y | verified facility required to attribute (C7) |
+
+**C4 oversight.** `SUPER_ADMIN`/`ADMIN` hold `view`/`download`/`delete` but read
+only with an `X-Oversight-Reason` header of ≥ 10 characters, which is stored and
+written to the record history. A plain `GET` without that header is a 403, so an
+oversight read can never happen by accident or by a stray link.
+
+**Append-only history.** `medical_record_events` refuses `save()` on an existing
+row, `delete()`, `QuerySet.update()` and `QuerySet.delete()`, and its `record` FK
+is `PROTECT` — history cannot lose its subject. `details` carries field names,
+counts, statuses and file names only, never clinical text.
+
 ## 10. Medications (`/medications`)
 
 | Module | Method | Endpoint | Auth | Permission | Consent | Object Rule | Audit | Notes |
 |---|---|---|---|---|---|---|---|---|
 | medication | GET/POST | `/medications` | T | `medications.create/view` | O | owner | — | FR-MED-001 |
-| medication | GET/PATCH/DELETE | `/medications/{id}` | T | own (doc C2/3) | O/C | owner/consent | — | manage |
+| medication | GET/PATCH/DELETE | `/medications/{id}` | T | own (doc C2/3) | O/C | owner/consent | — | manage; `instructions` = prescriber directions, separate from schedule `notes` (FR-MED-007, ≤2000 chars) |
 | medication | GET/POST | `/medications/{id}/schedule` | T | own | O | owner | — | FR-MED-002 |
 | medication | PATCH/DELETE | `/medications/{id}/schedule/{sid}` | T | own | O | owner | — | edit schedule |
 | medication | POST | `/medications/{id}/log-dose` | T | `medications.update` (own) | O | owner | Y | FR-MED-004 + idempotency |
@@ -184,6 +223,7 @@
 | match | POST | `/blood/matches/{id}/respond` | T | `blood_requests.respond` (BLD, C8/C9) | C9 | own match | Y | FR-BLD-009 |
 | blood | POST | `/blood/requests/{id}/donation-events` | T | STA/HOS (C7) | — | facility | Y | immutable history |
 | blood | POST | `/admin/blood/run-matching` | T | `blood_matches.run` (SUP/ADM) | — | — | Y | async matcher |
+| blood | GET | `/blood/requests/{id}/decisions` | T | owner / admin / eligible donor (C8) | C8 | via `get_object()` | — | DBD-10 append-only trail, 404 for ineligible |
 
 ## 13. Emergency (`/emergency`, `/admin/emergency`)
 
@@ -264,6 +304,10 @@
 | education | POST | `/education/content` | T | `education.publish` (C12) | N | author | — | DRAFT |
 | education | PATCH/DELETE | `/education/content/{id}` | T | author C12 | N | author | — | draft edit |
 | education | POST | `/education/content/{id}/submit` | T | author | N | author | — | →IN_REVIEW |
+| education | POST | `/education/content/{id}/document` | T | `education.publish` (C12) | N | author, not PUBLISHED | Y | attach/replace handout (multipart) |
+| education | DELETE | `/education/content/{id}/document` | T | `education.publish` (C12) | N | author, not PUBLISHED | Y | remove handout |
+| education | POST | `/admin/education/content/{id}/document` | T | `education.review` (SUP/ADM) | N | not PUBLISHED | Y | CMS attach/replace |
+| education | DELETE | `/admin/education/content/{id}/document` | T | `education.review` (SUP/ADM) | N | not PUBLISHED | Y | CMS remove |
 | education | POST | `/admin/education/content/{id}/review` | T | `education.review` (SUP/ADM) | N | — | Y | FR-EDU-003 |
 
 ## 19. Notifications (`/notifications`, `/admin/notifications`)
@@ -284,7 +328,7 @@
 |---|---|---|---|---|---|---|---|---|
 | admin | GET | `/admin/dashboard` | T | SUP/ADM | — | — | C4 | aggregate KPIs |
 | admin | GET | `/admin/users` | T | `users.view` | — | — | — | +search/filter |
-| admin | GET | `/admin/doctors/verification-queue` | T | `doctors.verify` (VO/ADM) | — | — | — | pending |
+| admin | GET | `/admin/doctors/verification-queue` | T | `doctors.verify` (VO/ADM) | — | — | — | pending; `?professional_type=` |
 | admin | GET | `/admin/blood/verification-queue` | T | `blood_requests.verify` | — | — | — | pending |
 | admin | GET | `/admin/campaigns/verification-queue` | T | `campaigns.verify` | — | — | — | pending |
 | admin | GET | `/admin/emergency` | T | SUP/ADM (C4) | — | — | C4 | monitoring |

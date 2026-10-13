@@ -19,11 +19,17 @@ const List<String> _protectedExact = [
   '/donor-home',
   '/donor-shell',
   '/doctor-shell',
+  '/doctor-medications',
   '/caregiver-shell',
+  '/role-workspace',
   '/emergency',
   '/community',
   '/messages',
-  '/education',
+  // '/education' is intentionally NOT here: the backend serves only PUBLISHED
+  // education to anonymous readers (EducationContentView is AllowAny), so
+  // gating it sent signed-out visitors to the login wall for content they are
+  // allowed to read. Authors still reach the create surface from their own
+  // role dashboard, which is protected by role, not by this list.
   '/ai-assistant',
   '/donations',
   '/daktari',
@@ -31,7 +37,9 @@ const List<String> _protectedExact = [
   '/profile',
   '/notifications',
   '/change-password',
-  '/main-shell',
+  // MainShell.routeName — the entry above used to read '/main-shell', which no
+  // class declares, so the session wall never applied to the real shell route.
+  '/shell',
 ];
 
 bool isProtectedRoute(String route) =>

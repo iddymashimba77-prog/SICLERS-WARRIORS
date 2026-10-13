@@ -6,9 +6,13 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'package:sicklers_warriors/core/constants/app_strings.dart';
+import 'package:sicklers_warriors/core/l10n/app_localizations.dart';
+import 'package:sicklers_warriors/core/l10n/locale_controller.dart';
+import 'package:sicklers_warriors/core/prefs/app_preferences.dart';
 import 'package:sicklers_warriors/features/auth/data/token_store.dart';
 import 'package:sicklers_warriors/features/health/presentation/pages/health_dashboard_page.dart';
 import 'package:sicklers_warriors/features/medication/data/medication_repository.dart';
+import 'package:sicklers_warriors/features/medication/presentation/pages/medication_detail_page.dart';
 import 'package:sicklers_warriors/features/medication/presentation/pages/medication_page.dart';
 
 Map<String, dynamic> _medicationsPayload() => {
@@ -22,6 +26,7 @@ Map<String, dynamic> _medicationsPayload() => {
             'dosage': '1 tablet',
             'route': 'ORAL',
             'frequency': 'daily',
+            'instructions': 'Take with food. Avoid alcohol.',
             'is_active': true,
             'schedules': [
               {
@@ -55,6 +60,17 @@ Map<String, dynamic> _statsPayload() => {
 
 MockClient _happyClient() {
   return MockClient((request) async {
+    if (request.url.path.contains('/schedule') ||
+        request.url.path.endsWith('/events/')) {
+      return http.Response(
+        jsonEncode({
+          'data': {'results': const <dynamic>[]},
+          'meta': {'count': 0},
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
     if (request.url.path.endsWith('/medications/stats/')) {
       return http.Response(jsonEncode(_statsPayload()), 200,
           headers: {'content-type': 'application/json'});
@@ -67,7 +83,73 @@ MockClient _happyClient() {
   });
 }
 
+/// Instructions must survive the round trip (`FR-MED-007`): the DTO reads the
+/// server field, the form writes it back, and the detail screen shows it.
 void main() {
+  testWidgets('the detail screen shows the prescriber instructions',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: materialLocalizationsDelegates(
+          LocaleController(AppPreferences.memory()),
+        ),
+        supportedLocales: AppLocalizationsDelegate.supportedLocales,
+        home: MedicationDetailPage(
+          accessToken: 'test-access',
+          repository: MedicationRepository(
+            tokenStore: EphemeralTokenStore(),
+            client: _happyClient(),
+          ),
+          medication: Medication.fromJson(
+            _medicationsPayload()['data']['results'][0],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Instructions'), findsOneWidget);
+    expect(find.text('Take with food. Avoid alcohol.'), findsOneWidget);
+  });
+
+  testWidgets('no instructions means no empty card', (tester) async {
+    final row = Map<String, dynamic>.from(_medicationsPayload()['data']['results'][0])
+      ..remove('instructions');
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: materialLocalizationsDelegates(
+          LocaleController(AppPreferences.memory()),
+        ),
+        supportedLocales: AppLocalizationsDelegate.supportedLocales,
+        home: MedicationDetailPage(
+          accessToken: 'test-access',
+          repository: MedicationRepository(
+            tokenStore: EphemeralTokenStore(),
+            client: _happyClient(),
+          ),
+          medication: Medication.fromJson(row),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Instructions'), findsNothing);
+  });
+
+  test('instructions travel with the medication', () {
+    final med = Medication.fromJson(_medicationsPayload()['data']['results'][0]);
+    expect(med.instructions, 'Take with food. Avoid alcohol.');
+    expect(med.toJson()['instructions'], 'Take with food. Avoid alcohol.');
+  });
+
+  test('a medication without instructions reads as blank, not null', () {
+    final row = Map<String, dynamic>.from(_medicationsPayload()['data']['results'][0])
+      ..remove('instructions');
+    final med = Medication.fromJson(row);
+    expect(med.instructions, isEmpty);
+    expect(med.toJson()['instructions'], '');
+  });
+
   testWidgets('MedicationPage guards when signed out', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(home: MedicationPage()),

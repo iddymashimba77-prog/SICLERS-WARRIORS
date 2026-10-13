@@ -7,6 +7,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/chat_repository.dart';
 import 'conversation_thread_page.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Conversation list (approved CHAT-001; FR-DOC-005/UR-01).
 ///
@@ -25,10 +26,7 @@ class ConversationListPage extends StatelessWidget {
     final token = (authController ?? SessionScope.controllerOf(context))
         .accessToken;
     if (token == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.messages)),
-        body: const Center(child: Text(AppStrings.notSignedIn)),
-      );
+      return const SignedOutGate();
     }
     return ConversationListView(
       accessToken: token,

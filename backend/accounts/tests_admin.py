@@ -12,6 +12,8 @@ Security matrix covered:
 * MFA step-up boundary — mfa_enabled admin refuses access with a recorded
   MFA_CHALLENGE event; non-admin mfa_enabled is unaffected.
 * Shorter admin session — admin login/refresh TTL == 8h, patient == 24h.
+* PSYCHOLOGIST and SOCIAL_SUPPORT roles — proper permission scoping and
+  privileged role gate enforcement.
 """
 
 import uuid as _uuid
@@ -370,3 +372,138 @@ class AdminSessionTtlTests(TestCase):
         exp = self._exp(r2.json()["data"]["refresh"])
         self.assertLess(exp - now, timedelta(hours=9))
         self.assertGreater(exp - now, timedelta(hours=7))
+
+
+class PsychologistSocialSupportRoleTests(TestCase):
+    """Tests for PSYCHOLOGIST and SOCIAL_SUPPORT role scoping and permissions."""
+
+    def setUp(self):
+        self.psychologist = _orm_user("PSYCHOLOGIST")
+        self.social_support = _orm_user("SOCIAL_SUPPORT")
+        self.patient = _orm_user("PATIENT")
+        self.admin = _orm_user("SUPER_ADMIN")
+
+    def test_psychologist_role_exists(self):
+        """PSYCHOLOGIST role should exist in the system."""
+        self.assertTrue(Role.objects.filter(code="PSYCHOLOGIST").exists())
+
+    def test_social_support_role_exists(self):
+        """SOCIAL_SUPPORT role should exist in the system."""
+        self.assertTrue(Role.objects.filter(code="SOCIAL_SUPPORT").exists())
+
+    def test_psychologist_has_profile_view_permission(self):
+        """PSYCHOLOGIST should have auth.profile_view permission."""
+        self.assertTrue(self.psychologist.has_perm_code("auth.profile_view"))
+
+    def test_psychologist_has_patients_view_permission(self):
+        """PSYCHOLOGIST should have patients.view permission."""
+        self.assertTrue(self.psychologist.has_perm_code("patients.view"))
+
+    def test_psychologist_has_psychology_permissions(self):
+        """PSYCHOLOGIST should have psychology-specific permissions."""
+        self.assertTrue(self.psychologist.has_perm_code("psychology.assessments.create"))
+        self.assertTrue(self.psychologist.has_perm_code("psychology.assessments.read"))
+        self.assertTrue(self.psychologist.has_perm_code("psychology.counseling.manage"))
+
+    def test_social_support_has_profile_view_permission(self):
+        """SOCIAL_SUPPORT should have auth.profile_view permission."""
+        self.assertTrue(self.social_support.has_perm_code("auth.profile_view"))
+
+    def test_social_support_has_patients_view_permission(self):
+        """SOCIAL_SUPPORT should have patients.view permission."""
+        self.assertTrue(self.social_support.has_perm_code("patients.view"))
+
+    def test_social_support_has_social_permissions(self):
+        """SOCIAL_SUPPORT should have social work-specific permissions."""
+        self.assertTrue(self.social_support.has_perm_code("social.cases.create"))
+        self.assertTrue(self.social_support.has_perm_code("social.cases.read"))
+        self.assertTrue(self.social_support.has_perm_code("social.resources.manage"))
+
+    def test_psychologist_is_self_registerable_but_verification_required(self):
+        """PSYCHOLOGIST may self-register, but only into the C5 pipeline."""
+        from accounts.serializers import (
+            SELF_REGISTERABLE_ROLES,
+            VERIFICATION_REQUIRED_ROLE_CODES,
+        )
+        self.assertIn("PSYCHOLOGIST", SELF_REGISTERABLE_ROLES)
+        self.assertIn("PSYCHOLOGIST", VERIFICATION_REQUIRED_ROLE_CODES)
+
+    def test_social_support_is_self_registerable_but_verification_required(self):
+        """SOCIAL_SUPPORT may self-register, but only into the C5 pipeline."""
+        from accounts.serializers import (
+            SELF_REGISTERABLE_ROLES,
+            VERIFICATION_REQUIRED_ROLE_CODES,
+        )
+        self.assertIn("SOCIAL_SUPPORT", SELF_REGISTERABLE_ROLES)
+        self.assertIn("SOCIAL_SUPPORT", VERIFICATION_REQUIRED_ROLE_CODES)
+
+    def test_user_model_psychologist_property(self):
+        """User.is_psychologist property should work correctly."""
+        self.assertTrue(self.psychologist.is_psychologist)
+        self.assertFalse(self.patient.is_psychologist)
+        self.assertFalse(self.admin.is_psychologist)
+
+    def test_user_model_social_support_property(self):
+        """User.is_social_support property should work correctly."""
+        self.assertTrue(self.social_support.is_social_support)
+        self.assertFalse(self.patient.is_social_support)
+        self.assertFalse(self.admin.is_social_support)
+
+
+class AdminRoleCreateTests(TestCase):
+    """POST /api/admin/roles/ — new non-system role (SUP-only, audited)."""
+
+    def setUp(self):
+        cache.clear()
+        self.super = _orm_user("SUPER_ADMIN")
+        self.admin = _orm_user("ADMIN")
+        self.super_client = _client(self.super)
+        self.admin_client = _client(self.admin)
+
+    def test_super_creates_role(self):
+        from accounts.models import Role
+
+        r = self.super_client.post(
+            "/api/admin/roles/",
+            {"name": "Medical Officer", "description": "Prescribing clinician"},
+        )
+        self.assertEqual(r.status_code, 201)
+        body = r.json()["data"]
+        self.assertEqual(body["code"], "MEDICAL_OFFICER")
+        self.assertEqual(body["name"], "Medical Officer")
+        self.assertFalse(body["is_system"])
+        self.assertEqual(body["permission_count"], 0)
+        self.assertEqual(body["member_count"], 0)
+        role = Role.objects.get(code="MEDICAL_OFFICER")
+        self.assertFalse(role.is_system)
+
+        # Immediately usable as a permission target.
+        grant = self.super_client.post(
+            "/api/admin/roles/MEDICAL_OFFICER/permissions/",
+            {"permission_code": "education.view", "grant": True, "reason": "read-only access"},
+        )
+        self.assertEqual(grant.status_code, 201)
+        from accounts.models import RolePermission
+
+        self.assertTrue(RolePermission.objects.filter(
+            role=role, permission__code="education.view"
+        ).exists())
+
+    def test_duplicate_code_rejected(self):
+        r = self.super_client.post(
+            "/api/admin/roles/",
+            {"name": "Administrator", "code": "ADMIN", "description": "dup"},
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_explicit_invalid_code_rejected(self):
+        r = self.super_client.post(
+            "/api/admin/roles/",
+            {"name": "Weird", "code": "no spaces!"},
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_admin_denied_and_unauthenticated_denied(self):
+        r = self.admin_client.post("/api/admin/roles/", {"name": "Nope"})
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(APIClient().post("/api/admin/roles/", {"name": "Nope"}).status_code, 401)

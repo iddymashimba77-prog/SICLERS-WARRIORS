@@ -22,6 +22,7 @@ import '../../features/admin/presentation/pages/admin_users_page.dart';
 import '../../features/auth/presentation/widgets/session_scope.dart';
 import 'app_avatar.dart';
 import 'app_top_bar.dart';
+import '../../core/theme/app_shapes.dart';
 
 /// Sickler's Warriors — ADMIN-3 admin shell.
 ///
@@ -234,7 +235,7 @@ class _AdminSidebar extends StatelessWidget {
                     height: 36,
                     decoration: BoxDecoration(
                       color: AppColors.blue,
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: AppShapes.medium,
                     ),
                     child: const Icon(
                       Icons.favorite,
@@ -259,7 +260,7 @@ class _AdminSidebar extends StatelessWidget {
               ),
             ),
           ),
-          const Divider(color: Color(0x33FFFFFF), height: 1),
+          const Divider(color: AppColors.dividerOnDark, height: 1),
           const SizedBox(height: AppSpacing.md),
           Expanded(
             child: ListView(
@@ -295,7 +296,7 @@ class _AdminSidebar extends StatelessWidget {
                       onPressed: onToggleCollapse,
                     ),
                   ),
-                const Divider(color: Color(0x33FFFFFF), height: 17),
+                const Divider(color: AppColors.dividerOnDark, height: 17),
                 if (adminName.isNotEmpty)
                   Padding(
                     padding: EdgeInsets.symmetric(
@@ -374,10 +375,10 @@ class _SidebarTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
         color: selected ? AppColors.blue.withValues(alpha: 0.35) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppShapes.tile,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: AppShapes.tile,
           child: Padding(
             padding: EdgeInsets.symmetric(
               horizontal: collapsed ? AppSpacing.sm : AppSpacing.md,

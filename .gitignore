@@ -30,3 +30,10 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+# Generated Django static files
+backend/staticfiles/
+# Uploaded verification documents: keep out of Git
+backend/media/certification_verification/
+
+# All uploaded media: never in Git
+backend/media/

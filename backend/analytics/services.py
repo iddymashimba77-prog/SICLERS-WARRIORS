@@ -384,6 +384,118 @@ def daily_series(metric_key, days=30, dimensions=None):
 
 
 # ---------------------------------------------------------------------------
+# Live (on-read) KPI counts
+# ---------------------------------------------------------------------------
+# AD-7 requires the dashboard to be aggregate-only, but the requirement also
+# asks for *real* figures rather than whatever the last nightly aggregation
+# happened to write. These helpers answer the question directly from the source
+# tables with plain ``.count()`` / ``.values(...).annotate(Count(...))`` calls:
+# no row is materialised, so no identifier, contact detail or clinical field can
+# leak into a dashboard response. Snapshot rows remain the source for the
+# derived/aggregate figures that have no cheap on-read equivalent (money,
+# averages) and for every historical trend.
+
+_ACTIVE_STATUSES = ("ACTIVE",)
+_ROLE_COUNT_CODES = (
+    "PATIENT", "DOCTOR", "BLOOD_DONOR", "FINANCIAL_DONOR", "CAREGIVER",
+    "HOSPITAL", "ORGANIZATION", "HEALTHCARE_STAFF",
+)
+
+
+def _role_counts() -> dict[str, int]:
+    """One grouped query for every role population on the dashboard.
+
+    A single ``values().annotate(Count())`` over the ``user_roles`` join keeps
+    this to two queries total instead of one per role, and a user holding two
+    roles is intentionally counted in both populations.
+    """
+    from accounts.models import UserRole
+
+    rows = (
+        UserRole.objects.filter(is_active=True, role__code__in=_ROLE_COUNT_CODES)
+        .values("role__code")
+        .annotate(_n=Count("user_id"))
+    )
+    counts = {row["role__code"].lower(): int(row["_n"]) for row in rows}
+    return {code.lower(): counts.get(code.lower(), 0) for code in _ROLE_COUNT_CODES}
+
+
+def live_kpis() -> tuple[dict[str, int], dict[str, str]]:
+    """Compute the state KPIs from source tables.
+
+    Returns ``(values, sources)`` where ``sources`` records, per KPI, whether
+    the figure is ``live`` (computed for this request) or ``snapshot`` (last
+    aggregation run) so the UI can be honest about freshness.
+    """
+    now = timezone.now()
+    values: dict[str, int] = {}
+    sources: dict[str, str] = {}
+
+    users = User.objects.all()
+    values["users_total"] = users.count()
+    values["users_active"] = users.filter(account_status="ACTIVE").count()
+    values["users_pending_verification"] = users.filter(
+        account_status="PENDING_VERIFICATION"
+    ).count()
+    values["users_suspended"] = users.filter(account_status="SUSPENDED").count()
+
+    for code, count in _role_counts().items():
+        values[f"users_{code}"] = count
+    # `users_active_patients` is the historical key the admin web already reads.
+    values["users_active_patients"] = (
+        User.objects.filter(
+            account_status__in=_ACTIVE_STATUSES, user_roles__is_active=True,
+            user_roles__role__code="PATIENT",
+        ).distinct().count()
+    )
+
+    values["verified_docs"] = VerificationDocument.objects.filter(
+        status="VERIFIED"
+    ).count()
+    values["verification_docs_pending"] = VerificationDocument.objects.filter(
+        status="PENDING"
+    ).count()
+
+    blood_open = BloodRequest.objects.filter(
+        status__in=["PENDING_VERIFICATION", "ACTIVE", "MATCHING", "MATCHED"]
+    ).count()
+    values["blood_requests_pending_verification"] = BloodRequest.objects.filter(
+        status="PENDING_VERIFICATION"
+    ).count()
+    values["blood_requests_active"] = BloodRequest.objects.filter(
+        status__in=["ACTIVE", "MATCHING", "MATCHED"]
+    ).count()
+    values["active_blood_requests"] = blood_open
+
+    campaign_pending = Campaign.objects.filter(status="PENDING_VERIFICATION").count()
+    values["campaigns_pending_verification"] = campaign_pending
+    values["campaigns_active"] = Campaign.objects.filter(status="ACTIVE").count()
+
+    values["pending_verifications"] = (
+        VerificationDocument.objects.filter(status="PENDING").count()
+        + BloodRequest.objects.filter(status="PENDING_VERIFICATION").count()
+        + campaign_pending
+    )
+    values["active_emergencies"] = EmergencyRequest.objects.filter(
+        status__in=_OPEN_EMERGENCY_STATUSES
+    ).count()
+    values["emergency_requests_critical"] = EmergencyRequest.objects.filter(
+        severity="CRITICAL", status__in=_OPEN_EMERGENCY_STATUSES
+    ).count()
+    values["pending_moderation"] = Report.objects.filter(
+        status__in=_OPEN_REPORT_STATUSES
+    ).count()
+    values["open_reports"] = Report.objects.filter(status="OPEN").count()
+    values["published_content"] = EducationalContent.objects.filter(
+        status="PUBLISHED"
+    ).count()
+
+    for key in values:
+        sources[key] = "live"
+    return values, sources
+
+
+# ---------------------------------------------------------------------------
 # Reporting surface helpers
 # ---------------------------------------------------------------------------
 
@@ -508,30 +620,24 @@ class AnalyticsService:
 
     def _admin_dashboard(self, user) -> dict:
         codes = set(getattr(user, "role_codes", []) or [])
-        kpis = {}
+        live, sources = live_kpis()
+
+        # Snapshot figures only fill the gaps that have no cheap on-read
+        # equivalent (money, averages) — everything countable is live.
+        kpis = dict(live)
         for key, metric, dims in _ADMIN_KPI:
+            if key in kpis:
+                continue
             value = self.latest(metric, dims)
-            if key == "active_blood_requests":
-                value = self._sum_status(metric, ["ACTIVE", "MATCHING", "MATCHED"])
             if value is not None:
                 kpis[key] = value
-        # Aggregate subset of active emergencies (open statuses) for the card.
-        active_emergencies = self._sum_status(
-            "emergency_requests.by_status", list(_OPEN_EMERGENCY_STATUSES),
-        )
-        if active_emergencies is not None:
-            kpis["active_emergencies"] = active_emergencies
+                sources[key] = "snapshot"
+
         kpis["system_alerts_24h"] = SecurityEvent.objects.filter(
             created_at__gte=timezone.now() - datetime.timedelta(hours=24),
         ).exclude(status="SUCCESS").count()
-        kpis["pending_moderation"] = Report.objects.filter(
-            status__in=_OPEN_REPORT_STATUSES,
-        ).count()
-        kpis["pending_verifications"] = (
-            VerificationDocument.objects.filter(status="PENDING").count()
-            + BloodRequest.objects.filter(status="PENDING_VERIFICATION").count()
-            + Campaign.objects.filter(status="PENDING_VERIFICATION").count()
-        )
+        sources["system_alerts_24h"] = "live"
+
         trends = {
             metric: self.daily_series(metric, days=30)
             for metric in ("users.total", "users.new", "donations.confirmed_amount")
@@ -540,24 +646,27 @@ class AnalyticsService:
             "generated_at": timezone.now().isoformat(),
             "role_kernel": "SUPER_ADMIN" if "SUPER_ADMIN" in codes else "ADMIN",
             "kpis": kpis,
+            "kpi_sources": sources,
             "trends": trends,
         }
 
     def _verification_dashboard(self, user) -> dict:
-        kpis = {}
+        live, sources = live_kpis()
+        kpis = {key: live[key] for key, _metric, _dims in _VERIFICATION_KPI if key in live}
         for key, metric, dims in _VERIFICATION_KPI:
+            if key in kpis:
+                continue
             value = self.latest(metric, dims)
             if value is not None:
                 kpis[key] = value
-        kpis["pending_verifications"] = (
-            VerificationDocument.objects.filter(status="PENDING").count()
-            + BloodRequest.objects.filter(status="PENDING_VERIFICATION").count()
-            + Campaign.objects.filter(status="PENDING_VERIFICATION").count()
-        )
+                sources[key] = "snapshot"
+        kpis["pending_verifications"] = live["pending_verifications"]
+        sources["pending_verifications"] = "live"
         return {
             "generated_at": timezone.now().isoformat(),
             "role_kernel": "VERIFICATION_OFFICER",
             "kpis": kpis,
+            "kpi_sources": sources,
             "trends": {},
         }
 

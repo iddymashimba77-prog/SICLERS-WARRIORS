@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../data/education_repository.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// Article detail (approved EDU-003; FR-EDU-001/002/004).
 ///
@@ -101,6 +104,20 @@ class _EducationDetailViewState extends State<EducationDetailView> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (content.coverUrl.isNotEmpty) ...[
+          ClipRRect(
+            borderRadius: AppShapes.tile,
+            child: Image.network(
+              content.coverUrl,
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         Card(
           color: AppColors.secondary.withValues(alpha: 0.08),
           child: Padding(
@@ -138,9 +155,93 @@ class _EducationDetailViewState extends State<EducationDetailView> {
               ),
           ],
         ),
+        if (content.hasDocument) ...[
+          const SizedBox(height: 20),
+          _HandoutCard(content: content),
+        ],
         const SizedBox(height: 16),
         Text(plainBody, style: Theme.of(context).textTheme.bodyMedium),
       ],
+    );
+  }
+}
+
+/// Downloadable handout attached to the article (FR-EDU-005).
+///
+/// Opening the URL in the system viewer rather than downloading it inside the
+/// app keeps a file the patient did not choose off our storage, and lets them
+/// use whichever PDF reader they already trust.
+class _HandoutCard extends StatefulWidget {
+  const _HandoutCard({required this.content});
+
+  final EducationalContent content;
+
+  @override
+  State<_HandoutCard> createState() => _HandoutCardState();
+}
+
+class _HandoutCardState extends State<_HandoutCard> {
+  Future<void> _open() async {
+    final s = AppLocalizations.of(context);
+    final url = widget.content.documentUrl;
+    if (url == null) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      _notify(s.tr('edu.document.badLink'));
+      return;
+    }
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    // The launch crosses an async gap, so re-check before touching the tree.
+    if (!ok && mounted) _notify(s.tr('edu.document.noApp'));
+  }
+
+  void _notify(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final s = AppLocalizations.of(context);
+    final content = widget.content;
+    final label =
+        content.documentName.isEmpty ? s.tr('edu.document.download') : content.documentName;
+    final size = content.readableDocumentSize;
+    return Card(
+      child: InkWell(
+        onTap: _open,
+        borderRadius: AppShapes.tile,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Icon(Icons.attachment_outlined, color: theme.colorScheme.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.tr('edu.document.download'),
+                      style: theme.textTheme.labelSmall,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      size.isEmpty ? label : '$label · $size',
+                      style: theme.textTheme.bodyMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.open_in_new, size: 18),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

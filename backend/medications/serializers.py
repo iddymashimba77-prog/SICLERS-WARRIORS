@@ -7,10 +7,13 @@ health vocabulary server-side (never trust Flutter validation alone, §13).
 import datetime
 import uuid as _uuid
 
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import serializers
 
 from medications import models
+
+User = get_user_model()
 
 
 class SymptomTypeSerializer(serializers.ModelSerializer):
@@ -44,13 +47,21 @@ class MedicationSerializer(serializers.ModelSerializer):
     prescribed_by = serializers.SlugRelatedField(
         slug_field="email", read_only=True, allow_null=True
     )
+    patient = serializers.SlugRelatedField(
+        slug_field="uid",
+        queryset=User.objects.filter(
+            user_roles__role__code="PATIENT", user_roles__is_active=True
+        ).distinct(),
+        write_only=True, required=False, allow_null=False,
+    )
 
     class Meta:
         model = models.Medication
         fields = [
             "uid", "name", "generic_name", "strength", "dosage", "route",
-            "frequency", "start_date", "end_date", "prescribed_by",
-            "is_active", "schedules", "created_at", "updated_at",
+            "frequency", "instructions", "start_date", "end_date",
+            "prescribed_by", "is_active", "schedules", "created_at",
+            "updated_at", "patient",
         ]
         read_only_fields = ["uid", "prescribed_by", "created_at", "updated_at"]
 
@@ -60,6 +71,11 @@ class MedicationSerializer(serializers.ModelSerializer):
         end = attrs.get("end_date") or getattr(self.instance, "end_date", None)
         if start and end and end < start:
             errors["end_date"] = "end_date must be the same as or after start_date."
+        # Instructions are patient-facing directions, so they are bounded and
+        # plain text only.
+        instructions = attrs.get("instructions", getattr(self.instance, "instructions", ""))
+        if len(instructions) > 2000:
+            errors["instructions"] = "Keep instructions under 2000 characters."
         if errors:
             raise serializers.ValidationError(errors)
         return attrs

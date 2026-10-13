@@ -6,6 +6,7 @@ import '../../../chat/presentation/pages/conversation_list_page.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import 'doctor_home_page.dart';
+import 'doctor_medications_page.dart';
 
 /// Dedicated doctor experience (FRONTEND-3) — never a copy of the patient
 /// shell. The backend authorizes every surface; unavailable areas render
@@ -20,6 +21,11 @@ class DoctorShell extends StatelessWidget {
       icon: Icons.medical_services_outlined,
       selectedIcon: Icons.medical_services,
       label: AppStrings.doctorHome,
+    ),
+    RoleDestination(
+      icon: Icons.medication_outlined,
+      selectedIcon: Icons.medication,
+      label: AppStrings.doctorMedications,
     ),
     RoleDestination(
       icon: Icons.chat_bubble_outline,
@@ -45,10 +51,12 @@ class DoctorShell extends StatelessWidget {
       bodyFor: (context, index) {
         switch (index) {
           case 1:
-            return const ConversationListPage();
+            return const DoctorMedicationsPage();
           case 2:
-            return const NotificationsPage();
+            return const ConversationListPage();
           case 3:
+            return const NotificationsPage();
+          case 4:
             return const ProfilePage();
           default:
             return const DoctorHomePage();

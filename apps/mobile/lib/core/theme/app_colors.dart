@@ -43,6 +43,12 @@ class AppColors {
   /// Light brand blue tint — informational/tagged surfaces.
   static const Color lightBlue = Color(0xFFEAF3FB);
 
+  /// Light amber/warning tint — cautionary informational surfaces.
+  static const Color lightAmber = Color(0xFFFFF7E6);
+
+  /// Deeper navy stop used inside navy gradients.
+  static const Color navyDeep = Color(0xFF0E2A4F);
+
   // -------------------------------------------------------------- surfaces
   static const Color background = Color(0xFFF5F7FA);
   static const Color surface = Color(0xFFFFFFFF);
@@ -72,6 +78,8 @@ class AppColors {
   static const Color border = Color(0xFFE4E7EC);
   static const Color borderSubtle = Color(0xFFEDF1F6);
   static const Color divider = Color(0xFFE9EEF4);
+  /// Divider / hairline drawn on dark (navy) surfaces.
+  static const Color dividerOnDark = Color(0x33FFFFFF);
 
   // --------------------------------------------------------- legacy aliases
   // Brand blue used to be the accent; these names are kept for compatibility

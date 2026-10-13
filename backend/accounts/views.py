@@ -15,26 +15,39 @@ Every endpoint enforces the approved security posture:
   returned in error responses.
 """
 
+import logging
+import mimetypes
+import os
+from urllib.parse import urlparse
+
+import uuid
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
+from django.http import FileResponse
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from audit.services import record_audit
 from content import upload_validation
-from .permissions import IsAuthenticatedRespectStatus
+from core.media import media_path, media_prefix, store_media_path
+from .models import SecurityEvent, VerificationDocument
+from .permissions import CanReviewVerificationDocuments, IsAuthenticatedRespectStatus
 from .throttles import AuthThrottle
+from .verification_documents import normalize_verification_document
 from .serializers import (
     ChangePasswordSerializer,
-    EmailVerifyResendSerializer,
-    EmailVerifySerializer,
+    LoginPinSerializer,
     LoginSerializer,
     LogoutSerializer,
     PasswordResetConfirmSerializer,
@@ -42,18 +55,39 @@ from .serializers import (
     ProfilePhotoSerializer,
     RefreshRotationSerializer,
     RegisterSerializer,
+    SELF_REGISTERABLE_ROLES,
+    SetLoginPinSerializer,
     UserSummarySerializer,
+    VerificationDocumentUploadSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
-REGISTER_SHORTCODES = {"PATIENT", "CAREGIVER"}
+REGISTER_SHORTCODES = set(SELF_REGISTERABLE_ROLES)
+
+
+def _verification_storage_name(file_url):
+    """Map a stored ``/media/...`` path back to its storage-relative name.
+
+    Returns ``None`` for anything that is not one of our uploads so a caller
+    can 404 rather than attempt to open an arbitrary path.
+    """
+    path = media_path(file_url)
+    if path is None:
+        return None
+    prefix = media_prefix()
+    name = path[len(prefix):] if path.startswith(prefix) else path.lstrip("/")
+    return name or None
 
 
 class RegisterView(generics.CreateAPIView):
-    """Public self-registration. Only SELF_REGISTERABLE roles (PATIENT,
-    CAREGIVER). Response returns the signed-in JWT pair + safe user summary;
-    never role/permission claims granted beyond the serializer's approval."""
+    """Public self-registration for SELF_REGISTERABLE_ROLES (patients,
+    caregivers, blood donors, care professionals and facilities — never
+    administrative roles). Response returns the signed-in JWT pair + safe user
+    summary and a ``verification_required`` hint so clients route professionals
+    and facilities into the C5 document-verification pipeline on signup."""
 
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
@@ -67,24 +101,25 @@ class RegisterView(generics.CreateAPIView):
             {
                 "access": result["access"],
                 "refresh": result["refresh"],
-                "user": UserSummarySerializer(result["user"]).data,
-                "email_verification_pending": result.get("email_verification_pending", False),
-                "verify_token": result.get("verify_token"),
+                "user": UserSummarySerializer(
+                    result["user"], context={"request": request}
+                ).data,
+                "verification_required": result.get("verification_required", False),
             },
             status=status.HTTP_201_CREATED,
         )
 
 
-class EmailVerifyView(generics.GenericAPIView):
-    """Consume the single-use email-verification code (FR-AUTH-004, AUTH-005).
+class SetLoginPinView(generics.GenericAPIView):
+    """Configure the authenticated account's 4-digit login PIN.
 
-    Transitions the account PENDING_VERIFICATION → ACTIVE. Idempotent for an
-    already-verified account; invalid/expired codes are rejected uniformly.
+    Offered right after the first email+password sign-in (and re-runnable to
+    change it). The PIN is hashed server-side; the response carries no PIN
+    material.
     """
 
-    serializer_class = EmailVerifySerializer
-    permission_classes = [permissions.AllowAny]
-    throttle_classes = [AuthThrottle]
+    serializer_class = SetLoginPinSerializer
+    permission_classes = [IsAuthenticatedRespectStatus]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -93,21 +128,28 @@ class EmailVerifyView(generics.GenericAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class EmailVerifyResendView(generics.GenericAPIView):
-    """Re-issue an email-verification code. Always 202 + a uniform body so an
-    account's existence is never disclosed (NFR-SEC-007); rate-limited."""
+class LoginPinView(generics.GenericAPIView):
+    """PIN sign-in for a device-remembered identity (email/phone + 4 digits).
 
-    serializer_class = EmailVerifyResendSerializer
+    Uniform failure responses so account existence/PIN state is never disclosed
+    (NFR-SEC-007); auth-throttled per identity to bound PIN guessing.
+    """
+
+    serializer_class = LoginPinSerializer
     permission_classes = [permissions.AllowAny]
     throttle_classes = [AuthThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        user = serializer.validated_data["user"]
+        tokens = serializer.validated_data["tokens"]
         return Response(
-            {"detail": "If that account is awaiting verification, a new code has been sent."},
-            status=status.HTTP_202_ACCEPTED,
+            {
+                "access": tokens["access"],
+                "refresh": tokens["refresh"],
+                "user": UserSummarySerializer(user, context={"request": request}).data,
+            }
         )
 
 
@@ -130,7 +172,7 @@ class LoginView(generics.GenericAPIView):
             {
                 "access": tokens["access"],
                 "refresh": tokens["refresh"],
-                "user": UserSummarySerializer(user).data,
+                "user": UserSummarySerializer(user, context={"request": request}).data,
             }
         )
 
@@ -184,6 +226,21 @@ class MeUploadPhotoView(APIView):
     throttle_classes = [AuthThrottle]
     serializer_class = ProfilePhotoSerializer
 
+    @staticmethod
+    def _stored_name_from_url(url):
+        """Recover the storage key from a previously stored absolute URL."""
+        if not url:
+            return ""
+        path = urlparse(url).path or ""
+        prefix = settings.MEDIA_URL
+        if prefix and path.startswith(prefix):
+            return path[len(prefix):]
+        # Tolerate a legacy relative "media/" prefix written before MEDIA_URL
+        # was corrected, so old rows can still be cleaned up.
+        if path.startswith("media/"):
+            return path[len("media/"):]
+        return ""
+
     @transaction.atomic
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
@@ -194,21 +251,134 @@ class MeUploadPhotoView(APIView):
             buffer, _content_type = upload_validation.normalize_cover_image(image)
         except DjangoValidationError as exc:
             raise ValidationError({"image": exc.messages})
-        stored_name = default_storage.save(
-            f"accounts/avatars/{user.uid}.jpg",
-            ContentFile(buffer.getvalue()),
-        )
-        media_prefix = settings.MEDIA_URL
-        if not media_prefix.startswith("/"):
-            media_prefix = f"/{media_prefix}"
-        user.profile_photo_url = request.build_absolute_uri(
-            f"{media_prefix}{stored_name}"
-        )
+        storage_key = f"accounts/avatars/{user.uid}.jpg"
+        previous_name = self._stored_name_from_url(user.profile_photo_url)
+        # `default_storage.save()` never overwrites — when the name already
+        # exists it appends a random suffix. Left alone, every photo change
+        # would orphan the previous object *and* leave the URL moving to a new
+        # suffixed name on every upload. Clear both the deterministic key and
+        # any legacy name the account was pointing at, so one stable object
+        # per user is always served.
+        replaced = False
+        for stale in {storage_key, previous_name or ""}:
+            if not stale or not default_storage.exists(stale):
+                continue
+            try:
+                default_storage.delete(stale)
+            except Exception:  # pragma: no cover - storage backend failure
+                logger.warning("Could not delete previous avatar %s", stale, exc_info=True)
+            replaced = True
+        stored_name = default_storage.save(storage_key, ContentFile(buffer.getvalue()))
+        # Persist the backend-relative path only. The absolute form is built
+        # when the response is rendered (core.media), so a stale or internal
+        # request Host can never be pinned into the row.
+        user.profile_photo_url = store_media_path(stored_name)
         user.save(update_fields=["profile_photo_url", "updated_at"])
+        record_audit(
+            actor=user,
+            action_code="accounts.profile_photo_updated",
+            resource_type="user",
+            resource_id=user.pk,
+            request=request,
+            # Non-PHI: a photo change is audited, never the image itself.
+            details={"replaced_previous": replaced, "stored_name": stored_name[:200]},
+        )
+        SecurityEvent.objects.create(user=user, event_type="PROFILE_UPDATED")
         return Response(
             UserSummarySerializer(user, context={"request": request}).data,
             status=status.HTTP_200_OK,
         )
+
+
+class VerificationDocumentUploadView(APIView):
+    """Upload one government-issued verification document (C5 pipeline).
+
+    Any authenticated applicant (usually a just-registered professional or
+    facility role) uploads a scan/photo of a single document. Images are
+    re-encoded to JPEG and therefore legible for a reviewer; PDFs are stored
+    raw but magic-byte-validated. The response returns ``doc_type`` +
+    ``file_url`` (a storage key) ready to attach to the doctors/facilities
+    verification-submit endpoints — the document is not part of the profile
+    until the applicant submits the full verification bundle.
+    """
+
+    permission_classes = [IsAuthenticatedRespectStatus]
+    serializer_class = VerificationDocumentUploadSerializer
+    throttle_classes = [AuthThrottle]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        doc_type = serializer.validated_data["doc_type"]
+        upload = serializer.validated_data["file"]
+        user = request.user
+        try:
+            buffer, content_type, ext = normalize_verification_document(upload)
+        except DjangoValidationError as exc:
+            raise ValidationError({"file": exc.messages})
+        storage_key = f"certification_verification/{user.uid}/{uuid.uuid4().hex}.{ext}"
+        stored_name = default_storage.save(
+            storage_key, ContentFile(buffer.getvalue())
+        )
+        record_audit(
+            actor=user,
+            action_code="accounts.verification_document_uploaded",
+            resource_type="user",
+            resource_id=user.pk,
+            request=request,
+            details={"doc_type": doc_type, "stored_name": stored_name[:200]},
+        )
+        SecurityEvent.objects.create(user=user, event_type="PROFILE_UPDATED")
+        return Response(
+            {
+                "doc_type": doc_type,
+                "file_url": store_media_path(stored_name),
+                "file_name": getattr(upload, "name", "") or "",
+                "content_type": content_type,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class AdminVerificationDocumentView(APIView):
+    """GET /admin/verification-documents/{pk} — stream one submitted document.
+
+    A C6 reviewer (``doctors.verify`` / ``facilities.verify``) opens the exact
+    file an applicant attached so the approve/reject decision rests on the
+    evidence, not on a summary. The stored object is streamed through Django —
+    never a public URL — and every open is written to the audit trail so access
+    to a government ID / license is always accounted for.
+    """
+
+    permission_classes = [IsAuthenticatedRespectStatus, CanReviewVerificationDocuments]
+
+    @extend_schema(responses={(200, "application/octet-stream"): OpenApiTypes.BINARY})
+    def get(self, request, pk=None):
+        doc = (
+            VerificationDocument.objects.filter(pk=pk).select_related("user").first()
+        )
+        if doc is None:
+            raise NotFound("Verification document not found.")
+        name = _verification_storage_name(doc.file_url)
+        if name is None:
+            raise NotFound("The stored document is unavailable.")
+        try:
+            handle = default_storage.open(name, "rb")
+        except (FileNotFoundError, OSError):
+            raise NotFound("The stored document is no longer available.")
+        content_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        record_audit(
+            actor=request.user,
+            action_code="accounts.verification_document_viewed",
+            resource_type="verification_document",
+            resource_id=doc.pk,
+            request=request,
+            details={"doc_type": doc.doc_type, "applicant_uid": str(doc.user.uid)},
+        )
+        response = FileResponse(handle, content_type=content_type)
+        response["Content-Disposition"] = f'inline; filename="{os.path.basename(name)}"'
+        return response
 
 
 class PasswordResetRequestView(generics.GenericAPIView):
@@ -263,6 +433,8 @@ __all__ = [
     "LogoutView",
     "RefreshView",
     "MeView",
+    "MeUploadPhotoView",
+    "VerificationDocumentUploadView",
     "EmailVerifyView",
     "EmailVerifyResendView",
     "PasswordResetRequestView",

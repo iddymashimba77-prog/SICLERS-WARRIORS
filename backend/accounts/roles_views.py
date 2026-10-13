@@ -1,5 +1,6 @@
 """Admin role & permission matrix surface (ADMIN-3).
 
+    GET    /api/admin/permissions/             admin.roles.manage        (SUP/ADM)
     GET    /api/admin/roles/                    admin.roles.manage        (SUP/ADM)
     GET    /api/admin/roles/{code}/permissions/ admin.roles.manage        (SUP/ADM)
     POST   /api/admin/roles/{code}/permissions/ admin.permissions.manage  (SUP)
@@ -20,7 +21,13 @@ Security posture mirrors every other admin control plane:
 """
 
 from django.db.models import Count, Q
-from rest_framework import permissions, status as http_status, viewsets
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
+from rest_framework import generics, permissions, status as http_status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
@@ -28,7 +35,12 @@ from rest_framework.response import Response
 from audit.services import record_audit
 from core.pagination import CorePageNumberPagination
 from . import mfa
-from .admin_serializers import AdminRolePermissionIn, AdminRoleSerializer
+from .admin_serializers import (
+    AdminPermissionSerializer,
+    AdminRoleCreateIn,
+    AdminRolePermissionIn,
+    AdminRoleSerializer,
+)
 from .models import Permission, Role, RolePermission
 from .permissions import IsAuthenticatedRespectStatus
 
@@ -80,15 +92,50 @@ class AdminRolesWriteAccess(permissions.BasePermission):
         return _mfa_ok(request, user)
 
 
+class AdminPermissionCatalogView(generics.ListAPIView):
+    """GET /api/admin/permissions/ — the full permission catalog.
+
+    Documented in api-design §3.3 / endpoint-matrix §"Roles & permissions" as
+    the reference list behind the role↔permission matrix. Granted codes alone
+    cannot render a matrix (a role's *absent* permissions are exactly what an
+    operator needs to see before granting something new), so this surface
+    exposes codes only — no memberships, no users, no clinical data (§24).
+    """
+
+    serializer_class = AdminPermissionSerializer
+    pagination_class = CorePageNumberPagination
+    permission_classes = [IsAuthenticatedRespectStatus, AdminRolesReadAccess]
+
+    def get_queryset(self):
+        return Permission.objects.order_by("module", "resource", "action")
+
+
+@extend_schema_view(
+    list=extend_schema(responses=AdminRoleSerializer(many=True)),
+    create=extend_schema(
+        request=AdminRoleCreateIn,
+        responses={201: AdminRoleSerializer},
+    ),
+    permissions=extend_schema(
+        parameters=[
+            OpenApiParameter(name="code", type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        ],
+        request=AdminRolePermissionIn,
+        responses={200: OpenApiTypes.OBJECT, 201: OpenApiTypes.OBJECT},
+    ),
+)
 class AdminRoleViewSet(viewsets.GenericViewSet):
     """Role / permission matrix for the admin portal (ADMIN-3)."""
 
     lookup_field = "code"
     lookup_url_kwarg = "code"
+    serializer_class = AdminRoleSerializer
     pagination_class = CorePageNumberPagination
 
     def get_permissions(self):
         if getattr(self, "action", None) == "permissions" and self.request.method.upper() == "POST":
+            return [IsAuthenticatedRespectStatus(), AdminRolesWriteAccess()]
+        if getattr(self, "action", None) == "create":
             return [IsAuthenticatedRespectStatus(), AdminRolesWriteAccess()]
         # There is no list-less safety net: any other surface (including GET)
         # requires the roles read gate.
@@ -131,6 +178,43 @@ class AdminRoleViewSet(viewsets.GenericViewSet):
         if page is not None:
             return self.get_paginated_response(data)
         return Response({"data": data, "meta": {"count": len(data)}})
+
+    def create(self, request):
+        """POST /api/admin/roles/ — create a new non-system role (SUP-only).
+
+        New roles start empty (deny-by-default, zero permissions, zero members).
+        The created role is immediately visible on the matrix read surface so
+        the administrator can grant permissions to it next.
+        """
+        serializer = AdminRoleCreateIn(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        role = Role.objects.create(
+            code=data["code"],
+            name=data["name"],
+            description=data.get("description", ""),
+            is_system=False,
+        )
+        record_audit(
+            actor=request.user,
+            action_code="admin.roles.create",
+            resource_type="role",
+            resource_id=role.pk,
+            request=request,
+            details={"role": role.code, "name": role.name},
+        )
+        return Response(
+            AdminRoleSerializer(
+                {
+                    "code": role.code,
+                    "name": role.name,
+                    "is_system": role.is_system,
+                    "permission_count": 0,
+                    "member_count": 0,
+                }
+            ).data,
+            status=http_status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=["get", "post"], url_path="permissions", url_name="permissions")
     def permissions(self, request, code=None):

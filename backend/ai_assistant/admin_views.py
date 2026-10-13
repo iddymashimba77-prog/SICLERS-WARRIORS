@@ -14,6 +14,7 @@ from datetime import timedelta
 
 from django.db.models import Count
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import permissions, status as http_status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -54,6 +55,7 @@ class AdminAiMonitoringAccess(permissions.BasePermission):
         return MfaPolicy().is_compliant(request, user)
 
 
+@extend_schema(responses={200: OpenApiTypes.OBJECT})
 class AdminAiMonitoringView(APIView):
     permission_classes = [IsAuthenticatedRespectStatus, AdminAiMonitoringAccess]
 

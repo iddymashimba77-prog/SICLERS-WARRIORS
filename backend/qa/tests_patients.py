@@ -32,6 +32,7 @@ def _patient_profile_payload(**over):
         "emergency_contact_relation": "MOTHER",
         "address_region": "Greater Accra",
         "address_city": "Accra",
+        "facility_uid": str(h.directory_facility().uid),
         "notes": "Allergic to penicillin.",
     }
     payload.update(over)
@@ -64,7 +65,11 @@ class PatientMeApiTests(TestCase):
     def test_patch_updates_and_audits_update_event(self):
         patch = h.client(self.patient).patch(
             "/api/patients/me/",
-            {"genotype": "SC", "emergency_contact_name": "Father"},
+            {
+                "genotype": "SC",
+                "emergency_contact_name": "Father",
+                "facility_uid": str(h.directory_facility().uid),
+            },
             format="json",
         )
         self.assertEqual(patch.status_code, 200)
@@ -86,6 +91,79 @@ class PatientMeApiTests(TestCase):
                              "SecurityEvent detail must stay empty (no medical payload)")
         audit = AuditLog.objects.filter(actor=self.patient, resource_type="patient_profile")
         self.assertFalse(audit.exists())
+
+    # --- treating facility is mandatory for profile completion (§6) --------
+    def test_profile_update_without_a_facility_is_rejected(self):
+        """A profile with no clinic cannot be presented as complete."""
+        resp = h.client(self.patient).patch(
+            "/api/patients/me/", {"genotype": "SS"}, format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("facility_uid", resp.data["error"]["details"])
+
+    def test_rejected_update_writes_nothing(self):
+        """A 400 must leave the profile exactly as it was.
+
+        The facility rule used to be enforced after the save, so a PATCH that
+        omitted it returned 400 while still persisting the other fields. Every
+        field in the payload has to survive or fail together.
+        """
+        facility = h.directory_facility()
+        ok = h.client(self.patient).patch(
+            "/api/patients/me/",
+            {
+                "facility_uid": str(facility.uid),
+                "genotype": "SS",
+                "address_city": "Dodoma",
+            },
+            format="json",
+        )
+        self.assertEqual(ok.status_code, 200, ok.data)
+
+        resp = h.client(self.patient).patch(
+            "/api/patients/me/",
+            {"facility_uid": None, "genotype": "SC", "address_city": "Arusha"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("facility_uid", resp.data["error"]["details"])
+
+        self.patient.patient_profile.refresh_from_db()
+        self.assertEqual(self.patient.patient_profile.genotype, "SS")
+        self.assertEqual(self.patient.patient_profile.address_city, "Dodoma")
+        self.assertEqual(self.patient.patient_profile.facility_id, facility.pk)
+
+    def test_clearing_the_facility_is_refused(self):
+        facility = h.directory_facility()
+        h.client(self.patient).patch(
+            "/api/patients/me/", {"facility_uid": str(facility.uid)}, format="json",
+        )
+        resp = h.client(self.patient).patch(
+            "/api/patients/me/", {"facility_uid": None}, format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.patient.patient_profile.refresh_from_db()
+        self.assertEqual(self.patient.patient_profile.facility_id, facility.pk)
+
+    def test_unknown_facility_uid_is_rejected(self):
+        """A client cannot invent a clinic; the uid must exist in the directory."""
+        resp = h.client(self.patient).patch(
+            "/api/patients/me/",
+            {"facility_uid": "11111111-2222-3333-4444-555555555555"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("facility_uid", resp.data["error"]["details"])
+
+    def test_facility_choice_is_kept_and_echoed_back(self):
+        facility = h.directory_facility()
+        resp = h.client(self.patient).patch(
+            "/api/patients/me/", {"facility_uid": str(facility.uid)}, format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        detail = resp.data["facility_detail"]
+        self.assertEqual(detail["uid"], str(facility.uid))
+        self.assertEqual(detail["name"], facility.name)
 
     # --- validation (server-authoritative) -----------------------------------
     def test_server_rejects_bad_genotype_vocabulary(self):

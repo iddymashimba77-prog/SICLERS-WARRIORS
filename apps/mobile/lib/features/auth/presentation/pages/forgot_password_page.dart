@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_logo.dart';
 import '../../data/auth_repository.dart';
 import '../../data/token_store.dart';
+import 'reset_password_page.dart';
 
 /// Forgot password page for password reset request (AUTH + PUBLIC HOME).
 ///
 /// Allows users to request a password reset using their login identity (email
 /// or phone). The backend responds uniformly (no account enumeration) and
 /// sends the reset token only when the identifier matches a registered account.
+///
+/// The code is delivered as an in-app SYSTEM notification (no email link), so
+/// the confirmation state offers the "Enter reset code" step that carries the
+/// user into [ResetPasswordPage] — without it the flow dead-ended here.
 class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+  const ForgotPasswordPage({super.key, this.repository});
 
   static const String routeName = '/forgot-password';
+
+  /// Repository override (widget tests inject a mock HTTP client).
+  final AuthRepository? repository;
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
@@ -30,13 +40,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   String? _validateIdentifier(String? value) {
+    final s = l10n(context);
     if (value == null || value.trim().isEmpty) {
-      return 'Email or phone number is required';
+      return s.tr('auth.identifierRequired');
     }
     if (!value.contains('@')) {
       final digits = value.replaceAll(RegExp(r'[^\d]'), '');
       if (digits.length < 9 || digits.length > 15) {
-        return 'Enter a valid phone number or email address';
+        return s.tr('auth.identifierInvalid');
       }
     }
     return null;
@@ -47,7 +58,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _submitting = true);
 
     try {
-      final repo = AuthRepository(tokenStore: EphemeralTokenStore());
+      final repo = widget.repository ??
+          AuthRepository(tokenStore: EphemeralTokenStore());
       await repo.requestPasswordReset(
         identifier: _identifierController.text.trim(),
       );
@@ -59,7 +71,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      _showError('Unable to send reset request. Please try again.');
+      _showError(l10n(context).tr('auth.resetRequestFailed'));
     }
   }
 
@@ -72,9 +84,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = l10n(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reset Password'),
+        title: Text(s.tr('auth.resetPasswordTitle')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -89,22 +102,20 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 16),
-                Icon(
-                  Icons.lock_reset_outlined,
-                  size: 72,
-                  color: theme.colorScheme.primary,
-                ),
+                const AppLogo(height: 88),
                 const SizedBox(height: 16),
                 Text(
-                  _requestSent ? 'Check Your Inbox' : 'Forgot Password?',
+                  _requestSent
+                      ? s.tr('auth.checkNotifications')
+                      : s.tr('auth.forgotTitle'),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   _requestSent
-                      ? 'If that identifier matches an account, reset instructions have been sent.'
-                      : 'Enter your email or phone number and we\'ll send you instructions to reset your password.',
+                      ? s.tr('auth.resetNotice')
+                      : s.tr('auth.resetIntro'),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -114,11 +125,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 if (!_requestSent) ...[
                   TextFormField(
                     controller: _identifierController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email or phone',
-                      prefixIcon: Icon(Icons.alternate_email_outlined),
-                      helperText:
-                          'Use the email or phone you registered with',
+                    decoration: InputDecoration(
+                      labelText: s.tr('auth.emailOrPhone'),
+                      prefixIcon:
+                          const Icon(Icons.alternate_email_outlined),
+                      helperText: s.tr('auth.identifierHint'),
                     ),
                     keyboardType: TextInputType.emailAddress,
                     autocorrect: false,
@@ -136,23 +147,31 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('Send Reset Link'),
+                        : Text(s.tr('auth.sendResetCode')),
                   ),
                 ] else ...[
                   const SizedBox(height: 24),
                   FilledButton(
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      ResetPasswordPage.routeName,
+                    ),
+                    child: Text(s.tr('auth.enterResetCode')),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
                     onPressed: () => Navigator.pushReplacementNamed(
                       context,
                       '/login',
                     ),
-                    child: const Text('Return to Login'),
+                    child: Text(s.tr('auth.returnToLogin')),
                   ),
                 ],
                 const SizedBox(height: 16),
                 if (!_requestSent)
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Back to Login'),
+                    child: Text(s.tr('auth.backToLogin')),
                   ),
               ],
             ),

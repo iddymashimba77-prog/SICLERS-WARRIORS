@@ -96,6 +96,12 @@ void main() {
 
     testWidgets('a network failure shows the retry surface, and retry recovers',
         (tester) async {
+      // The emergency home view is a long scroll (SOS trigger, request form,
+      // dial card, access grants, active list); a tall viewport lays out the
+      // whole surface so the assertions below are about state, not scrolling.
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
       final client = _FlakyClient(online: false);
       await tester.pumpWidget(
         MaterialApp(
@@ -115,10 +121,14 @@ void main() {
       expect(find.text('MEDICAL · URGENT'), findsNothing);
       final firstAttempt = client.requestCount;
       expect(firstAttempt, greaterThan(0));
+      expect(find.text('MEDICAL · URGENT'), findsNothing);
 
-      // Back online: one tap must reload from scratch.
+      // Back online: one tap must reload from scratch. The retry surface sits
+      // below the SOS trigger and the dial card, so bring it into view first.
       client.online = true;
-      await tester.tap(find.text(AppStrings.retry));
+      await tester.ensureVisible(find.text(AppStrings.retry).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(AppStrings.retry).last);
       await tester.pumpAndSettle();
 
       expect(find.text('MEDICAL · URGENT'), findsOneWidget);

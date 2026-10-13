@@ -69,6 +69,42 @@ class MedicationApiTests(TestCase):
         rows = listing.data["results"]
         self.assertEqual(rows[0]["uid"], uid)
 
+    def test_instructions_round_trip(self):
+        # The prescriber's directions travel with the record and are readable
+        # back on the detail fetch (FR-MED-007).
+        payload = {**self.med, "instructions": "Take with food. Avoid alcohol."}
+        created = self.patient.post("/api/medications/", payload, format="json")
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.data["instructions"], "Take with food. Avoid alcohol.")
+
+        fetched = self.patient.get(f"/api/medications/{created.data['uid']}/")
+        self.assertEqual(fetched.status_code, 200)
+        self.assertEqual(fetched.data["instructions"], "Take with food. Avoid alcohol.")
+
+    def test_instructions_default_blank_and_are_bounded(self):
+        blank = self._create_med()
+        self.assertEqual(blank.data["instructions"], "")
+
+        too_long = {**self.med, "instructions": "x" * 2001}
+        resp = self.patient.post("/api/medications/", too_long, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("instructions", resp.data["error"]["details"])
+
+    def test_instructions_can_be_cleared_on_update(self):
+        created = self._create_med()
+        uid = created.data["uid"]
+        resp = self.patient.patch(
+            f"/api/medications/{uid}/", {"instructions": "With meals"}, format="json"
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["instructions"], "With meals")
+
+        cleared = self.patient.patch(
+            f"/api/medications/{uid}/", {"instructions": ""}, format="json"
+        )
+        self.assertEqual(cleared.status_code, 200)
+        self.assertEqual(cleared.data["instructions"], "")
+
     def test_invalid_route_rejected(self):
         bad = {**self.med, "route": "SPACE"}
         resp = self.patient.post("/api/medications/", bad, format="json")

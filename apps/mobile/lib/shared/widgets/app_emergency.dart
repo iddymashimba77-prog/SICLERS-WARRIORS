@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import 'app_card.dart';
+import '../../core/theme/app_shapes.dart';
 
 /// Sickler's Warriors — emergency visual language (FRONTEND-1).
 ///
@@ -73,11 +74,11 @@ class SosButton extends StatelessWidget {
     final theme = Theme.of(context);
     final Widget button = Material(
       color: AppColors.emergency,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: AppShapes.tile,
       elevation: 0,
       child: InkWell(
         onTap: () => _confirm(context),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppShapes.tile,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.xl,
@@ -159,7 +160,7 @@ class EmergencyCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: AppColors.emergency,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppShapes.tile,
             ),
             child: Icon(icon, color: AppColors.textOnEmergency, size: 24),
           ),

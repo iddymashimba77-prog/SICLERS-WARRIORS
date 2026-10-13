@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../auth/domain/auth_types.dart';
 import '../../data/medication_repository.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// Medication detail: schedules, dose logging (status-aware), dose history
 /// and the stop (soft-delete) action.
@@ -266,6 +268,31 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
             ),
           ),
         ),
+        if (med.instructions.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.menu_book_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        AppLocalizations.of(context).tr('meds.instructions'),
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(med.instructions),
+                ],
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         Text(
           AppStrings.schedules.toUpperCase(),
@@ -426,7 +453,7 @@ class _StatusBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: active ? AppColors.success : AppColors.emergency,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppShapes.tile,
       ),
       child: Text(
         active ? AppStrings.active : AppStrings.stopped,

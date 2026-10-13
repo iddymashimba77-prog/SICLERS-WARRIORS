@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// Generic async list with the standard loading / error / empty / retry chain.
 /// The owning page can reload via its [GlobalKey] after an in-place mutation.
@@ -123,7 +124,7 @@ class AdminStatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: AppShapes.pill,
       ),
       child: Text(
         status.isEmpty ? '—' : status,

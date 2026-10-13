@@ -164,7 +164,8 @@ first-class; verified status gates clinical workflows.
 |---|---|---|---|---|
 | `/api/v1/doctors/me` | GET/PATCH | Yes | `doctors.self_manage` | Own professional profile (FR-DOC-001). |
 | `/api/v1/doctors/me/verification` | POST | Yes | `doctors.self_manage` | Submit verification (FR-DOC-002) — documents via file upload (§32). |
-| `/api/v1/doctors` | GET | Yes | `doctors.view` | Public directory (name, specialty, verified flag only). |
+| `/api/v1/doctors` | GET | Yes | `doctors.view` | Public directory (name, specialty, verified flag only). Also the verified clinician registry behind the appointment book's clinician picker (FR-CARE-001/002 share this projection). |
+| `/api/v1/doctors/{uid}/verification-history` | GET | Yes | self **or** `doctors.verify` | Append-only decision trail (FR-DOC-006/007). Anyone else receives 404, not 403, so the route never confirms that a given application exists. |
 | `/api/v1/doctors/{uid}` | GET | Yes | `doctors.view` | Detail; contact only where permitted (BR-006 philosophy extends). |
 | `/api/v1/doctors/me/availability` | GET/POST/PATCH | Yes | `doctors.self_manage` | Availability slots (for appointment scheduling). |
 | `/api/v1/doctors/me/patients` | GET | Yes | `patients.view` C2/3 | Only patients where a clinical relationship + consent exists (FR-DOC-005). |
@@ -256,7 +257,7 @@ endpoint; no listing across patients.
 | Endpoint | Method | Auth | Permission | Notes |
 |---|---|---|---|---|
 | `/api/v1/medications` | GET/POST | Yes | `medications.create/view` (own) | Own medications (FR-MED-001). |
-| `/api/v1/medications/{id}` | GET/PATCH/DELETE | Yes | own | Manage (A for patient; C2/3 for authorized doc). |
+| `/api/v1/medications/{id}` | GET/PATCH/DELETE | Yes | own | Manage (A for patient; C2/3 for authorized doc). Carries `instructions` — the prescriber's directions for the patient (FR-MED-007), kept distinct from a schedule row's `notes`, which describe one reminder time. |
 | `/api/v1/medications/{id}/schedule` | GET/POST | Yes | own | Schedules (FR-MED-002). |
 | `/api/v1/medications/{id}/schedule/{sid}` | PATCH/DELETE | Yes | own | Edit schedule. |
 | `/api/v1/medications/{id}/log-dose` | POST | Yes | `medications.update` (own) | Log TAKEN/MISSED/SKIPPED/SNOOZED (FR-MED-004) — body incl. `idempotency_key`. |
@@ -303,6 +304,7 @@ minimum necessary (C8); final eligibility stays with blood-bank/healthcare staff
 | `/api/v1/admin/blood/requests/{id}/verify` | POST | Yes | `blood_requests.verify` (VO/ADM, C6) | PENDING_VERIFICATION→ACTIVE (BR-005). |
 | `/api/v1/admin/blood/requests/{id}/reject` | POST | Yes | `blood_requests.verify` | →REJECTED (+reason). |
 | `/api/v1/blood/requests/{id}/matches` | GET | Yes | `blood_matches.view` C9 | Matching donors for own request (FR-BLD-007). |
+| `/api/v1/blood/requests/{id}/decisions` | GET | Yes | same gate as the request itself | Append-only verification/matching decisions with the decider and their reason (FR-BLD-011/012). The reason is returned verbatim because the requester is entitled to read and contest it. |
 | `/api/v1/blood/matches/{id}/respond` | POST | Yes | `blood_requests.respond` (BLD, C8/C9) | Accept/decline (FR-BLD-009). |
 | `/api/v1/blood/requests/{id}/donation-events` | POST | Yes | STA/HOS (C7) | Record donation event (immutable history) (FR-BLD-010). |
 | `/api/v1/admin/blood/run-matching` | POST | Yes | `blood_matches.run` (SUP/ADM) | Trigger matcher (async, NFR-PERF-003). |

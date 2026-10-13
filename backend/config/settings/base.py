@@ -147,8 +147,24 @@ else:
 # ---------------------------------------------------------------------------
 # Bounded request bodies and form fields: oversized payloads are rejected
 # before the envelope/view layer can allocate unbounded memory.
-DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", "2621440"))
+#
+# The ceiling must stay ABOVE the largest legitimate upload the product
+# accepts, otherwise Django rejects the request before the upload validator
+# can return a friendly 400 (a silent failure mode that presents as "the
+# upload simply refuses to work"). The approved maxima are a 5 MB image
+# (content.upload_validation) and a 10 MB education document
+# (education.services.MAX_DOCUMENT_BYTES); 16 MB therefore leaves headroom
+# for multipart framing while still bounding memory.
+MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(
+    os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", str(16 * 1024 * 1024))
+)
 DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get("DATA_UPLOAD_MAX_NUMBER_FIELDS", "1000"))
+# Files above this size stream to a temp file instead of RAM (Django default).
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(
+    os.environ.get("FILE_UPLOAD_MAX_MEMORY_SIZE", str(2 * 1024 * 1024))
+)
+FILE_UPLOAD_TEMP_DIR = os.environ.get("FILE_UPLOAD_TEMP_DIR") or None
 
 # ---------------------------------------------------------------------------
 # Observability (Stage 4.18)
@@ -183,8 +199,26 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-MEDIA_URL = "media/"
+# Leading slash matters: uploads are *stored* as ``/media/<name>`` and every
+# client resolves a ``/media/...`` path against the API origin. A relative
+# "media/" silently produces "media/..." URLs that 404 (news covers and avatars
+# appeared "broken" for exactly this reason). Absolute URLs are built at
+# response time only — see ``core.media``.
+MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Optional operator-pinned public origin for media links (e.g.
+# ``https://api.sicklers.example``) when the API sits behind a proxy that does
+# not forward the public Host. Empty → media URLs resolve against the current
+# request's origin, which is correct for same-origin deployments.
+PUBLIC_API_BASE = os.environ.get("PUBLIC_API_BASE", "").rstrip("/")
+
+# Uploaded media must be served by the application in environments without a
+# CDN/reverse proxy in front of it. Default ON for development/staging so
+# uploaded avatars/covers/documents are actually retrievable; the production
+# settings module flips it OFF unless an operator explicitly opts in (serve
+# object storage at the CDN instead — see the deployment design docs).
+SERVE_MEDIA = os.environ.get("SERVE_MEDIA", "true").lower() in ("1", "true", "yes", "on")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -221,7 +255,7 @@ REST_FRAMEWORK = {
         "auth": "10/minute",
     },
     "EXCEPTION_HANDLER": "core.handlers.custom_exception_handler",
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "core.schema.UniqueOperationIdSchema",
 }
 
 # ---------------------------------------------------------------------------
@@ -260,6 +294,33 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Healthcare platform for the sickle cell warrior community",
     "VERSION": "1.0.0-dev",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Multiple fields share the same DB CHECK vocabulary (``status``/``type``/
+    # ``category``/``severity``). Without a canonical name drf-spectacular
+    # hashes the colliding choice sets into opaque names (``Status48cEnum``) and
+    # emits naming warnings. Mapping each shared vocabulary to a stable,
+    # domain-meaningful component name keeps the generated schema clean and
+    # deterministic (see ``core.schema_gate`` + ``stage_schema`` gate).
+    "ENUM_NAME_OVERRIDES": {
+        "NotificationTypeEnum": "notifications.models.Notification.TYPE",
+        "EmergencyStatusEnum": "emergencies.models.EmergencyRequest.STATUS",
+        "EmergencyTypeEnum": "emergencies.models.EmergencyRequest.TYPE",
+        "SeverityEnum": "emergencies.models.EmergencyRequest.SEVERITY",
+        "MedicalRecordStatusEnum": "medical_records.models.MedicalRecord.STATUS",
+        "CommunityPostCategoryEnum": "community.models.POST_CATEGORIES",
+        "EducationContentStatusEnum": "education.models.CONTENT_STATUSES",
+        "CampaignStatusEnum": "donations.models.CampaignStatus",
+        "DonationStatusEnum": "donations.models.DonationStatus",
+        "BloodGroupEnum": "blood_network.models.BLOOD_GROUPS",
+        "NewsCategoryEnum": "content.models.NEWS_CATEGORIES",
+        # Write serializers declare their choice field from a bare code list
+        # while the model field uses labelled 2-tuples; both are the same
+        # vocabulary under the same field name, so name the code lists
+        # explicitly instead of letting spectacular hash one of them.
+        "TickerAnnouncementTypeEnum": "content.models.TICKER_TYPES",
+        "TickerAnnouncementTypeCodeEnum": "content.serializers._TICKER_CODES",
+        "ProfessionalTypeEnum": "doctors.models.Doctor.PROFESSIONAL_TYPES",
+        "ProfessionalTypeCodeEnum": "doctors.models.Doctor.PROFESSIONAL_TYPE_CODES",
+    },
 }
 
 # ---------------------------------------------------------------------------

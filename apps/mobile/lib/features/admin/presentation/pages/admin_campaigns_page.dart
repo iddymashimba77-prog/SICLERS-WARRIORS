@@ -6,6 +6,7 @@ import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/admin_models.dart';
 import '../../data/admin_repository.dart';
 import '../widgets/admin_widgets.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// Campaign administration (ADMIN-3) — verification queue + active campaign
 /// lifecycle (verify/pause/close) gated by campaigns.verify.
@@ -150,7 +151,7 @@ class _CampaignCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: AppShapes.xs,
               child: LinearProgressIndicator(
                 value: (campaign.progress / 100).clamp(0, 1),
                 minHeight: 6,

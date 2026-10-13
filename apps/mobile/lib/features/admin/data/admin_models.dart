@@ -7,6 +7,8 @@
 /// backend values are never trusted to be non-null.
 library;
 
+import 'dart:typed_data';
+
 /// Money/amounts arrive as Decimals (strings) or numbers.
 double _toDouble(dynamic value) {
   if (value is num) return value.toDouble();
@@ -79,33 +81,78 @@ class AdminRole {
   final int memberCount;
 }
 
+/// One submitted verification attachment, as summarised to a reviewer.
+///
+/// The file itself is never a public URL: [id] is the handle for the audited
+/// `GET /admin/verification-documents/{id}/` stream, opened in-app.
+class AdminVerificationDocument {
+  const AdminVerificationDocument({
+    required this.id,
+    required this.docType,
+    this.status = '',
+    this.fileName = '',
+    this.uploadedAt = '',
+  });
+
+  factory AdminVerificationDocument.fromJson(Map<String, dynamic> json) =>
+      AdminVerificationDocument(
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        docType: (json['doc_type'] as String?) ?? '',
+        status: (json['status'] as String?) ?? '',
+        fileName: (json['file_name'] as String?) ?? '',
+        uploadedAt: (json['uploaded_at'] as String?) ?? '',
+      );
+
+  final int id;
+  final String docType;
+  final String status;
+  final String fileName;
+  final String uploadedAt;
+}
+
+List<AdminVerificationDocument> _documents(dynamic raw) => [
+      if (raw is List)
+        for (final row in raw)
+          if (row is Map<String, dynamic>) AdminVerificationDocument.fromJson(row),
+    ];
+
+/// Raw bytes of an opened verification document plus its served content type.
+class AdminDocumentBytes {
+  const AdminDocumentBytes({required this.bytes, required this.contentType});
+
+  final Uint8List bytes;
+  final String contentType;
+}
+
 class AdminDoctor {
   const AdminDoctor({
     required this.uid,
     required this.email,
+    required this.fullName,
+    required this.specialty,
+    required this.licenseNumber,
+    required this.registrationBody,
+    required this.facilityUid,
     required this.verificationStatus,
-    this.fullName = '',
-    this.specialty = '',
-    this.licenseNumber = '',
-    this.facilityUid = '',
-    this.registrationBody = '',
-    this.verifiedAt,
-    this.rejectionReason = '',
-    this.createdAt,
+    required this.verifiedAt,
+    required this.rejectionReason,
+    required this.createdAt,
+    this.verificationDocuments = const [],
   });
 
   factory AdminDoctor.fromJson(Map<String, dynamic> json) => AdminDoctor(
-        uid: _str(json['uid']),
-        email: _str(json['email']),
-        fullName: _str(json['display_name']),
-        specialty: _str(json['specialty']),
-        licenseNumber: _str(json['license_number']),
-        registrationBody: _str(json['registration_body']),
-        facilityUid: _str(json['facility_uid']),
-        verificationStatus: _str(json['verification_status']),
+        uid: (json['uid'] as String?) ?? '',
+        email: (json['email'] as String?) ?? '',
+        fullName: (json['display_name'] as String?) ?? '',
+        specialty: (json['specialty'] as String?) ?? '',
+        licenseNumber: (json['license_number'] as String?) ?? '',
+        registrationBody: (json['registration_body'] as String?) ?? '',
+        facilityUid: (json['facility_uid'] as String?) ?? '',
+        verificationStatus: (json['verification_status'] as String?) ?? '',
         verifiedAt: json['verified_at'] as String?,
-        rejectionReason: _str(json['rejection_reason']),
+        rejectionReason: (json['rejection_reason'] as String?) ?? '',
         createdAt: json['created_at'] as String?,
+        verificationDocuments: _documents(json['verification_documents']),
       );
 
   final String uid;
@@ -119,6 +166,9 @@ class AdminDoctor {
   final String? verifiedAt;
   final String rejectionReason;
   final String? createdAt;
+
+  /// Attachments the applicant submitted, openable by the reviewer.
+  final List<AdminVerificationDocument> verificationDocuments;
 }
 
 class AdminFacility {
@@ -134,6 +184,7 @@ class AdminFacility {
     this.verificationStatus = '',
     this.isVerified = false,
     this.createdAt,
+    this.verificationDocuments = const [],
   });
 
   factory AdminFacility.fromJson(Map<String, dynamic> json) => AdminFacility(
@@ -148,6 +199,7 @@ class AdminFacility {
         verificationStatus: _str(json['verification_status']),
         isVerified: json['is_verified'] == true,
         createdAt: json['created_at'] as String?,
+        verificationDocuments: _documents(json['verification_documents']),
       );
 
   final String uid;
@@ -161,6 +213,9 @@ class AdminFacility {
   final String verificationStatus;
   final bool isVerified;
   final String? createdAt;
+
+  /// Attachments the operator submitted, openable by the reviewer.
+  final List<AdminVerificationDocument> verificationDocuments;
 }
 
 class AdminBloodRequest {
@@ -719,4 +774,37 @@ class AdminTickerAnnouncement {
   final String? startAt;
   final String? endAt;
   final String? createdAt;
+}
+
+/// One row of the doctor verification trail, for the review queue
+/// (`FR-DOC-007`).
+class AdminDoctorVerificationDecision {
+  const AdminDoctorVerificationDecision({
+    required this.decision,
+    required this.actorName,
+    required this.decidedAt,
+    this.fromStatus = '',
+    this.toStatus = '',
+    this.reason = '',
+  });
+
+  factory AdminDoctorVerificationDecision.fromJson(Map<String, dynamic> json) =>
+      AdminDoctorVerificationDecision(
+        decision: (json['decision'] as String?) ?? '',
+        actorName: (json['actor_name'] as String?) ?? '',
+        decidedAt: (json['decided_at'] as String?) ?? '',
+        fromStatus: (json['from_status'] as String?) ?? '',
+        toStatus: (json['to_status'] as String?) ?? '',
+        reason: (json['reason'] as String?) ?? '',
+      );
+
+  final String decision;
+  final String actorName;
+  final String decidedAt;
+  final String fromStatus;
+  final String toStatus;
+  final String reason;
+
+  String get transition =>
+      fromStatus.isEmpty ? toStatus : '$fromStatus → $toStatus';
 }

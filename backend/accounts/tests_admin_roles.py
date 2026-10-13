@@ -77,6 +77,43 @@ class AdminRolesTests(TestCase):
         resp = self.super.get("/api/admin/roles/NO_SUCH_ROLE/permissions/")
         self.assertEqual(resp.status_code, 404)
 
+    # ------------------------------------------------------------- catalog
+    def test_catalog_lists_codes_for_admin_roles(self):
+        """GET /api/admin/permissions/ renders the full matrix reference list."""
+        for client in (self.super, self.admin):
+            resp = client.get("/api/admin/permissions/?page_size=100")
+            self.assertEqual(resp.status_code, 200)
+            payload = resp.json()["data"]
+            rows = list(payload["results"] if isinstance(payload, dict) else payload)
+            # page through everything: a matrix needs *all* rows, not page 1
+            next_url = payload.get("next") if isinstance(payload, dict) else None
+            while next_url:
+                page = client.get(next_url.replace("http://testserver", ""))
+                self.assertEqual(page.status_code, 200)
+                body = page.json()["data"]
+                rows.extend(body["results"])
+                next_url = body.get("next")
+            codes = {r["code"] for r in rows}
+            self.assertIn("admin.roles.manage", codes)
+            self.assertIn("doctors.view", codes)
+            self.assertGreater(len(rows), 20)
+            # codes-only surface: no users, no memberships, no clinical data
+            for row in rows:
+                self.assertCountEqual(
+                    set(row.keys()), {"code", "module", "resource", "action", "name"}
+                )
+                self.assertIn(row["code"], {
+                    f"{row['module']}.{row['resource']}",
+                    f"{row['module']}.{row['resource']}.{row['action']}",
+                })
+
+    def test_catalog_denied_for_non_admin_roles(self):
+        for client in (self.vo, self.doctor, self.patient):
+            self.assertEqual(client.get("/api/admin/permissions/").status_code, 403)
+
+    def test_catalog_requires_auth(self):
+        self.assertEqual(APIClient().get("/api/admin/permissions/").status_code, 401)
+
     # ----------------------------------------------------------------- write
     def test_super_grants_and_revokes_a_permission(self):
         grant = self.super.post(

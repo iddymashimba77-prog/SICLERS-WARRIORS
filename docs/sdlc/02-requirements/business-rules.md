@@ -16,6 +16,8 @@ Hizi ni kanuni za mfumo, sio features.
 | BR-010 | AI must not autonomously diagnose patients. |
 | BR-011 | AI must not autonomously prescribe or modify medication dosage. |
 | BR-012 | Critical system activities must be auditable. |
+| BR-013 | Professional verification grants identity confirmation only. It never grants a clinical privilege: prescribing stays with the DOCTOR role, and every other permission still comes from the role's own bundle plus consent. |
+| BR-014 | A care-team role (psychologist, social support worker) may not author or alter a clinical record without an active patient consent scope, and a social support worker may never author a clinical record at all. |
 
 ## Kanuni zilizokubaliwa kwa AI / Safety
 

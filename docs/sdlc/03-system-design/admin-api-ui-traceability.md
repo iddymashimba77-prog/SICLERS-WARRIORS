@@ -54,6 +54,7 @@ exist yet and MUST be raised as an API addition before the panel implements it.
 | ADM-EDU-001 | Content list | SUP/ADM | `education.review` | `GET /api/v1/admin/education/content` **`(gap)`** | content | drafts locked | view |
 | ADM-EDU-002 | Editor | SUP/ADM | `education.review` | `POST /api/v1/admin/education/content/{id}/draft` **`(gap)`** | content | draft only | save |
 | ADM-EDU-003 | Review/publish | SUP/ADM | `education.review` | `POST /api/v1/admin/education/content/{id}/review` · `/publish` **`(gap)`** | content | publish after review | publish |
+| ADM-EDU-004 | Handout attach/replace/remove | SUP/ADM | `education.review` | `POST`/`DELETE /api/v1/admin/education/content/{id}/document` | content | never while PUBLISHED | education.content.document_upload / _remove |
 | ADM-COM-MSG-1 | Broadcast | SUP/ADM | `notifications.broadcast` | `POST /api/v1/admin/notifications/broadcast` **`(gap)`** | notifications | privacy-safe preview | send |
 | ADM-NOT-001 | Templates | SUP/ADM | `notifications.broadcast` | `GET/POST /api/v1/admin/notifications/templates` **`(gap)`** | templates | placeholders | save |
 | ADM-NOT-002 | Delivery log | SUP/ADM | `notifications.broadcast` | `GET /api/v1/admin/notifications/log*` **`(gap)`** | notification log | — | view |

@@ -77,7 +77,7 @@ class ErrorRetryView extends StatelessWidget {
               height: 72,
               decoration: BoxDecoration(
                 color: AppColors.emergency.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: AppShapes.large,
               ),
               child: Icon(
                 icon,
@@ -141,7 +141,7 @@ class EmptyStateView extends StatelessWidget {
               height: 72,
               decoration: BoxDecoration(
                 color: AppColors.blue.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: AppShapes.large,
               ),
               child: Icon(
                 icon,

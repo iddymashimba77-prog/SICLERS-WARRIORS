@@ -32,6 +32,7 @@ Format: `FR-[MODULE]-[NUMBER]`
 | FR-MED-004 | System shall allow users to record whether a medication was taken. |
 | FR-MED-005 | System shall maintain medication adherence history. |
 | FR-MED-006 | System shall generate adherence statistics. |
+| FR-MED-007 | System shall record the prescriber's instructions for a medication separately from its reminder schedule, so directions for the patient are not conflated with a single reminder time. |
 
 ## Appointments (APP)
 
@@ -52,6 +53,9 @@ Format: `FR-[MODULE]-[NUMBER]`
 | FR-MEDREC-004 | System shall support access expiration. |
 | FR-MEDREC-005 | System shall support access revocation. |
 | FR-MEDREC-006 | System shall record access to sensitive medical information. |
+| FR-MEDREC-007 | System shall maintain an append-only history of every clinical record create, edit, status change, file change, and read. A history row cannot be updated or deleted, including through a bulk queryset operation, and cannot lose its subject. |
+| FR-MEDREC-008 | System shall let a patient share one record with one named member, optionally time-boxed, and revoke that share with immediate effect. |
+| FR-MEDREC-009 | System shall let a patient keep a single record out of every consent-derived read set, and shall never expose clinical attachments through a public URL. |
 
 ## Symptoms / Pain (SYM)
 
@@ -77,6 +81,8 @@ Format: `FR-[MODULE]-[NUMBER]`
 | FR-BLD-008 | System shall notify eligible donors. |
 | FR-BLD-009 | System shall allow donors to accept or decline requests. |
 | FR-BLD-010 | System shall track request fulfillment. |
+| FR-BLD-011 | System shall maintain an append-only history of every blood-request lifecycle decision: submission, verification, rejection, cancellation, matching round, donor acceptance, donation and fulfilment. A history row cannot be updated or deleted, including through a bulk queryset operation, and cannot lose its subject, and each row names the actor who decided. |
+| FR-BLD-012 | System shall let the requester and authorized reviewers read that history, and shall not confirm the existence of a request to anyone else. |
 
 ## Emergency (EMG)
 
@@ -98,6 +104,19 @@ Format: `FR-[MODULE]-[NUMBER]`
 | FR-DOC-003 | System shall allow administrators to approve/reject verification. |
 | FR-DOC-004 | System shall distinguish verified and unverified professionals. |
 | FR-DOC-005 | System shall allow patients to interact with verified professionals according to permissions. |
+| FR-DOC-006 | System shall maintain an append-only history of every professional-verification decision: submission, approval, rejection, suspension, reinstatement and resubmission, each with the deciding officer and the reason given. A history row cannot be updated or deleted, including through a bulk queryset operation, and cannot lose its subject. |
+| FR-DOC-007 | System shall let a professional read their own verification history at any time, so that a rejection remains answerable after a later approval, and shall restrict any other reader to authorized verifiers. |
+
+## Care Team (PSY / SOC)
+
+| ID | Requirement |
+|---|---|
+| FR-CARE-001 | System shall support a PSYCHOLOGIST role for licensed mental-health professionals, verified through the same professional registry and decision trail as doctors. |
+| FR-CARE-002 | System shall support a SOCIAL_SUPPORT role for care and navigation workers, verified through the same professional registry and decision trail as doctors. |
+| FR-CARE-003 | A care-team role shall never be satisfied by being a different profession: an approved psychologist or support worker must not pass a doctor-only gate such as prescribing. |
+| FR-CARE-004 | System shall let a patient start a support conversation with a verified psychologist or social support worker, and shall refuse an applicant who is pending, rejected or suspended. |
+| FR-CARE-005 | A psychologist may create and update clinical records only where an active consent scope authorizes the patient, attributed to the psychologist as the author; a social support worker may read such records but never author them, even where a consent exists. |
+| FR-CARE-006 | Neither role may be self-registered; both are administratively assigned, and verification must be approved by an authorized verification officer before any clinical or chat function becomes available. |
 
 ## Financial Donations (CAM)
 
@@ -149,6 +168,7 @@ Format: `FR-[MODULE]-[NUMBER]`
 | FR-EDU-002 | System shall categorize educational content. |
 | FR-EDU-003 | System shall support content review. |
 | FR-EDU-004 | System shall display publication/update information. |
+| FR-EDU-005 | System shall allow a healthcare author to attach a downloadable document (PDF, PPTX, DOCX or image) to an educational article, validated server-side and removable by the author, with published articles immutable until unpublished. |
 
 ## AI / Intelligence (AI)
 

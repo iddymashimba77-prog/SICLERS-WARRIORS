@@ -23,6 +23,10 @@ class AuthController extends ChangeNotifier {
 
   final AuthRepository _repository;
 
+  /// The underlying repository — used by flows that need direct backend
+  /// access under the session's own token (e.g. verification-document upload).
+  AuthRepository get repository => _repository;
+
   AuthStatus _status = AuthStatus.initializing;
   AuthStatus get status => _status;
 
@@ -53,8 +57,18 @@ class AuthController extends ChangeNotifier {
   Map<String, dynamic>? _facility;
   Map<String, dynamic>? get facility => _facility;
 
-  bool _emailVerified = false;
-  bool get emailVerified => _emailVerified;
+  String? _photoUrl;
+  String? get photoUrl => _photoUrl;
+
+  /// Whether the account has configured its 4-digit login PIN (server-asserted).
+  bool _hasLoginPin = false;
+  bool get hasLoginPin => _hasLoginPin;
+
+  /// The identifier (email/phone) of the account that configured a PIN on this
+  /// device — what the PIN screen signs in as. Null when no account is
+  /// remembered.
+  String? _rememberedIdentity;
+  String? get rememberedIdentity => _rememberedIdentity;
 
   /// Best available display name for personalised surfaces.
   String? get displayName {
@@ -98,7 +112,8 @@ class AuthController extends ChangeNotifier {
     _isVerifiedDoctor = false;
     _doctorVerificationStatus = null;
     _facility = null;
-    _emailVerified = false;
+    _photoUrl = null;
+    _hasLoginPin = false;
     _roles = const [];
     _permissions = const [];
   }
@@ -111,8 +126,8 @@ class AuthController extends ChangeNotifier {
     _isVerifiedDoctor = outcome.isVerifiedDoctor;
     _doctorVerificationStatus = outcome.doctorVerificationStatus;
     if (outcome.facility != null) _facility = outcome.facility;
-    _emailVerified =
-        outcome.accountStatus == 'ACTIVE' || outcome.emailVerificationPending == false;
+    _photoUrl = outcome.photoUrl;
+    _hasLoginPin = outcome.hasLoginPin;
     if (outcome.roles.isNotEmpty) _roles = outcome.roles;
     if (outcome.permissions.isNotEmpty) _permissions = outcome.permissions;
   }
@@ -128,6 +143,9 @@ class AuthController extends ChangeNotifier {
   Future<void> restoreSession() async {
     _status = AuthStatus.initializing;
     notifyListeners();
+    // The remembered identity is independent of token validity: it lets the
+    // PIN screen pre-fill the account even after a sign-out/expiry.
+    _rememberedIdentity = await _repository.tokenStore.readRememberedIdentity();
     final access = await _repository.tokenStore.readAccess();
     if (access == null) {
       _resetIdentity();
@@ -193,10 +211,26 @@ class AuthController extends ChangeNotifier {
       _refreshToken = refresh;
       await _repository.tokenStore.writeAccess(access);
       await _repository.tokenStore.writeRefresh(refresh);
+      // A password login on an account that already has a PIN remembers this
+      // device's identity so the next sign-in can use the PIN alone.
+      final identity = _email;
+      if (_hasLoginPin && identity != null && identity.trim().isNotEmpty) {
+        _rememberedIdentity = identity;
+        await _repository.tokenStore.writeRememberedIdentity(identity);
+      }
       _lastError = null;
       _status = AuthStatus.authenticated;
     } on AuthException catch (e) {
       _lastError = e;
+      _status = AuthStatus.authError;
+    } on Exception {
+      // Network/timeout/parse failures never reach the server. Surface a
+      // single friendly message instead of letting the raw exception escape
+      // (which left the submit button spinning with no explanation).
+      _lastError = const AuthException(
+        'Connection lost. Check your network and try again.',
+        code: 'NETWORK_ERROR',
+      );
       _status = AuthStatus.authError;
     }
     notifyListeners();
@@ -254,9 +288,12 @@ class AuthController extends ChangeNotifier {
     String roleCode = 'PATIENT',
   }) async {
     _status = AuthStatus.authenticating;
+    // A previous attempt's failure must not survive into this one — otherwise
+    // a successful sign-up still renders the old error banner.
+    _lastError = null;
     notifyListeners();
     try {
-      await _repository.register(
+      final outcome = await _repository.register(
         email: email,
         password: password,
         phone: phone,
@@ -264,28 +301,63 @@ class AuthController extends ChangeNotifier {
         lastName: lastName,
         roleCode: roleCode,
       );
-      // Not signed in yet — the signup flow proceeds to email verification.
       _email = email;
-      _status = AuthStatus.tokenExpired; // awaits verification (§16)
+      // A freshly registered account has no PIN yet — the caller routes to the
+      // "create PIN" step before entering the app.
+      _hasLoginPin = false;
+      if (outcome.signedIn) {
+        // The server issues an identity-bound pair at registration. Persist it
+        // the same way login does, so the app is genuinely signed in instead
+        // of asking for a needless second login.
+        final access = outcome.access!;
+        final refresh = outcome.refresh!;
+        _accessToken = access;
+        _refreshToken = refresh;
+        await _repository.tokenStore.writeAccess(access);
+        await _repository.tokenStore.writeRefresh(refresh);
+        _lastError = null;
+        _status = AuthStatus.authenticated;
+      } else {
+        _status = AuthStatus.unauthenticated;
+      }
     } on AuthException catch (e) {
       _lastError = e;
+      _status = AuthStatus.authError;
+    } on Exception {
+      _lastError = const AuthException(
+        'Connection lost. Check your network and try again.',
+        code: 'NETWORK_ERROR',
+      );
       _status = AuthStatus.authError;
     }
     notifyListeners();
   }
 
-  /// POST /auth/verify/email — consume the one-time verification code.
-  Future<void> verifyEmail({required String token}) async {
+  /// POST /auth/pin/set — configure (or change) the 4-digit login PIN for the
+  /// signed-in account, then remember this device's identity for PIN sign-in.
+  Future<void> setLoginPin({required String pin}) async {
+    final access = _accessToken;
+    if (access == null) {
+      _lastError = const AuthException(
+        'Sign in required to configure a PIN.',
+        code: 'NO_SESSION',
+      );
+      notifyListeners();
+      return;
+    }
     _sessionBusy = true;
     notifyListeners();
     try {
-      await _repository.verifyEmail(token: token);
-      _emailVerified = true;
-      _status = AuthStatus.unauthenticated;
+      await _repository.setLoginPin(access: access, pin: pin);
+      _hasLoginPin = true;
       _lastError = null;
+      final identity = _email;
+      if (identity != null && identity.trim().isNotEmpty) {
+        _rememberedIdentity = identity;
+        await _repository.tokenStore.writeRememberedIdentity(identity);
+      }
     } on AuthException catch (e) {
       _lastError = e;
-      _status = AuthStatus.authError;
       rethrow;
     } finally {
       _sessionBusy = false;
@@ -293,20 +365,54 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  /// POST /auth/verify/email/resend — uniform 202, no enumeration.
-  Future<void> resendEmailVerification({required String email}) async {
-    _sessionBusy = true;
+  /// Forget the remembered identity (e.g. "use another account") so the login
+  /// screen falls back to the email+password form.
+  Future<void> forgetRememberedIdentity() async {
+    _rememberedIdentity = null;
+    await _repository.tokenStore.clearRememberedIdentity();
+    notifyListeners();
+  }
+
+  /// POST /auth/pin/login — PIN sign-in for the device-remembered identity.
+  Future<void> loginWithPin({required String pin}) async {
+    final identifier = _rememberedIdentity;
+    if (identifier == null || identifier.trim().isEmpty) {
+      _lastError = const AuthException(
+        'No account is remembered on this device.',
+        code: 'NO_REMEMBERED_IDENTITY',
+      );
+      _status = AuthStatus.authError;
+      notifyListeners();
+      return;
+    }
+    _status = AuthStatus.authenticating;
+    _lastError = null;
     notifyListeners();
     try {
-      await _repository.resendEmailVerification(email: email);
+      final outcome = await _repository.loginWithPin(identifier: identifier, pin: pin);
+      final access = outcome.access;
+      final refresh = outcome.refresh;
+      if (access == null || refresh == null) {
+        throw const AuthException('Missing session tokens.', code: 'BAD_RESPONSE');
+      }
+      _applySession(outcome);
+      _accessToken = access;
+      _refreshToken = refresh;
+      await _repository.tokenStore.writeAccess(access);
+      await _repository.tokenStore.writeRefresh(refresh);
       _lastError = null;
+      _status = AuthStatus.authenticated;
     } on AuthException catch (e) {
       _lastError = e;
-      rethrow;
-    } finally {
-      _sessionBusy = false;
-      notifyListeners();
+      _status = AuthStatus.authError;
+    } on Exception {
+      _lastError = const AuthException(
+        'Connection lost. Check your network and try again.',
+        code: 'NETWORK_ERROR',
+      );
+      _status = AuthStatus.authError;
     }
+    notifyListeners();
   }
 
   Future<void> refreshSession() async {
@@ -329,6 +435,12 @@ class AuthController extends ChangeNotifier {
       _status = AuthStatus.authenticated;
     } on AuthException catch (e) {
       _lastError = e;
+      _status = AuthStatus.tokenExpired;
+    } on Exception {
+      _lastError = const AuthException(
+        'Connection lost. Check your network and try again.',
+        code: 'NETWORK_ERROR',
+      );
       _status = AuthStatus.tokenExpired;
     }
     notifyListeners();

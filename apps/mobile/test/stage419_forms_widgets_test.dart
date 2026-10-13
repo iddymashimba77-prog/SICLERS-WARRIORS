@@ -70,6 +70,9 @@ Future<void> _useTallViewport(WidgetTester tester) async {
 void main() {
   group('MedicationFormPage validation + submit (Stage 4.19)', () {
     testWidgets('requires name and frequency before any network call', (tester) async {
+      // The form is a lazy list and grew a field (instructions), so the submit
+      // button needs a tall viewport or an explicit scroll to exist at all.
+      await _useTallViewport(tester);
       var posted = false;
       final client = MockClient((request) async {
         posted = true;
@@ -98,6 +101,7 @@ void main() {
     });
 
     testWidgets('a valid medication posts and pops true', (tester) async {
+      await _useTallViewport(tester);
       http.Request? captured;
       final client = MockClient((request) async {
         captured = request;
@@ -184,6 +188,58 @@ void main() {
               child: PatientProfileForm(
                 initial: const PatientProfile(),
                 onSubmit: (p) async => submitted = p,
+                facilityLoader: () async => const [
+                  FacilityOption(
+                    uid: 'fac-1',
+                    name: 'Muhimbili National Hospital',
+                    facilityType: 'HOSPITAL',
+                    region: 'Dar es Salaam',
+                    city: 'Dar es Salaam',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, AppStrings.dateOfBirth),
+        '1995-03-12',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<String>).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('Muhimbili').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, AppStrings.save));
+      await tester.pumpAndSettle();
+
+      expect(submitted, isNotNull);
+      expect(submitted!.dateOfBirth, '1995-03-12');
+      expect(submitted!.facilityUid, 'fac-1');
+      expect(find.text(AppStrings.saved), findsOneWidget);
+    });
+
+    testWidgets('refuses to submit without a treating facility',
+        (tester) async {
+      // The API requires a facility, so the form must not fire a doomed
+      // request — it tells the user what is missing instead (§6).
+      await _useTallViewport(tester);
+      PatientProfile? submitted;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: PatientProfileForm(
+                initial: const PatientProfile(),
+                onSubmit: (p) async => submitted = p,
+                facilityLoader: () async => const [
+                  FacilityOption(
+                    uid: 'fac-1',
+                    name: 'Muhimbili National Hospital',
+                    facilityType: 'HOSPITAL',
+                  ),
+                ],
               ),
             ),
           ),
@@ -196,9 +252,8 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, AppStrings.save));
       await tester.pumpAndSettle();
 
-      expect(submitted, isNotNull);
-      expect(submitted!.dateOfBirth, '1995-03-12');
-      expect(find.text(AppStrings.saved), findsOneWidget);
+      expect(submitted, isNull);
+      expect(find.text(AppStrings.facilityRequired), findsWidgets);
     });
   });
 

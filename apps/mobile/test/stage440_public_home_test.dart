@@ -9,6 +9,7 @@ import 'package:sicklers_warriors/core/l10n/app_localizations.dart';
 import 'package:sicklers_warriors/core/l10n/locale_controller.dart';
 import 'package:sicklers_warriors/core/prefs/app_preferences.dart';
 import 'package:sicklers_warriors/core/theme/theme_controller.dart';
+import 'package:sicklers_warriors/features/auth/presentation/pages/login_page.dart';
 import 'package:sicklers_warriors/features/public/data/content_repository.dart';
 import 'package:sicklers_warriors/features/public/presentation/pages/public_home_page.dart';
 
@@ -90,6 +91,7 @@ Widget _app(ContentRepository content,
         supportedLocales: AppLocalizationsDelegate.supportedLocales,
         theme: ThemeData(useMaterial3: true),
         home: PublicHomePage(content: content),
+        routes: {LoginPage.routeName: (_) => const LoginPage()},
       ),
     ),
   );
@@ -117,6 +119,38 @@ void main() {
     expect(find.text(long), findsNWidgets(2));
     // No static ellipsis view; the marquee is animating.
     expect(tester.hasRunningAnimations, isTrue);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the ticker band stays visible after scrolling (regression)',
+      (tester) async {
+    // A tall surface so the page genuinely overflows and the drag scrolls.
+    tester.view.physicalSize = const Size(1000, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(_repo()));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    final before = tester.getTopLeft(find.byIcon(Icons.campaign_outlined)).dy;
+
+    // Scroll well past the announcement band.
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -900));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+
+    expect(
+      find.byIcon(Icons.campaign_outlined),
+      findsOneWidget,
+      reason: 'an announcement must remain on screen while the page scrolls',
+    );
+    final after = tester.getTopLeft(find.byIcon(Icons.campaign_outlined)).dy;
+    expect(after, lessThan(before),
+        reason: 'the band moves up to the top of the viewport as a pinned header');
+    // It also stays glued just under the pinned app bar rather than riding
+    // the content.
+    expect(after, greaterThan(0));
+    expect(after, lessThan(before));
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -179,4 +213,21 @@ void main() {
     expect(locale.storedLanguageTag, 'sw');
     expect(locale.isSwahili, isTrue);
   });
+  testWidgets('the public header keeps SOS one tap away', (tester) async {
+    await tester.pumpWidget(_app(_repo()));
+    // The page runs a looping carousel, so never pumpAndSettle here.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final sos = find.byKey(const ValueKey('public-header-sos'));
+    expect(sos, findsOneWidget);
+
+    // `/emergency` is a protected route: an anonymous visitor is handed to
+    // the sign-in wall instead of a broken, token-less emergency screen.
+    await tester.tap(sos);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(LoginPage), findsOneWidget);
+  });
+
 }

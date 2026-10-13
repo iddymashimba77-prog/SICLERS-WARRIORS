@@ -43,7 +43,7 @@ from community import models as community_models
 from education import models as education_models
 from medications import models as medication_models
 
-from .qa_helpers import JsonAPIClient, client, orm_user
+from .qa_helpers import JsonAPIClient, client, directory_facility, orm_user
 
 _PASSWORD = "Str0ng!Pass9"
 
@@ -242,7 +242,8 @@ class ApiContractEnvelopeSuite(_Envelope):
         c = client(patient)
         patch = c.patch(
             "/api/patients/me/",
-            {"genotype": "SS", "gender": "FEMALE", "date_of_birth": "1998-03-04"},
+            {"genotype": "SS", "gender": "FEMALE", "date_of_birth": "1998-03-04",
+             "facility_uid": str(directory_facility().uid)},
         )
         self.assertEqual(patch.status_code, 200)
         me = patch.json()["data"]

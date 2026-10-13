@@ -27,6 +27,7 @@ from blood_network.models import (
     BloodDonor,
     BloodMatch,
     BloodRequest,
+    BloodRequestDecision,
 )
 from facilities.models import Facility
 
@@ -391,3 +392,189 @@ class BloodRequestFlowTests(TestCase):
             SecurityEvent.objects.filter(event_type="BLOOD_REQUEST_CREATED").exists()
         )
         self.assertIsNotNone(created.data.get("uid"))
+
+class BloodRequestDecisionHistoryTests(TestCase):
+    """FR-BLD-011: `BloodRequest.status` cannot explain itself; the trail can."""
+
+    def setUp(self):
+        self.patient, self.patient_user = _register("PATIENT")
+        _, self.other_patient_user = _register("PATIENT")
+        self.donor_user = _orm_user("BLOOD_DONOR")
+        self.donor = _donor(self.donor_user, blood_group="O+", verified=True)
+        self.vo_user = _orm_user("VERIFICATION_OFFICER")
+        self.vo = _client(self.vo_user)
+        self.admin = _client(_orm_user("SUPER_ADMIN"))
+        self.facility = Facility.objects.create(
+            name="History Clinic", facility_type="CLINIC", city="Accra", is_verified=True,
+        )
+        self.payload = {
+            "blood_group_needed": "O+",
+            "units": 1,
+            "urgency": "URGENT",
+            "facility_uid": str(self.facility.uid),
+            "location": {"region": "Greater Accra", "city": "Accra"},
+        }
+
+    def _create(self, client=None, **overrides):
+        body = {**self.payload, **overrides}
+        return (client or self.patient).post("/api/blood/requests/", body, format="json")
+
+    def _rows(self, uid):
+        return BloodRequestDecision.objects.filter(request__uid=uid).order_by("pk")
+
+    def test_submission_is_recorded_with_the_requester_as_actor(self):
+        created = self._create()
+        rows = self._rows(created.data["uid"])
+        self.assertEqual([r.decision for r in rows], ["SUBMITTED"])
+        self.assertEqual(rows[0].actor_id, self.patient_user.id)
+        self.assertEqual(rows[0].to_status, "PENDING_VERIFICATION")
+        self.assertEqual(rows[0].from_status, "")
+
+    def test_verify_then_reject_trails_both_decisions_in_order(self):
+        ok = self._create()
+        self.vo.post(f"/api/admin/blood/requests/{ok.data['uid']}/verify/")
+        bad = self._create()
+        self.vo.post(
+            f"/api/admin/blood/requests/{bad.data['uid']}/reject/",
+            {"reason": "Urgency not clinically confirmed"},
+            format="json",
+        )
+
+        ok_rows = self._rows(ok.data["uid"])
+        self.assertEqual([r.decision for r in ok_rows], ["SUBMITTED", "VERIFIED"])
+        self.assertEqual(ok_rows[1].from_status, "PENDING_VERIFICATION")
+        self.assertEqual(ok_rows[1].to_status, "ACTIVE")
+        self.assertEqual(ok_rows[1].actor_id, self.vo_user.id)
+
+        bad_rows = self._rows(bad.data["uid"])
+        self.assertEqual([r.decision for r in bad_rows], ["SUBMITTED", "REJECTED"])
+        self.assertEqual(bad_rows[1].reason, "Urgency not clinically confirmed")
+
+    def test_cancellation_is_appended_with_its_reason(self):
+        created = self._create()
+        uid = created.data["uid"]
+        self.patient.post(
+            f"/api/blood/requests/{uid}/cancel/", {"reason": "no longer needed"}, format="json"
+        )
+        rows = self._rows(uid)
+        self.assertEqual([r.decision for r in rows], ["SUBMITTED", "CANCELLED"])
+        self.assertEqual(rows[1].reason, "no longer needed")
+        self.assertEqual(rows[1].to_status, "CANCELLED")
+
+    def test_matching_accept_and_fulfilment_are_all_appended(self):
+        created = self._create()
+        uid = created.data["uid"]
+        self.vo.post(f"/api/admin/blood/requests/{uid}/verify/")
+
+        run = self.admin.post(
+            "/api/admin/blood/run-matching/", {"request_uid": uid}, format="json"
+        )
+        self.assertEqual(run.status_code, 200)
+
+        donor_client = _client(self.donor_user)
+        mine = donor_client.get(f"/api/blood/requests/{uid}/matches/")
+        match_id = mine.data["results"][0]["id"]
+        donor_client.post(
+            f"/api/blood/matches/{match_id}/respond/", {"action": "ACCEPT"}, format="json"
+        )
+
+        staff = _client(_orm_user("HEALTHCARE_STAFF"))
+        staff.post(
+            f"/api/blood/requests/{uid}/donation-events/",
+            {
+                "donor_id": self.donor.id,
+                "facility_uid": str(self.facility.uid),
+                "units": 1,
+                "donated_at": timezone.now().isoformat(),
+                "outcome": "COMPLETED",
+            },
+            format="json",
+        )
+
+        decisions = [r.decision for r in self._rows(uid)]
+        self.assertEqual(
+            decisions,
+            ["SUBMITTED", "VERIFIED", "MATCHING_STARTED", "MATCHED",
+             "DONATION_RECORDED", "FULFILLED"],
+        )
+
+        matching_row = self._rows(uid).get(decision="MATCHING_STARTED")
+        self.assertIsNotNone(matching_row.actor_id, "the matcher run must attribute an actor")
+        self.assertEqual(matching_row.details.get("new_matches"), 1)
+        self.assertEqual(self._rows(uid).get(decision="MATCHED").actor_id, self.donor_user.id)
+
+    def test_history_is_append_only_at_instance_and_queryset_level(self):
+        created = self._create()
+        uid = created.data["uid"]
+        row = self._rows(uid)[0]
+
+        row.reason = "quietly rewritten"
+        with self.assertRaises(ValueError):
+            row.save()
+        with self.assertRaises(ValueError):
+            row.delete()
+        with self.assertRaises(ValueError):
+            BloodRequestDecision.objects.filter(request__uid=uid).update(reason="rewritten")
+        with self.assertRaises(ValueError):
+            BloodRequestDecision.objects.filter(request__uid=uid).delete()
+
+        row.refresh_from_db()
+        self.assertEqual(row.reason, "")
+
+    def test_history_survives_request_deletion_attempts(self):
+        created = self._create()
+        request_obj = BloodRequest.objects.get(uid=created.data["uid"])
+        from django.db.models import ProtectedError
+
+        with self.assertRaises(ProtectedError):
+            BloodRequest.objects.filter(pk=request_obj.pk).delete()
+        self.assertEqual(self._rows(created.data["uid"]).count(), 1)
+
+    def test_owner_reads_the_trail_via_the_api(self):
+        created = self._create()
+        uid = created.data["uid"]
+        self.vo.post(f"/api/admin/blood/requests/{uid}/verify/")
+        response = self.patient.get(f"/api/blood/requests/{uid}/decisions/")
+        self.assertEqual(response.status_code, 200)
+        # Newest first, so the trail reads backwards from the current status.
+        self.assertEqual(
+            [row["decision"] for row in response.data], ["VERIFIED", "SUBMITTED"]
+        )
+        self.assertEqual(response.data[0]["actor_uid"], str(self.vo_user.uid))
+        self.assertEqual(response.data[-1]["actor_uid"], str(self.patient_user.uid))
+        self.assertEqual(response.data[-1]["from_status"], "")
+
+    def test_verifier_is_attributed_in_the_serialized_trail(self):
+        created = self._create()
+        uid = created.data["uid"]
+        self.vo.post(f"/api/admin/blood/requests/{uid}/verify/")
+        response = self.patient.get(f"/api/blood/requests/{uid}/decisions/")
+        verified = [row for row in response.data if row["decision"] == "VERIFIED"][0]
+        self.assertEqual(verified["actor_uid"], str(self.vo_user.uid))
+
+    def test_another_patient_cannot_read_the_trail(self):
+        created = self._create()
+        uid = created.data["uid"]
+        response = _client(self.other_patient_user).get(
+            f"/api/blood/requests/{uid}/decisions/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_ineligible_donor_cannot_read_the_trail(self):
+        created = self._create()
+        uid = created.data["uid"]
+        self.vo.post(f"/api/admin/blood/requests/{uid}/verify/")
+        # 404, not 403: an ineligible donor must not learn that the request exists.
+        stranger = _client(_orm_user("BLOOD_DONOR"))
+        self.assertEqual(stranger.get(f"/api/blood/requests/{uid}/decisions/").status_code, 404)
+
+        eligible = _donor(_orm_user("BLOOD_DONOR"), blood_group="O-", verified=True)
+        allowed = _client(eligible.user).get(f"/api/blood/requests/{uid}/decisions/")
+        self.assertEqual(allowed.status_code, 200)
+
+    def test_anonymous_caller_is_refused(self):
+        created = self._create()
+        anon = APIClient()
+        self.assertEqual(
+            anon.get(f"/api/blood/requests/{created.data['uid']}/decisions/").status_code, 401
+        )

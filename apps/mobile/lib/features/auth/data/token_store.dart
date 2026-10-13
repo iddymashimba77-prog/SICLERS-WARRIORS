@@ -17,6 +17,15 @@ abstract class TokenStore {
 
   Future<String?> readRefresh();
 
+  /// Persist the identifier (email/phone) of the account that configured a
+  /// login PIN on this device, so the PIN screen can pre-fill the identity the
+  /// device remembers.
+  Future<void> writeRememberedIdentity(String identity);
+
+  Future<String?> readRememberedIdentity();
+
+  Future<void> clearRememberedIdentity();
+
   Future<void> clear();
 }
 
@@ -27,6 +36,7 @@ abstract class TokenStore {
 class EphemeralTokenStore implements TokenStore {
   String? _access;
   String? _refresh;
+  String? _rememberedIdentity;
 
   @override
   Future<void> writeAccess(String token) async {
@@ -49,6 +59,21 @@ class EphemeralTokenStore implements TokenStore {
   }
 
   @override
+  Future<void> writeRememberedIdentity(String identity) async {
+    _rememberedIdentity = identity;
+  }
+
+  @override
+  Future<String?> readRememberedIdentity() async {
+    return _rememberedIdentity;
+  }
+
+  @override
+  Future<void> clearRememberedIdentity() async {
+    _rememberedIdentity = null;
+  }
+
+  @override
   Future<void> clear() async {
     _access = null;
     _refresh = null;
@@ -67,6 +92,7 @@ class SharedPrefsTokenStore implements TokenStore {
 
   static const String _accessKey = 'sw.auth.access';
   static const String _refreshKey = 'sw.auth.refresh';
+  static const String _identityKey = 'sw.auth.remembered_identity';
 
   Future<SharedPreferences?> get _prefs async {
     try {
@@ -94,6 +120,20 @@ class SharedPrefsTokenStore implements TokenStore {
 
   @override
   Future<String?> readRefresh() async => (await _prefs)?.getString(_refreshKey);
+
+  @override
+  Future<void> writeRememberedIdentity(String identity) async {
+    await (await _prefs)?.setString(_identityKey, identity);
+  }
+
+  @override
+  Future<String?> readRememberedIdentity() async =>
+      (await _prefs)?.getString(_identityKey);
+
+  @override
+  Future<void> clearRememberedIdentity() async {
+    await (await _prefs)?.remove(_identityKey);
+  }
 
   @override
   Future<void> clear() async {

@@ -6,6 +6,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/settings_sheet.dart';
+import '../../../auth/domain/auth_types.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/pages/change_password_page.dart';
@@ -48,6 +49,7 @@ class ProfilePage extends StatelessWidget {
               roles: roles,
               accessToken: token,
               repository: repository,
+              controller: controller,
             ),
             const Divider(height: 32),
             if (token == null)
@@ -215,12 +217,17 @@ class _ProfilePhotoHeader extends StatefulWidget {
     required this.roles,
     this.accessToken,
     this.repository,
+    this.controller,
   });
 
   final String email;
   final List<String> roles;
   final String? accessToken;
   final ProfileRepository? repository;
+
+  /// Source of server-truth photo URL: ProfilePage rebuilds on every session
+  /// notify, so the header stays in sync with login / /auth/me restores.
+  final AuthController? controller;
 
   @override
   State<_ProfilePhotoHeader> createState() => _ProfilePhotoHeaderState();
@@ -250,6 +257,7 @@ class _ProfilePhotoHeaderState extends State<_ProfilePhotoHeader> {
         access: access,
         bytes: bytes,
         filename: file.name,
+        mimeType: _mimeTypeForName(file.name),
       );
       if (!mounted) return;
       setState(() {
@@ -257,17 +265,46 @@ class _ProfilePhotoHeaderState extends State<_ProfilePhotoHeader> {
         _photoUrl = url;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo updated.')),
+        SnackBar(content: Text(l10n(context).tr('profile.photoUpdated'))),
       );
     } catch (error) {
       if (!mounted) return;
       setState(() => _uploading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not update the profile photo.'),
-        ),
+        SnackBar(content: Text(_photoErrorMessage(context, error))),
       );
     }
+  }
+
+  /// Prefer the repository's specific message (wrong type, too large, server
+  /// validation) over a blanket "could not upload" — the user needs to know
+  /// which image to pick instead.
+  String _photoErrorMessage(BuildContext context, Object error) {
+    if (error is AuthException) {
+      switch (error.code) {
+        case 'UNSUPPORTED_PHOTO_TYPE':
+          return l10n(context).tr('profile.photoNotSupported');
+        case 'PHOTO_TOO_LARGE':
+          return l10n(context).tr('profile.photoTooLarge');
+        case 'EMPTY_PHOTO':
+          return l10n(context).tr('profile.photoEmpty');
+        default:
+          final message = error.message.trim();
+          if (message.isNotEmpty && !message.contains('Exception')) {
+            return message;
+          }
+      }
+    }
+    return l10n(context).tr('profile.photoUploadFailed');
+  }
+
+  /// Best-effort extension hint; the repository verifies against magic bytes.
+  String? _mimeTypeForName(String name) {
+    final lower = name.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    return null;
   }
 
   void _showSourceSheet() {
@@ -304,7 +341,10 @@ class _ProfilePhotoHeaderState extends State<_ProfilePhotoHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final hasPhoto = _photoUrl != null && _photoUrl!.isNotEmpty;
+    // Prefer the in-session upload result; otherwise fall back to the URL the
+    // server asserted on login/me so a restart shows the same picture.
+    final photoUrl = _photoUrl ?? widget.controller?.photoUrl;
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
     return Row(
       children: [
         Stack(
@@ -327,7 +367,7 @@ class _ProfilePhotoHeaderState extends State<_ProfilePhotoHeader> {
                       ? CircleAvatar(
                           radius: 28,
                           backgroundColor: AppColors.surface,
-                          backgroundImage: NetworkImage(_photoUrl!),
+                          backgroundImage: NetworkImage(photoUrl),
                         )
                       : const CircleAvatar(
                           radius: 28,

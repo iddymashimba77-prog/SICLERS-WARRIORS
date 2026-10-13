@@ -72,6 +72,21 @@ class EducationalContent(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(blank=True)
     cover_url = models.TextField(blank=True)
+    # Optional downloadable attachment (PDF/print handout, slide deck, image).
+    # Stored under MEDIA_ROOT and served by the deployment's media/CDN rule; the
+    # file itself is validated (type + size + magic bytes) at upload time by
+    # ``education.services.validate_document_upload`` — never trusted by name.
+    document_file = models.FileField(
+        upload_to="education/documents/", blank=True, max_length=300,
+    )
+    document_name = models.CharField(max_length=255, blank=True)
+    document_content_type = models.CharField(max_length=120, blank=True)
+    document_size = models.PositiveIntegerField(null=True, blank=True)
+    document_uploaded_at = models.DateTimeField(null=True, blank=True)
+    document_uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="uploaded_education_documents",
+    )
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)

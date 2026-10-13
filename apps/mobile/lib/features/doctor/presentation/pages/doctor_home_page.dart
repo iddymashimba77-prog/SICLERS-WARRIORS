@@ -14,6 +14,7 @@ import '../../../chat/data/chat_repository.dart';
 import '../../../chat/presentation/pages/conversation_list_page.dart';
 import '../../../notifications/data/notifications_repository.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Doctor home (FRONTEND-3): a dedicated experience, not a copy of the patient
 /// dashboard. Shows the doctor's real authorized surfaces (conversations,
@@ -32,9 +33,7 @@ class DoctorHomePage extends StatelessWidget {
     final session = authController ?? SessionScope.controllerOf(context);
     final token = session.accessToken;
     if (token == null) {
-      return const Scaffold(
-        body: SafeArea(child: Center(child: Text(AppStrings.notSignedIn))),
-      );
+      return const SignedOutGate();
     }
     final repo = repository ??
         DoctorHomeRepository(tokenStore: EphemeralTokenStore());

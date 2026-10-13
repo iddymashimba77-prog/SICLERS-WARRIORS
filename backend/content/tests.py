@@ -274,14 +274,22 @@ class ContentNewsAdminTests(TestCase):
         feed = self.anon.get("/api/content/news/?featured=true")
         self.assertIn(str(published.uid), [row["uid"] for row in feed.data["results"]])
 
-    def test_published_cannot_be_edited_directly(self):
+    def test_published_can_be_edited_in_place(self):
+        """A live article can be corrected directly — the fix goes live
+        immediately (the earlier "only draft or archived" rule made the admin
+        Edit button useless on the very rows editors need to fix most)."""
         article = _news(self.admin)
         res = self.admin_client.patch(
             self._admin_base(article),
-            {"title": "Edited"},
+            {"title": "Edited live title"},
             format="json",
         )
-        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.status_code, 200)
+        article.refresh_from_db()
+        self.assertEqual(article.title, "Edited live title")
+        self.assertEqual(article.status, "PUBLISHED")
+        feed = self.anon.get("/api/content/news/")
+        self.assertIn(str(article.uid), [row["uid"] for row in feed.data["results"]])
 
     def test_edit_draft_updates_fields(self):
         article = _news(self.admin, status_value="DRAFT")
@@ -295,15 +303,122 @@ class ContentNewsAdminTests(TestCase):
         self.assertEqual(article.title, "Edited title")
         self.assertEqual(article.tags, ["awareness", "sickle"])
 
-    def test_delete_draft_only(self):
+    def test_delete_is_a_soft_delete_that_hides_the_article(self):
+        """Production editorial content is never hard-deleted (§18)."""
         draft = _news(self.admin, status_value="DRAFT")
         res = self.admin_client.delete(self._admin_base(draft))
         self.assertEqual(res.status_code, 204)
-        self.assertFalse(NewsArticle.objects.filter(pk=draft.pk).exists())
-        published = _news(self.admin, title="Keep me")
+        # The row survives as recoverable history…
+        row = NewsArticle.objects.get(pk=draft.pk)
+        self.assertIsNotNone(row.deleted_at)
+        self.assertEqual(row.deleted_by, self.admin)
+        # …and disappears from the admin list and every public surface.
+        listed = self.admin_client.get("/api/admin/content/news/")
+        self.assertNotIn(str(draft.uid), [r["uid"] for r in listed.data["results"]])
+
+    def test_a_published_article_can_also_be_deleted(self):
+        """There is no longer an 'unpublish it first' dead end for admins."""
+        published = _news(self.admin, title="Withdraw me", status_value="PUBLISHED")
         res = self.admin_client.delete(self._admin_base(published))
+        self.assertEqual(res.status_code, 204)
+        row = NewsArticle.objects.get(pk=published.pk)
+        self.assertEqual(row.status, "ARCHIVED")
+        self.assertIsNotNone(row.deleted_at)
+        public = self.admin_client.get("/api/content/news/")
+        self.assertNotIn(str(published.uid), [r["uid"] for r in public.data["results"]])
+
+    def test_a_deleted_article_can_be_restored_as_a_draft(self):
+        published = _news(self.admin, title="Bring it back", status_value="PUBLISHED")
+        self.admin_client.delete(self._admin_base(published))
+        res = self.admin_client.post(
+            f"/api/admin/content/news/{published.uid.hex}/restore/", data={}, format="json",
+        )
+        self.assertEqual(res.status_code, 200, res.data)
+        row = NewsArticle.objects.get(pk=published.pk)
+        self.assertIsNone(row.deleted_at)
+        self.assertEqual(row.status, "DRAFT")
+
+    def test_admin_can_review_deleted_articles_on_request(self):
+        draft = _news(self.admin, title="Audit me")
+        self.admin_client.delete(self._admin_base(draft))
+        hidden = self.admin_client.get("/api/admin/content/news/")
+        self.assertNotIn(str(draft.uid), [r["uid"] for r in hidden.data["results"]])
+        shown = self.admin_client.get("/api/admin/content/news/?include_deleted=true")
+        self.assertIn(str(draft.uid), [r["uid"] for r in shown.data["results"]])
+
+    def test_pinning_lifts_an_article_to_the_top_of_the_public_list(self):
+        older = _news(self.admin, title="Older but pinned", category="EVENTS")
+        _news(self.admin, title="Newest", category="HEALTH")
+        base = self._admin_base(older)
+
+        res = self.admin_client.post(f"{base}pin/", {"pinned": True}, format="json")
+        self.assertEqual(res.status_code, 200, res.data)
+        older.refresh_from_db()
+        self.assertTrue(older.pinned)
+        self.assertEqual(older.pinned_by, self.admin)
+        self.assertIsNotNone(older.pinned_at)
+
+        public = self.admin_client.get("/api/content/news/")
+        self.assertEqual(public.data["results"][0]["uid"], str(older.uid))
+        # The public payload advertises the pin so the app can label it.
+        self.assertTrue(public.data["results"][0]["pinned"])
+
+    def test_unpinning_returns_the_article_to_date_order(self):
+        pinned = _news(self.admin, title="Was pinned", category="EVENTS")
+        self.admin_client.post(f"{self._admin_base(pinned)}pin/", {"pinned": True}, format="json")
+        res = self.admin_client.post(f"{self._admin_base(pinned)}unpin/", data={}, format="json")
+        self.assertEqual(res.status_code, 200)
+        pinned.refresh_from_db()
+        self.assertFalse(pinned.pinned)
+        self.assertIsNone(pinned.pinned_at)
+        self.assertIsNone(pinned.pinned_by)
+
+    def test_a_draft_cannot_be_pinned(self):
+        draft = _news(self.admin, title="Not live", status_value="DRAFT")
+        res = self.admin_client.post(
+            f"{self._admin_base(draft)}pin/", {"pinned": True}, format="json",
+        )
         self.assertEqual(res.status_code, 400)
-        self.assertTrue(NewsArticle.objects.filter(pk=published.pk).exists())
+        draft.refresh_from_db()
+        self.assertFalse(draft.pinned)
+
+    def test_unpublishing_clears_the_pin(self):
+        """A pin must never leave a hidden article at the top of the list."""
+        article = _news(self.admin)
+        self.admin_client.post(f"{self._admin_base(article)}pin/", {"pinned": True}, format="json")
+        self.admin_client.post(f"{self._admin_base(article)}unpublish/", data={}, format="json")
+        article.refresh_from_db()
+        self.assertFalse(article.pinned)
+        self.assertIsNone(article.pinned_at)
+
+    def test_soft_deleting_a_pinned_article_clears_the_pin(self):
+        article = _news(self.admin)
+        self.admin_client.post(f"{self._admin_base(article)}pin/", {"pinned": True}, format="json")
+        self.admin_client.delete(self._admin_base(article))
+        article.refresh_from_db()
+        self.assertFalse(article.pinned)
+        public = self.admin_client.get("/api/content/news/")
+        self.assertNotIn(str(article.uid), [r["uid"] for r in public.data["results"]])
+
+    def test_pinned_filter_is_available_on_both_surfaces(self):
+        article = _news(self.admin)
+        self.admin_client.post(f"{self._admin_base(article)}pin/", {"pinned": True}, format="json")
+        _news(self.admin, title="Unpinned")
+        public = self.admin_client.get("/api/content/news/?pinned=true")
+        self.assertEqual([r["uid"] for r in public.data["results"]], [str(article.uid)])
+        admin = self.admin_client.get("/api/admin/content/news/?pinned=true")
+        self.assertEqual([r["uid"] for r in admin.data["results"]], [str(article.uid)])
+
+    def test_pinning_is_audited(self):
+        from audit.models import AuditLog
+
+        article = _news(self.admin)
+        self.admin_client.post(f"{self._admin_base(article)}pin/", {"pinned": True}, format="json")
+        self.assertTrue(
+            AuditLog.objects.filter(
+                actor=self.admin, action_code="content.news.pin"
+            ).exists()
+        )
 
     def test_admin_list_filters_and_status(self):
         _news(self.admin, title="A", status_value="DRAFT")
@@ -315,6 +430,15 @@ class ContentNewsAdminTests(TestCase):
         self.assertTrue(all(r["featured"] for r in res.data["results"]))
         res = self.admin_client.get("/api/admin/content/news/?q=B")
         self.assertEqual([r["title"] for r in res.data["results"]], ["B"])
+
+    def test_status_filter_accepts_lower_case(self):
+        """A client sending ?status=published must not get a 400 that blanks
+        the whole admin table."""
+        _news(self.admin, title="Live", status_value="PUBLISHED")
+        _news(self.admin, title="Pending", status_value="DRAFT")
+        res = self.admin_client.get("/api/admin/content/news/?status=published")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual([r["title"] for r in res.data["results"]], ["Live"])
 
     def test_cover_upload_validates_and_updates_url(self):
         article = _news(self.admin, status_value="DRAFT")
@@ -430,6 +554,41 @@ class ContentTickerAdminTests(TestCase):
                 "end_at": end.isoformat(),
             },
             format="json",
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_image_upload_is_validated_and_served(self):
+        ann = _ticker("Photo announcement", active=True)
+        uploaded = SimpleUploadedFile(
+            "ann.png", make_png(), content_type="image/png",
+        )
+        res = self.admin_client.post(
+            f"/api/admin/content/ticker/{ann.uid}/image/",
+            {"image": uploaded, "alt": "Blood drive poster"},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, 200, res.data)
+        # The admin response is built with a request context → absolute URL.
+        self.assertTrue(res.data["image_url"].startswith("http"))
+        ann.refresh_from_db()
+        self.assertTrue(ann.image)
+        self.assertEqual(ann.image_alt, "Blood drive poster")
+        # The public ticker carries the backend-relative media path; clients
+        # resolve it against the API origin (no request context here).
+        feed = APIClient().get("/api/content/ticker/")
+        row = next(r for r in feed.data if r["uid"] == str(ann.uid))
+        self.assertTrue(row["image_url"])
+        self.assertTrue(row["image_url"].startswith(f"/media/content/ticker/{ann.uid}.jpg"))
+
+    def test_image_upload_rejects_non_image(self):
+        ann = _ticker("Bad image")
+        bad = SimpleUploadedFile(
+            "ann.txt", b"not an image at all", content_type="text/plain",
+        )
+        res = self.admin_client.post(
+            f"/api/admin/content/ticker/{ann.uid}/image/",
+            {"image": bad},
+            format="multipart",
         )
         self.assertEqual(res.status_code, 400)
 

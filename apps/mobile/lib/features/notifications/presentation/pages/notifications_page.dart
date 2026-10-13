@@ -15,6 +15,7 @@ import '../../../emergency/presentation/pages/emergency_page.dart';
 import '../../../health/presentation/pages/health_dashboard_page.dart';
 import '../../../medication/presentation/pages/medication_page.dart';
 import '../../data/notifications_repository.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Inbox display order for the notification center (approved §23 grouping).
 const List<String> _inboxOrder = [
@@ -88,10 +89,7 @@ class NotificationsPage extends StatelessWidget {
     final token = (authController ?? SessionScope.controllerOf(context))
         .accessToken;
     if (token == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.notifications)),
-        body: const Center(child: Text(AppStrings.notSignedIn)),
-      );
+      return const SignedOutGate();
     }
     return NotificationsHomeView(
       accessToken: token,

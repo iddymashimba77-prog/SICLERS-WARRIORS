@@ -140,7 +140,11 @@ class ContentRepository {
     final rows = payload is List ? payload : payload['results'];
     return [
       for (final row in rows is List ? rows : const [])
-        if (row is Map<String, dynamic>) TickerAnnouncement.fromJson(row),
+        if (row is Map<String, dynamic>)
+          TickerAnnouncement.fromJson({
+            ...row,
+            if (row['image_url'] is String) 'image_url': _resolveMedia(row, 'image_url'),
+          }),
     ];
   }
 

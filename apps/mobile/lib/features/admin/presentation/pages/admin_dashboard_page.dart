@@ -7,6 +7,7 @@ import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/admin_models.dart';
 import '../../data/admin_repository.dart';
 import '../widgets/admin_kpi_card.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// Admin dashboard (ADMIN-3) — real KPIs from GET /api/admin/dashboard.
 ///
@@ -231,7 +232,7 @@ class _PendingLine extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppShapes.card,
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Row(

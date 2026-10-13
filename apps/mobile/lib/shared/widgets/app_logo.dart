@@ -32,6 +32,7 @@ class AppLogo extends StatelessWidget {
         ? Image.network(
             liveUrl,
             fit: BoxFit.contain,
+            webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
             semanticLabel: branding!.info.logoAlt.isEmpty
                 ? null
                 : branding.info.logoAlt,

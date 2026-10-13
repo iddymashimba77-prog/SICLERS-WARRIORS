@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../data/chat_repository.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// Conversation thread (approved CHAT-002/CHAT-003; FR-DOC-005).
 ///
@@ -235,7 +236,7 @@ class _MessageBubble extends StatelessWidget {
             color: mine
                 ? AppColors.primary
                 : Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: AppShapes.tile,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,

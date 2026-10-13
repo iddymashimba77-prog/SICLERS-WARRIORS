@@ -176,7 +176,7 @@ Traceability: FR-PAT-001..004, FR-SYM-001..005, UR-01, US-PAT-*.
 | Table | Notes |
 |---|---|
 | `facilities` | `uid`, `name`, `facility_type` CHECK(HOSPITAL CLINIC LABORATORY BLOOD_BANK PHARMACY OTHER), `region`, `city`, `address`, `registration_number`, `is_verified`, `verified_by` FK, `verified_at`, `created_at`, `updated_at`. Replaces `hospitals` (unified facility entity; HOSPITAL role account linked via facility operator) |
-| `doctors` | `user_id` FK unique, `facility_id` FK null, `license_number`, `specialty` (code), `registration_body`, `verification_status` CHECK(PENDING APPROVED REJECTED SUSPENDED), `verified_by` FK, `verified_at`, `verification_expires_at` null, `rejection_reason`, `is_active`, `created_at`, `updated_at`. Sensitive documents live in `verification_documents` (secure storage, not public) |
+| `doctors` | `user_id` FK unique, `facility_id` FK null, `professional_type` CHECK(DOCTOR PSYCHOLOGIST SOCIAL_SUPPORT) default DOCTOR, `license_number`, `specialty` (code), `registration_body`, `verification_status` CHECK(PENDING APPROVED REJECTED SUSPENDED), `verified_by` FK, `verified_at`, `verification_expires_at` null, `rejection_reason`, `is_active`, `created_at`, `updated_at`. Sensitive documents live in `verification_documents` (secure storage, not public). One registry, three professions: the verification question is identical for each, while `professional_type` records *which* professional and never grants a privilege — privileges come from the account role's permission bundle |
 | `healthcare_staff` | `user_id` FK unique, `facility_id` FK, `role_title`, `verification_status`, `verified_by`, `verified_at`, `is_active`, timestamps |
 
 Rules: doctor functions depend on `users.account_status = ACTIVE` **and**
@@ -200,14 +200,15 @@ Traceability: FR-DOC-001..005, BR-001, UR-03, US-DOC-*, 3.3 §4.5/§4.6/§4.7.
 |---|---|
 | `clinical_encounters` | `uid`, `patient_id` FK, `facility_id` FK null, `doctor_id` FK null, `staff_id` FK null, `encounter_type` CHECK, `occurred_at`, `summary`, `created_by` FK, `created_at` |
 | `medical_records` | `uid`, `patient_id` FK, `category_id` FK, `encounter_id` FK null, `title`, `description`, `facility_id` FK null, `recorded_by` FK, `recorded_at`, `status` CHECK(ACTIVE ARCHIVED SUPPRESSED), `is_consent_visible` bool default true, `created_at`, `updated_at`, `deleted_at`. Ownership = patient; authorship = `recorded_by` |
-| `medical_record_files` | `record_id` FK, `file_url` (storage key), `file_name`, `content_type`, `size_bytes`, `checksum`, `uploaded_by` FK, `uploaded_at` (encrypted-at-rest storage; never a public URL) |
+| `medical_record_files` | `uid`, `record_id` FK, `file` (FileField → storage key; the design's `file_url`), `file_name`, `content_type`, `size_bytes`, `checksum` (SHA-256), `uploaded_by` FK, `uploaded_at` (encrypted-at-rest storage; never a public URL) |
 | `medical_record_links` | per-record visibility override (derived artifact of consent): `record_id` FK, `granted_to_user_id` FK, `scope`, `expires_at` null, `granted_by_patient_id` FK, `granted_at`, `revoked_at`, `revoked_by` |
+| `medical_record_events` | APPEND-ONLY history (FR-MEDREC-006): `uid`, `record_id` FK **PROTECT** null, `patient_id` FK, `actor_id` FK null, `event_type` CHECK(CREATED UPDATED STATUS_CHANGED FILE_ATTACHED FILE_REMOVED DELETED VIEWED DOWNLOADED ACCESS_DENIED SHARED SHARE_REVOKED), `from_status` null, `to_status` null, `details` JSONB (non-PHI), `occurred_at`. `save()`/`delete()`/`update()` all refuse; `record` FK is PROTECT so history cannot lose its subject. |
 
 ### 8.3 Medication
 
 | Table | Notes |
 |---|---|
-| `medications` | `uid`, `patient_id` FK, `name`, `generic_name`, `strength`, `dosage`, `route` CHECK, `frequency`, `start_date`, `end_date` null, `prescribed_by_id` FK null, `is_active`, `created_at`, `updated_at`, `deleted_at` |
+| `medications` | `uid`, `patient_id` FK, `name`, `generic_name`, `strength`, `dosage`, `route` CHECK, `frequency`, `instructions` (prescriber directions, ≤2000 chars), `start_date`, `end_date` null, `prescribed_by_id` FK null, `is_active`, `created_at`, `updated_at`, `deleted_at` |
 | `medication_schedules` | `medication_id` FK, `time_of_day` time, `days_of_week` JSONB, `notes` |
 | `medication_events` | `schedule_id` FK, `patient_id` FK, `status` CHECK(TAKEN MISSED SKIPPED SNOOZED), `taken_at` null, `note`, `created_at` (immutable; adherence derived) |
 
@@ -285,6 +286,24 @@ Traceability: FR-APP-001..004.
 | `blood_requests` | `uid`, `patient_id` FK null, `created_by` FK, `blood_group_needed` CHECK, `units` smallint, `urgency` CHECK(NORMAL URGENT CRITICAL), `facility_id` null, `reason`, `location` JSONB (lat/lng/region), `status` CHECK(PENDING_VERIFICATION ACTIVE MATCHING MATCHED FULFILLED EXPIRED CANCELLED REJECTED), `verified_by`, `verified_at`, `rejection_reason`, `created_at`, `updated_at`. **No donor PII in requests** (privacy) |
 | `blood_matches` | `request_id` FK, `donor_id` FK, `match_score` numeric, `match_reason` JSONB, `status` CHECK(SUGGESTED NOTIFIED ACCEPTED DECLINED FULFILLED EXPIRED), `notified_at`, `responded_at`, `fulfilled_at`, `created_at` |
 | `blood_donation_events` | `donor_id` FK, `request_id` null, `facility_id`, `units`, `donated_at`, `outcome` CHECK(COMPLETED DEFERRED FAILED), `donation_serial` unique, `recorded_by`, `created_at` (immutable history) |
+| `blood_request_decisions` | `uid`, `request_id` FK **PROTECT**, `actor_id` FK null, `decision` CHECK(SUBMITTED VERIFIED REJECTED CANCELLED MATCHING_STARTED MATCHED DONATION_RECORDED FULFILLED EXPIRED NOTE), `from_status`, `to_status`, `reason` text, `details` JSONB (non-PHI), `decided_at`. APPEND-ONLY (FR-BLD-011): `save()` on an existing row, `delete()`, `update()` and `QuerySet.delete()` all refuse; `request` FK is PROTECT so the trail cannot lose its subject. `reason` is the decider's own justification and may be clinical; `details` holds codes/counts/ids only |
+
+### 8b. Verification decision history (FR-DOC-006)
+
+`doctors.verification_status` holds only the *current* state, so a rejected
+applicant who reapplies and is approved would leave no trace that the licence
+was doubted first. `doctor_verification_decisions` is that trace: one immutable
+row per submission, resubmission, approval, rejection, suspension and
+reinstatement, each naming the deciding officer and the reason they gave.
+
+| Table | Columns | Notes |
+|---|---|---|
+| `doctor_verification_decisions` | `uid`, `doctor_id` FK **PROTECT**, `actor_id` FK null, `decision` CHECK(SUBMITTED APPROVED REJECTED SUSPENDED REINSTATED RESUBMITTED NOTE), `from_status`, `to_status`, `reason` text, `details` JSONB (non-PHI), `decided_at` | APPEND-ONLY: same guards as `blood_request_decisions`; `doctor` FK is PROTECT |
+
+Reinstatement is appended as its own `REINSTATED` row rather than by rewriting
+the suspension, so the trail shows the suspension *and* its reversal.
+
+Traceability: FR-DOC-006/007, BR-001, C6.
 
 - Donor contact exposure: only released via accepted/fulfilled workflow at a
   facility (BR-006). Matching is compatibility + location + availability;
@@ -380,7 +399,7 @@ Traceability: FR-NOT-001..006.
 | Table | Notes |
 |---|---|
 | `education_categories` | `code`, `name`, `sort_order` |
-| `educational_content` | `uid`, `title`, `body`, `category_id` FK, `author_user_id` FK, `status` CHECK(DRAFT IN_REVIEW PUBLISHED ARCHIVED REJECTED), `reviewed_by` null, `reviewed_at` null, `rejection_reason`, `cover_url`, `published_at` null, `created_at`, `updated_at` |
+| `educational_content` | `uid`, `title`, `body`, `category_id` FK, `author_user_id` FK, `status` CHECK(DRAFT IN_REVIEW PUBLISHED ARCHIVED REJECTED), `reviewed_by` null, `reviewed_at` null, `rejection_reason`, `cover_url`, `published_at` null, `created_at`, `updated_at`, `document_file` null, `document_name`, `document_content_type`, `document_size` null, `document_uploaded_at` null, `document_uploaded_by` FK null |
 
 Traceability: FR-EDU-001..004.
 
@@ -564,6 +583,7 @@ analytics stores aggregates only; audit logs store references not content.
 | Record | medical_records | `MedicalRecord` | `medical_records` | documents |
 | Record file | medical_records | `MedicalRecordFile` | `medical_record_files` | attachments |
 | Record link | medical_records | `MedicalRecordLink` | `medical_record_links` | visibility |
+| Record event | medical_records | `MedicalRecordEvent` | `medical_record_events` | append-only history |
 | Medication | medications | `Medication` | `medications` | regimen |
 | Schedule | medications | `MedicationSchedule` | `medication_schedules` | timing |
 | Event | medications | `MedicationEvent` | `medication_events` | adherence |
@@ -571,7 +591,8 @@ analytics stores aggregates only; audit logs store references not content.
 | Appointment | appointments | `Appointment` | `appointments` | visits |
 | Consent | medical_records (consent svc) | `Consent` | `consents` | authorization |
 | Facility | facilities | `Facility` | `facilities` | institutions |
-| Doctor | doctors | `Doctor` | `doctors` | professionals |
+| Professional registry row | doctors | `Doctor` | `doctors` | doctor / psychologist / support worker |
+| Verification decision | doctors | `DoctorVerificationDecision` | `doctor_verification_decisions` | append-only history |
 | Staff | facilities/doctors | `HealthcareStaff` | `healthcare_staff` | staff |
 | Donor | blood_network | `BloodDonor` | `blood_donors` | donors |
 | Blood request | blood_network | `BloodRequest` | `blood_requests` | requests |
@@ -668,6 +689,8 @@ Covered in `database-design-review.md` §6. Major anchors:
 - FR-MED → `medications*`
 - FR-APP → `appointments`
 - FR-BLD/BR-005/006 → `blood_donors`, `blood_requests`, `blood_matches`, `blood_donation_events`
+- FR-BLD-011/012 → `blood_request_decisions`
+- FR-DOC-006/007 → `doctor_verification_decisions`
 - FR-EMG/BR-009 → `emergency_requests`, `emergency_responders`, `emergency_access_grants`
 - FR-CAM/PAY/BR-007/008 → `campaigns`, `donations`, `payment_transactions`, `refunds`
 - FR-COM → `community_posts`, `comments`, `reactions`, `reports`

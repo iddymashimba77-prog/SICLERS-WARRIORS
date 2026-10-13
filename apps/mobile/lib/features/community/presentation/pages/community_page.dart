@@ -11,6 +11,8 @@ import '../../../education/presentation/pages/education_page.dart';
 import '../../data/community_repository.dart';
 import 'community_create_post_page.dart';
 import 'community_post_detail_page.dart';
+import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Community feed (approved COM-001; FR-COM-001..003).
 ///
@@ -29,10 +31,7 @@ class CommunityPage extends StatelessWidget {
     final token = (authController ?? SessionScope.controllerOf(context))
         .accessToken;
     if (token == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.communityFeed)),
-        body: const Center(child: Text(AppStrings.notSignedIn)),
-      );
+      return const SignedOutGate();
     }
     return CommunityFeedView(
       accessToken: token,
@@ -283,7 +282,7 @@ class _PostCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppShapes.tile,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(

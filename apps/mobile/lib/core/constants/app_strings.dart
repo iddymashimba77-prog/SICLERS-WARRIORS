@@ -35,6 +35,12 @@ class AppStrings {
   static const String emergencyContactRelation = 'Emergency contact relation';
   static const String addressRegion = 'Address region';
   static const String addressCity = 'Address city';
+  static const String treatingFacility = 'Treating facility';
+  static const String facilityRequired =
+      'Choose the clinic or hospital where you receive treatment.';
+  static const String facilityNotSet = 'Not set yet';
+  static const String facilityDirectoryUnavailable =
+      'Facility directory unavailable — check your connection and retry.';
   static const String notes = 'Notes';
   static const String privateNote =
       'Private — visible only to you and authorised care providers.';
@@ -146,13 +152,16 @@ class AppStrings {
   // Shared async state
   static const String retry = 'Retry';
   static const String close = 'Close';
-  static const String notSignedIn =
-      'Sign in to manage your medications and health tracking.';
+
+  /// Generic signed-out prompt shared by every guarded surface (emergency,
+  /// community, donations, notifications, records, donor home, …). It used to
+  /// be medication copy, so a visitor tapping "Emergency" or "Donate blood"
+  /// was told to sign in "to manage your medications".
+  static const String notSignedIn = 'Sign in to use this feature.';
 
   // Medication (Stage 4.6)
   static const String medications = 'Medications';
-  static const String noMedications =
-      'No medications yet. Add your first medication to start tracking.';
+  static const String noMedications = 'No medications yet.';
   static const String addMedication = 'Add Medication';
   static const String editMedication = 'Edit Medication';
   static const String medicationName = 'Medication name';
@@ -484,6 +493,10 @@ class AppStrings {
   static const String manageMedications = 'Manage medications';
   static const String logSymptomShort = 'Log symptom';
   static const String reviewTimeline = 'View timeline';
+  static const String doctorMedications = 'Medications';
+  static const String patient = 'Patient';
+  static const String noPatientsFound =
+      'No registered patients yet. Verify a prescriber profile to reach this surface.';
   static const String healthRecords = 'Health Records';
   static const String noHealthRecords = 'No health records yet.';
   static const String carePlan = 'Care plan';
@@ -534,6 +547,15 @@ class AppStrings {
   static const String signOutConfirm =
       'Sign out of this device? You will need to sign in again.';
   static const String sessionOnThisDevice = 'Signed in on this device';
+  static const String roleWorkspace = 'Role workspace';
+  static const String roleWorkspaceHeading = 'Your role is active';
+  static const String roleWorkspaceBody =
+      'This account has a role that has no dedicated experience in this app '
+      'version yet. Your granted permissions below are enforced by the '
+      'backend; more surfaces will arrive with future updates.';
+  static const String roleGranted = 'Granted by your organization';
+  static const String roleWorkspacePermissions = 'Granted permissions';
+  static const String noPermissionsGranted = 'No permissions granted yet.';
 
   // Doctor role (doctor directory unavailable yet — honest state)
   static const String doctorDirectoryTitle = 'Verified care directory';

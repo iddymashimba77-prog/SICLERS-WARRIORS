@@ -32,6 +32,7 @@ from .models import (
     BloodDonor,
     BloodMatch,
     BloodRequest,
+    BloodRequestDecision,
     RECIPIENT_ACCEPTABLE_DONORS,
 )
 
@@ -95,7 +96,7 @@ def _score(request, donor, *, compatible: bool) -> tuple:
 
 
 @transaction.atomic
-def run_matching(request: BloodRequest):
+def run_matching(request: BloodRequest, *, actor=None):
     """Create SUGGESTED matches for verified, available, compatible donors.
 
     Idempotent per (request, donor) via the unique constraint. Donors are
@@ -145,16 +146,22 @@ def run_matching(request: BloodRequest):
         )
         created.append(match)
     if created:
+        previous = request.status
         BloodRequest.objects.filter(pk=request.pk).update(status="MATCHING")
         request.status = "MATCHING"
+        record_decision(
+            request, decision="MATCHING_STARTED", actor=actor,
+            from_status=previous, to_status="MATCHING",
+            details={"new_matches": len(created)},
+        )
     return created
 
 
-def run_matching_for_all():
+def run_matching_for_all(*, actor=None):
     """Admin matcher: every ACTIVE request (FR-BLD-008). Returns match counts."""
     counts = {}
     for request in BloodRequest.objects.filter(status="ACTIVE"):
-        matches = run_matching(request)
+        matches = run_matching(request, actor=actor)
         counts[str(request.uid)] = len(matches)
     return counts
 
@@ -179,6 +186,7 @@ def respond_to_match(match: BloodMatch, donor: BloodDonor, *, accept: bool) -> B
     match.save(update_fields=["status", "responded_at"])
     request = match.request
     if accept and request.status in ("ACTIVE", "MATCHING"):
+        previous = request.status
         BloodRequest.objects.filter(pk=request.pk).update(status="MATCHED")
         request.status = "MATCHED"
         create_notification(
@@ -192,6 +200,11 @@ def respond_to_match(match: BloodMatch, donor: BloodDonor, *, accept: bool) -> B
             related_resource_type="blood_request",
             related_resource_id=str(request.uid),
             delivery_key=f"blood:accepted:{match.pk}",
+        )
+        record_decision(
+            request, decision="MATCHED", actor=donor.user,
+            from_status=previous, to_status="MATCHED",
+            details={"match_id": match.pk},
         )
     return match
 
@@ -230,10 +243,22 @@ def record_donation(
         donor.donation_count += 1
         donor.save(update_fields=["last_donation_date", "donation_count"])
         if request is not None:
+            previous = request.status
             BloodRequest.objects.filter(pk=request.pk).update(status="FULFILLED")
             request.status = "FULFILLED"
             BloodMatch.objects.filter(request=request, status="ACCEPTED").update(
                 status="FULFILLED", fulfilled_at=timezone.now(),
+            )
+            record_decision(
+                request, decision="DONATION_RECORDED", actor=recorded_by,
+                from_status=previous, to_status="DONATION_RECORDED",
+                details={"donation_serial": serial, "units": units,
+                         "outcome": outcome},
+            )
+            record_decision(
+                request, decision="FULFILLED", actor=recorded_by,
+                from_status="DONATION_RECORDED", to_status="FULFILLED",
+                details={"donation_serial": serial},
             )
     return request
 
@@ -245,3 +270,23 @@ def eligible_donor(request: BloodRequest, user) -> bool:
     except BloodDonor.DoesNotExist:
         return False
     return is_donor_eligible(request, donor)
+
+def record_decision(
+    request: BloodRequest, *, decision: str, actor=None, reason: str = "",
+    details=None, from_status: str = "", to_status: str = "",
+):
+    """Append one immutable decision row for a blood request (FR-BLD-011).
+
+    Call this at *every* lifecycle transition, not only at verification: the
+    point of the table is that `BloodRequest.status` alone cannot explain how a
+    request reached its current state.
+    """
+    return BloodRequestDecision.objects.create(
+        request=request,
+        actor=actor,
+        decision=decision,
+        from_status=from_status or "",
+        to_status=to_status or request.status,
+        reason=(reason or "")[:2000],
+        details=dict(details or {}),
+    )

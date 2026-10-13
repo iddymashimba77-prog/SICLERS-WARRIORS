@@ -208,7 +208,7 @@ class AppTheme {
         elevation: 0,
         indicatorColor: colorScheme.secondaryContainer,
         indicatorShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: AppShapes.tile,
         ),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         iconTheme: WidgetStateProperty.resolveWith((states) {
@@ -231,7 +231,7 @@ class AppTheme {
         useIndicator: true,
         indicatorColor: colorScheme.secondaryContainer,
         indicatorShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: AppShapes.tile,
         ),
         selectedIconTheme: IconThemeData(color: colorScheme.primary),
         unselectedIconTheme: IconThemeData(

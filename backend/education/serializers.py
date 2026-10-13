@@ -9,6 +9,7 @@ the community ``uid + display_name`` convention (no email/phone/PHI).
 from rest_framework import serializers
 
 from community.serializers import display_name
+from core.media import MediaUrlField, media_prefix, media_url
 from community.sanitizers import sanitize_html
 
 from . import models
@@ -38,14 +39,33 @@ class EducationalContentSerializer(serializers.ModelSerializer):
     category = EducationCategorySerializer(read_only=True)
     author = ContentAuthorSerializer(read_only=True)
     is_author = serializers.SerializerMethodField()
+    document_url = serializers.SerializerMethodField()
+    cover_url = MediaUrlField()
 
     class Meta:
         model = models.EducationalContent
         fields = [
             "id", "uid", "title", "body", "category", "author", "status",
             "cover_url", "published_at", "created_at", "updated_at", "is_author",
+            "document_url", "document_name", "document_content_type", "document_size",
+            "document_uploaded_at",
         ]
         read_only_fields = fields
+
+    def get_document_url(self, obj) -> str | None:
+        """Absolute URL of the attachment, or ``None`` when there is none.
+
+        ``request`` is needed so the mobile client behind a different host (and
+        the admin web on another origin) receives a URL it can fetch directly.
+        """
+        if not obj.document_file:
+            return None
+        try:
+            url = obj.document_file.url
+        except ValueError:  # pragma: no cover — file missing from storage
+            return None
+        # Resolved at read time (core.media) — never pinned to the upload Host.
+        return media_url(url, self.context.get("request"))
 
     def get_is_author(self, obj) -> bool:
         request = self.context.get("request")
@@ -63,6 +83,7 @@ class EducationalContentListSerializer(serializers.ModelSerializer):
     category = EducationCategorySerializer(read_only=True)
     author = ContentAuthorSerializer(read_only=True)
     is_author = serializers.SerializerMethodField()
+    cover_url = MediaUrlField()
 
     class Meta:
         model = models.EducationalContent
@@ -113,7 +134,10 @@ class EducationalContentCreateSerializer(serializers.Serializer):
     def validate_cover_url(self, value):
         cleaned = sanitize_html(value, max_length=COVER_URL_MAX)
         if cleaned and not (
-            cleaned.startswith("https://") or cleaned.startswith("http://")
+            cleaned.startswith("https://")
+            or cleaned.startswith("http://")
+            # Uploaded/attached covers round-trip as /media/... (core.media).
+            or cleaned.startswith(media_prefix())
         ):
             raise serializers.ValidationError("Cover URL must be an http(s) link.")
         return cleaned

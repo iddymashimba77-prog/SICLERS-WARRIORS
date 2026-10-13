@@ -32,7 +32,10 @@ from django.conf import settings
 from django.db import models
 
 NEWS_STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"]
-EDITABLE_STATUSES = ["DRAFT", "ARCHIVED"]
+# Editors may fix a live article in place (the fix goes live immediately) as
+# well as drafts and archived pieces — blocking PUBLISHED made the admin "Edit"
+# button useless on the very articles that matter most.
+EDITABLE_STATUSES = ["DRAFT", "ARCHIVED", "PUBLISHED"]
 
 NEWS_CATEGORIES = [
     ("HEALTH", "Health"),
@@ -68,6 +71,22 @@ class NewsArticle(models.Model):
     cover_alt = models.CharField(max_length=300, blank=True)
     tags = models.JSONField(default=list, blank=True)
     featured = models.BooleanField(default=False, db_index=True)
+    # Pinning is an explicit editorial override that floats a published article
+    # to the top of the public list regardless of publish date (§17/§18).
+    # Separate from `featured` because a pin has an actor and a timestamp.
+    pinned = models.BooleanField(default=False, db_index=True)
+    pinned_at = models.DateTimeField(null=True, blank=True)
+    pinned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="pinned_news_articles",
+    )
+    # Soft delete: editorial content is never destroyed from the database, so a
+    # mistaken removal is recoverable and the audit trail keeps a referent.
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="deleted_news_articles",
+    )
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
         related_name="news_articles",
@@ -81,7 +100,7 @@ class NewsArticle(models.Model):
 
     class Meta:
         db_table = "news_articles"
-        ordering = ["-published_at", "-id"]
+        ordering = ["-pinned", "-published_at", "-id"]
 
     def __str__(self):
         return self.title
@@ -101,6 +120,11 @@ class TickerAnnouncement(models.Model):
     priority = models.IntegerField(default=0)
     start_at = models.DateTimeField(null=True, blank=True)
     end_at = models.DateTimeField(null=True, blank=True)
+    # Optional announcement artwork. The file field stores the re-encoded JPEG;
+    # `image_url` in the payloads is derived at render time (core.media) so it
+    # always points at the right origin. `image_alt` is editable admin metadata.
+    image = models.ImageField(upload_to="content/ticker/", blank=True)
+    image_alt = models.CharField(max_length=300, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
         related_name="ticker_announcements",

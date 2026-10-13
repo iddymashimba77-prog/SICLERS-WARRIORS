@@ -24,6 +24,7 @@ import json
 import logging
 
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import status as http_status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import JSONParser
@@ -43,6 +44,7 @@ logger = logging.getLogger(__name__)
 _MAX_ANALYTICS_DAYS = 366  # NFR-PERF-002: bounded reporting windows.
 
 
+@extend_schema(responses={200: OpenApiTypes.OBJECT})
 class AdminDashboardView(APIView):
     """GET /api/admin/dashboard — aggregate KPI cards (role-adaptive)."""
 
@@ -55,6 +57,13 @@ class AdminDashboardView(APIView):
         return Response(payload)
 
 
+@extend_schema(
+    parameters=[AnalyticsQuerySerializer],
+    responses={
+        200: OpenApiTypes.OBJECT,
+        (200, "text/csv"): OpenApiTypes.STR,
+    },
+)
 class AdminAnalyticsView(APIView):
     """GET /api/admin/analytics — aggregate series (+ CSV export)."""
 

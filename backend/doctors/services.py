@@ -109,3 +109,25 @@ def add_participant(*, conversation, user, invited_by, role_in_chat="MEMBER"):
         participant.invited_by = invited_by
         participant.save(update_fields=["status", "invited_by"])
     return participant
+
+
+def record_decision(
+    doctor, *, decision: str, actor=None, reason: str = "",
+    details=None, from_status: str = "", to_status: str = "",
+):
+    """Append one immutable verification decision row for a doctor (FR-DOC-006).
+
+    C6 requires every verification decision to carry a reason and be audited;
+    this is the durable record of both. Called from the submit, resubmit,
+    verify, suspend and reinstate paths so the trail covers every state the
+    doctor has ever been in, not only the current one.
+    """
+    return models.DoctorVerificationDecision.objects.create(
+        doctor=doctor,
+        actor=actor,
+        decision=decision,
+        from_status=from_status or "",
+        to_status=to_status or doctor.verification_status,
+        reason=(reason or "")[:2000],
+        details=dict(details or {}),
+    )

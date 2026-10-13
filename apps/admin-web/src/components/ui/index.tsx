@@ -341,9 +341,21 @@ export function LoadingState({ label = 'Loading…' }: { label?: string }) {
 
 /* ---------------------------------------------------------------- KPI */
 
-export function KpiCard({ label, value, icon, tone }: { label: string; value: number | string; icon?: string; tone?: 'navy' | 'blue' | 'red' | 'green' | 'amber' }) {
+export function KpiCard({
+  label,
+  value,
+  icon,
+  tone,
+  className,
+}: {
+  label: string;
+  value: number | string;
+  icon?: string;
+  tone?: 'navy' | 'blue' | 'red' | 'green' | 'amber';
+  className?: string;
+}) {
   return (
-    <Card className="sw-kpi">
+    <Card className={cx('sw-kpi', className)}>
       <div className="sw-kpi-top">
         <span className="sw-kpi-label">{label}</span>
         {icon ? <span className="sw-kpi-ico" aria-hidden="true">{icon}</span> : null}

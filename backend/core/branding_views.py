@@ -25,6 +25,8 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.http import HttpResponse, HttpResponseNotFound
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiTypes, extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework import status as http_status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
@@ -56,13 +58,21 @@ def _branding():
 
 
 def _public_payload(branding):
-    return {
+    payload = {
         "logo_url": "/api/branding/logo/",
         "logo_alt": branding.logo_alt,
         "has_logo": bool(branding.logo),
     }
+    if branding.logo and branding.updated_at:
+        # The logo endpoint serves one constant URL; this version tag lets
+        # clients bust the browser/image caches the moment a logo is replaced
+        # (admin and mobile both refresh on launch — but only if the URL or
+        # response actually changes).
+        payload["logo_version"] = branding.updated_at.isoformat()
+    return payload
 
 
+@extend_schema(responses={200: OpenApiTypes.OBJECT})
 class BrandingPublicView(APIView):
     """Anonymous read of the platform brand (logo only ever points at the
     re-encoded public file endpoint)."""
@@ -73,6 +83,7 @@ class BrandingPublicView(APIView):
         return Response(_public_payload(_branding()))
 
 
+@extend_schema(responses={(200, "image/jpeg"): OpenApiTypes.BINARY})
 class BrandingLogoFileView(APIView):
     """Serve the stored logo as image bytes. 404 when branding unset."""
 
@@ -99,6 +110,7 @@ class AdminBrandingView(APIView):
     permission_classes = [BrandingAdminAccess]
     parser_classes = [JSONParser, FormParser]
 
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
         branding = _branding()
         payload = _public_payload(branding)
@@ -121,6 +133,13 @@ class AdminBrandingView(APIView):
         )
         return Response(payload)
 
+    @extend_schema(
+        request=inline_serializer(
+            name="AdminBrandingAltUpdate",
+            fields={"logo_alt": serializers.CharField(required=False, allow_blank=True)},
+        ),
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def patch(self, request):
         alt = str(request.data.get("logo_alt", "")).strip()
         if len(alt) > 160:
@@ -143,6 +162,16 @@ class AdminBrandingLogoView(APIView):
     permission_classes = [BrandingAdminAccess]
     parser_classes = [MultiPartParser, FormParser]
 
+    @extend_schema(
+        request=inline_serializer(
+            name="AdminBrandingLogoUpload",
+            fields={
+                "image": serializers.ImageField(),
+                "alt": serializers.CharField(required=False, allow_blank=True),
+            },
+        ),
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def post(self, request):
         image = request.FILES.get("image")
         if image is None:
@@ -184,6 +213,7 @@ class AdminBrandingLogoView(APIView):
         )
         return Response(_public_payload(branding))
 
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def delete(self, request):
         branding = _branding()
         if branding.logo:

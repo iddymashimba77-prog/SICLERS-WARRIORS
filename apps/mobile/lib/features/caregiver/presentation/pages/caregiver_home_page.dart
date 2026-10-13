@@ -13,6 +13,7 @@ import '../../../education/presentation/pages/education_page.dart';
 import '../../../notifications/data/notifications_repository.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Caregiver home (FRONTEND-3).
 ///
@@ -34,9 +35,7 @@ class CaregiverHomePage extends StatelessWidget {
     final session = authController ?? SessionScope.controllerOf(context);
     final token = session.accessToken;
     if (token == null) {
-      return const Scaffold(
-        body: SafeArea(child: Center(child: Text(AppStrings.notSignedIn))),
-      );
+      return const SignedOutGate();
     }
     return Scaffold(
       appBar: AppTopBar(

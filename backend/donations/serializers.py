@@ -31,6 +31,9 @@ class UserBriefSerializer(serializers.Serializer):
     uid = serializers.UUIDField(read_only=True)
     display_name = serializers.SerializerMethodField()
 
+    class Meta:
+        ref_name = "DonationUserBrief"
+
     def get_display_name(self, obj) -> str:
         return display_name(obj)
 
@@ -206,7 +209,7 @@ class DonationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
-    def get_latest_transaction(self, obj):
+    def get_latest_transaction(self, obj) -> dict | None:
         txn = obj.transactions.select_related("donation").order_by("-attempt", "-pk").first()
         if txn is None:
             return None
@@ -281,7 +284,7 @@ class AdminDonationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
-    def get_donor_display(self, obj):
+    def get_donor_display(self, obj) -> str:
         donor = obj.donor
         return display_name(donor)
 

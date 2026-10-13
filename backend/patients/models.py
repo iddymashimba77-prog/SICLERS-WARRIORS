@@ -59,6 +59,13 @@ class Patient(models.Model):
     emergency_contact_relation = models.CharField(max_length=60, blank=True)
     address_region = models.CharField(max_length=120, blank=True)
     address_city = models.CharField(max_length=120, blank=True)
+    # Treating facility: where this warrior receives care. Required at profile
+    # completion (§6) and surfaced in patient history/appointments.
+    facility = models.ForeignKey(
+        "facilities.Facility", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="patients",
+        help_text="Clinic/hospital where the patient receives treatment.",
+    )
     notes = models.TextField(blank=True)  # private — never surfaced beyond owner
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

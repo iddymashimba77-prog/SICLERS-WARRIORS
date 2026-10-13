@@ -9,6 +9,7 @@ import csv
 from io import StringIO
 
 from django.http import HttpResponse
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView
 from rest_framework.views import APIView
@@ -71,6 +72,7 @@ class AuditLogListView(ListAPIView):
         return _audit_queryset(self.request)
 
 
+@extend_schema(responses={(200, "text/csv"): OpenApiTypes.STR})
 class AdminAuditLogExportView(APIView):
     """GET /admin/audit-logs/export/?reason= — CSV export (audit_logs.export).
 

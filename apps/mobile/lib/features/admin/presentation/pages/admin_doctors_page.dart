@@ -5,6 +5,8 @@ import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/admin_models.dart';
 import '../../data/admin_repository.dart';
+import '../../../../shared/widgets/state_views.dart';
+import '../widgets/admin_documents.dart';
 import '../widgets/admin_widgets.dart';
 
 /// Doctor verification queue (ADMIN-3) — GET /api/admin/doctors/verification-queue/
@@ -128,10 +130,20 @@ class _DoctorCard extends StatelessWidget {
                 ),
               ),
             ],
+            SubmittedDocumentsSection(
+              documents: doctor.verificationDocuments,
+              repository: repository,
+              accessToken: accessToken,
+            ),
             const SizedBox(height: AppSpacing.sm),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                TextButton.icon(
+                  onPressed: () => _showHistory(context),
+                  icon: const Icon(Icons.history, size: 18),
+                  label: const Text('History'),
+                ),
                 TextButton.icon(
                   onPressed: () => _suspend(context),
                   icon: const Icon(Icons.block_outlined, size: 18),
@@ -150,6 +162,24 @@ class _DoctorCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// The trail behind the current status (`FR-DOC-007`).
+  ///
+  /// A page rather than a snackbar: a licence file can have several decisions
+  /// and each reason has to stay readable.
+  Future<void> _showHistory(BuildContext context) async {
+    final name = doctor.fullName.isEmpty ? doctor.email : doctor.fullName;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _AdminVerificationHistoryPage(
+          accessToken: accessToken,
+          repository: repository,
+          doctorUid: doctor.uid,
+          displayName: name,
         ),
       ),
     );
@@ -218,6 +248,101 @@ class _InfoRow extends StatelessWidget {
           Expanded(child: Text(text)),
         ],
       ),
+    );
+  }
+}
+
+
+/// The reviewer's read of the same append-only trail the applicant sees
+/// (`FR-DOC-007`).
+class _AdminVerificationHistoryPage extends StatefulWidget {
+  const _AdminVerificationHistoryPage({
+    required this.accessToken,
+    required this.repository,
+    required this.doctorUid,
+    required this.displayName,
+  });
+
+  final String accessToken;
+  final AdminRepository repository;
+  final String doctorUid;
+  final String displayName;
+
+  @override
+  State<_AdminVerificationHistoryPage> createState() =>
+      _AdminVerificationHistoryPageState();
+}
+
+class _AdminVerificationHistoryPageState
+    extends State<_AdminVerificationHistoryPage> {
+  List<AdminDoctorVerificationDecision> _decisions = const [];
+  Object? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final decisions = await widget.repository.listDoctorVerificationHistory(
+        access: widget.accessToken,
+        uid: widget.doctorUid,
+      );
+      if (!mounted) return;
+      setState(() {
+        _decisions = decisions;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Verification history')),
+      body: _loading
+          ? const LoadingView()
+          : _error != null
+              ? ErrorRetryView(message: 'Could not load the history.', onRetry: _load)
+              : _decisions.isEmpty
+                  ? const EmptyStateView(message: 'No decisions recorded yet.')
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _decisions.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final decision = _decisions[index];
+                        return Card(
+                          child: ListTile(
+                            leading: Icon(
+                              decision.transition.contains('REJECT')
+                                  ? Icons.cancel_outlined
+                                  : Icons.check_circle_outline,
+                            ),
+                            title: Text(decision.transition),
+                            subtitle: Text([
+                              decision.decidedAt,
+                              if (decision.actorName.isNotEmpty)
+                                'by ${decision.actorName}',
+                              if (decision.reason.isNotEmpty) decision.reason,
+                            ].join(' · ')),
+                          ),
+                        );
+                      },
+                    ),
     );
   }
 }

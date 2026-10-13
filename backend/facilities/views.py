@@ -10,13 +10,14 @@ donations or appear in the venue picker.
 """
 
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import permissions, status as http_status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.generics import ListAPIView, RetrieveAPIView, RetrieveUpdateAPIView, GenericAPIView
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 
-from accounts.models import SecurityEvent
+from accounts.models import SecurityEvent, VerificationDocument
 from accounts.permissions import IsAuthenticatedRespectStatus, require
 from audit.services import record_audit
 from core.pagination import CorePageNumberPagination
@@ -25,6 +26,7 @@ from .serializers import (
     FacilityAdminSerializer,
     FacilityMeSerializer,
     FacilitySerializer,
+    FacilityVerificationSubmitSerializer,
     FacilityVerifySerializer,
 )
 
@@ -57,7 +59,7 @@ class FacilityDetailView(RetrieveAPIView):
 
 
 class FacilityMeView(RetrieveUpdateAPIView):
-    """GET/PATCH /facilities/me — HOSPITAL operator profile (C7)."""
+    """GET/PATCH /facilities/me — facility operator profile (C7)."""
 
     serializer_class = FacilityMeSerializer
     permission_classes = [IsAuthenticatedRespectStatus]
@@ -65,8 +67,10 @@ class FacilityMeView(RetrieveUpdateAPIView):
 
     def _operator_scope(self):
         user = self.request.user
-        if not user.is_authenticated or not user._has_active_role("HOSPITAL"):
-            raise PermissionDenied("A HOSPITAL operator is required to manage a facility.")
+        if not user.is_authenticated or not user._has_active_role(
+            "HOSPITAL", "CLINIC", "ORGANIZATION"
+        ):
+            raise PermissionDenied("A facility operator account is required to manage a facility.")
         try:
             return user.operated_facility
         except Facility.DoesNotExist:
@@ -78,6 +82,81 @@ class FacilityMeView(RetrieveUpdateAPIView):
     def perform_update(self, serializer):
         facility = serializer.save()
         _audit_event(self.request.user, "PROFILE_UPDATED")
+
+
+@extend_schema(
+    request=FacilityVerificationSubmitSerializer,
+    responses={200: FacilitySerializer},
+)
+class FacilityVerificationSubmitView(GenericAPIView):
+    """POST /facilities/me/verification — operator files its C5 verification.
+
+    A self-registered HOSPITAL/CLINIC/ORGANIZATION operator provides the
+    facility identity (name/type/location/registration) plus the mandatory
+    attachment set: FACILITY_REGISTRATION + NATIONAL_ID, each a storage key from
+    the document-upload endpoint. The filing lands in the ``facilities.verify``
+    review queue (is_verified=False, PENDING documents); an applicant cannot
+    resubmit once approved.
+    """
+
+    permission_classes = [IsAuthenticatedRespectStatus]
+    parser_classes = [JSONParser]
+
+    def post(self, request):
+        user = request.user
+        if not user._has_active_role("HOSPITAL", "CLINIC", "ORGANIZATION"):
+            raise PermissionDenied("A facility operator identity is required.")
+        serializer = FacilityVerificationSubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        facility, _ = Facility.objects.get_or_create(
+            operator=user,
+            defaults={"name": data["name"], "facility_type": data["facility_type"]},
+        )
+        if facility.is_verified:
+            raise ValidationError(
+                {"status": "Your facility is already verified; it cannot be resubmitted."}
+            )
+        for field in ("name", "facility_type", "region", "city", "address", "registration_number"):
+            if field in data:
+                setattr(facility, field, data[field])
+        facility.is_verified = False
+        facility.verified_by = None
+        facility.verified_at = None
+        facility.save()
+
+        # Replace any earlier PENDING rows for the same doc_type so a resubmit
+        # never accumulates duplicates; historical VERIFIED/REJECTED rows stay.
+        allowed_doc_types = {code for code, _ in VerificationDocument.DOC_TYPE}
+        created_docs = []
+        for doc in data["documents"]:
+            doc_type = str(doc.get("doc_type", "")).upper()
+            if doc_type not in allowed_doc_types:
+                raise ValidationError(
+                    {"documents": f"Unsupported document type: {doc_type or 'missing'}."}
+                )
+            if not doc.get("file_url"):
+                raise ValidationError({"documents": "Each document needs a storage key."})
+            VerificationDocument.objects.filter(
+                user=user, doc_type=doc_type, status="PENDING"
+            ).delete()
+            created_docs.append(
+                VerificationDocument.objects.create(
+                    user=user, doc_type=doc_type, file_url=doc["file_url"], status="PENDING",
+                )
+            )
+        record_audit(
+            actor=user, action_code="facilities.verification_submit",
+            resource_type="facility", resource_id=facility.pk, request=request,
+            details={
+                "facility_type": facility.facility_type,
+                "documents": [d.doc_type for d in created_docs],
+            },
+        )
+        _audit_event(user, "PROFILE_UPDATED")
+        return Response(
+            FacilitySerializer(facility).data, status=http_status.HTTP_200_OK,
+        )
 
 
 class AdminFacilityListView(ListAPIView):
@@ -110,6 +189,10 @@ class AdminFacilityListView(ListAPIView):
         return qs
 
 
+@extend_schema(
+    request=FacilityVerifySerializer,
+    responses={200: OpenApiTypes.OBJECT},
+)
 class FacilityVerifyView(GenericAPIView):
     """POST /admin/facilities/{uid}/verify — VO/ADM (C6). Reason required when rejecting."""
 

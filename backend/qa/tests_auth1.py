@@ -47,7 +47,10 @@ class DoctorVerificationTests(TestCase):
             "license_number": "GMC-778812",
             "specialty": "HEMATOLOGY",
             "registration_body": "Medical Council",
-            "documents": [{"doc_type": "LICENSE", "file_url": "secure://docs/778812-license"}],
+            "documents": [
+                {"doc_type": "LICENSE", "file_url": "secure://docs/778812-license"},
+                {"doc_type": "NATIONAL_ID", "file_url": "secure://docs/778812-nida"},
+            ],
         }
         payload.update(extra or {})
         return c.post("/api/doctors/me/verification/", payload)
@@ -69,7 +72,7 @@ class DoctorVerificationTests(TestCase):
         row = Doctor.objects.get(user=doctor)
         self.assertEqual(row.verification_status, "PENDING")
         self.assertEqual(row.license_number, "GMC-778812")
-        self.assertEqual(doctor.verification_documents.filter(status="PENDING").count(), 1)
+        self.assertEqual(doctor.verification_documents.filter(status="PENDING").count(), 2)
         self.assertTrue(
             AuditLog.objects.filter(action_code="doctors.verification_submit", resource_id=row.pk).exists()
         )

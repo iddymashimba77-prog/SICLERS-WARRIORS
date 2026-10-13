@@ -8,6 +8,7 @@ import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/admin_models.dart';
 import '../../data/admin_repository.dart';
 import '../widgets/admin_widgets.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// Platform analytics (ADMIN-3) — GET /api/admin/analytics/ for whitelisted
 /// metrics at DAILY/WEEKLY/MONTHLY granularity. Values are backend aggregates;
@@ -223,7 +224,7 @@ class _BarRow extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: AppShapes.xs,
             child: SizedBox(
               height: 10,
               width: double.infinity,

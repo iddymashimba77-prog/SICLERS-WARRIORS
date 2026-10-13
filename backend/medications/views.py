@@ -21,6 +21,7 @@ import logging
 
 from django.db import transaction
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import mixins, status as http_status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import (
@@ -32,7 +33,7 @@ from rest_framework.response import Response
 from accounts.models import SecurityEvent
 from accounts.permissions import (
     IsAuthenticatedRespectStatus, IsPatient,
-    MedicationAccess, SymptomAccess,
+    MedicationAccess, SymptomAccess, _is_prescriber,
 )
 from core.pagination import CorePageNumberPagination
 from medications import models, serializers, services
@@ -77,6 +78,36 @@ def _patient_scope(request):
     return user
 
 
+def _health_subject(request, medication=None):
+    """Resolve the owning patient a health write applies to (C2/C3 interim).
+
+    A patient may write to their OWN rows. A verified prescriber may write to
+    a target patient's rows (the medication's owner). Anyone else is denied.
+    """
+    user = getattr(request, "user", None)
+    if not (user and user.is_authenticated):
+        raise PermissionDenied("Authentication required.")
+    if user.account_status not in ("ACTIVE", "PENDING_VERIFICATION"):
+        raise PermissionDenied("Account not eligible for health data.")
+    if user.is_patient:
+        return user
+    if _is_prescriber(user):
+        if medication is None:
+            raise PermissionDenied("Patient identity is required here.")
+        return medication.patient
+    raise PermissionDenied("Patient identity is required for health data.")
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            name="schedule_uid",
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.PATH,
+            description="Public identifier of the medication schedule slot.",
+        )
+    ]
+)
 class MedicationViewSet(
     mixins.ListModelMixin,
     mixins.CreateModelMixin,
@@ -85,68 +116,115 @@ class MedicationViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    """/api/medications — patient owns all rows; foreign uid → 404.
+    """/api/medications — patient owns own rows; verified prescribers author them.
 
-    Permissions: ``MedicationAccess`` (method/action → permission code, own scope)
-    + ``IsPatient`` (patient identity required).
-    Destroy is a soft-delete (sets ``deleted_at`` / ``is_active=False``).
+    Permission model (Stage 4.6 dispose + doctor cycle):
+      * Patient:  manage only their OWN medications — foreign uid → 404.
+      * Doctor:   a verified prescriber may list/create/update/delete a
+                  patient's medications via ``?patient=<uid>`` (and their own
+                  prescribed set when no param is given). Writes set
+                  ``prescribed_by=request.user`` so the profile shows its
+                  author. Cross-patient 404/403 semantics never leak a row.
+    Destroy is a soft-delete (sets ``deleted_at`` / ``is_active=False``). Dose
+    logging stays patient-only.
     """
 
     lookup_field = "uid"
     serializer_class = serializers.MedicationSerializer
-    permission_classes = [IsAuthenticatedRespectStatus, IsPatient, MedicationAccess]
+    permission_classes = [IsAuthenticatedRespectStatus, MedicationAccess]
     parser_classes = [JSONParser]
     pagination_class = CorePageNumberPagination
 
     def get_queryset(self):
-        if not (self.request.user and self.request.user.is_authenticated):
+        user = self.request.user
+        if not (user and user.is_authenticated):
             return models.Medication.objects.none()
-        return models.Medication.objects.filter(
-            patient=self.request.user, deleted_at__isnull=True
-        )
+        if user.is_patient:
+            return models.Medication.objects.filter(
+                patient=user, deleted_at__isnull=True
+            )
+        if _is_prescriber(user):
+            qs = models.Medication.objects.filter(deleted_at__isnull=True)
+            patient_uid = self.request.query_params.get("patient")
+            if patient_uid:
+                qs = qs.filter(patient__uid=patient_uid)
+            else:
+                qs = qs.filter(prescribed_by=user)
+            return qs
+        return models.Medication.objects.none()
 
     @transaction.atomic
     def perform_create(self, serializer):
-        owner = _patient_scope(self.request)
-        med = serializer.save(patient=owner)
+        user = self.request.user
+        if user.is_patient:
+            patient = user
+            med = serializer.save(patient=patient)
+        elif _is_prescriber(user):
+            patient = serializer.validated_data.pop("patient", None)
+            if patient is None:
+                raise ValidationError(
+                    {"patient": "A registered patient is required for a prescription."}
+                )
+            med = serializer.save(patient=patient, prescribed_by=user)
+        else:
+            raise PermissionDenied(
+                "Only a patient or a verified prescriber may manage medications."
+            )
         services.record_timeline(
-            patient=owner, event_type="MED_STARTED", event_id=med.uid,
+            patient=patient, event_type="MED_STARTED", event_id=med.uid,
             occurred_at=med.created_at,
             summary=f"Medication started: {med.name}",
             payload={"medication_uid": str(med.uid), "name": med.name},
         )
-        _audit_event(owner, "MEDICATION_CREATED")
+        _audit_event(user, "MEDICATION_CREATED")
 
     @transaction.atomic
     def perform_update(self, serializer):
-        owner = _patient_scope(self.request)
+        user = self.request.user
         med = self.get_object()
+        if user.is_patient:
+            patient = user
+        elif _is_prescriber(user):
+            patient = med.patient
+        else:
+            raise PermissionDenied(
+                "Only a patient or a verified prescriber may manage medications."
+            )
+        serializer.validated_data.pop("patient", None)
         was_active = med.is_active
         med = serializer.save()
         if was_active and not med.is_active:
             services.record_timeline(
-                patient=owner, event_type="MED_STOPPED", event_id=med.uid,
+                patient=patient, event_type="MED_STOPPED", event_id=med.uid,
                 occurred_at=timezone.now(),
                 summary=f"Medication deactivated: {med.name}",
                 payload={"medication_uid": str(med.uid), "name": med.name},
             )
-        _audit_event(owner, "MEDICATION_UPDATED")
+        _audit_event(user, "MEDICATION_UPDATED")
 
     def destroy(self, request, *args, **kwargs):
         """Soft-delete: set ``deleted_at`` and ``is_active=False``."""
-        owner = _patient_scope(request)
+        user = request.user
         med = self.get_object()
+        if user.is_patient:
+            patient = user
+        elif _is_prescriber(user):
+            patient = med.patient
+        else:
+            raise PermissionDenied(
+                "Only a patient or a verified prescriber may manage medications."
+            )
         now = timezone.now()
         models.Medication.objects.filter(pk=med.pk).update(
             deleted_at=now, is_active=False, updated_at=now,
         )
         services.record_timeline(
-            patient=owner, event_type="MED_STOPPED", event_id=med.uid,
+            patient=patient, event_type="MED_STOPPED", event_id=med.uid,
             occurred_at=now,
             summary=f"Medication stopped: {med.name}",
             payload={"medication_uid": str(med.uid), "name": med.name},
         )
-        _audit_event(owner, "MEDICATION_DEACTIVATED")
+        _audit_event(user, "MEDICATION_DEACTIVATED")
         return Response(status=http_status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get", "post"], url_path="schedule")
@@ -163,7 +241,7 @@ class MedicationViewSet(
             return self.get_paginated_response(data) if page is not None else Response(
                 {"data": data, "meta": {}}
             )
-        _patient_scope(request)
+        _health_subject(request, medication)
         data = request.data.copy()
         data["medication"] = medication.pk
         srz = serializers.MedicationScheduleSerializer(data=data)
@@ -176,7 +254,7 @@ class MedicationViewSet(
     def schedule_detail(self, request, uid=None, schedule_uid=None):
         """PATCH/DELETE /medications/{uid}/schedule/{schedule_uid}."""
         medication = self.get_object()
-        owner = _patient_scope(request)
+        owner = _health_subject(request, medication)
         try:
             sched = medication.schedules.get(uid=schedule_uid)
         except models.MedicationSchedule.DoesNotExist:
@@ -275,14 +353,18 @@ class SymptomViewSet(
     mixins.CreateModelMixin,
     viewsets.GenericViewSet,
 ):
-    """/api/symptoms — append-only pain/symptom records, patient-owned.
+    """/api/symptoms — append-only pain/symptom records.
 
-    No update/delete (no approved symptoms.update/delete codes).
+    Patient: own records only (create via symptoms.create, list via symptoms.view).
+    Verified prescriber: READ access to a patient's symptom log
+    (``?patient=<uid>``), useful to the doctor alongside the medication
+    profile. Prescribers can never create a symptom record on a patient's
+    behalf. No update/delete (no approved symptoms.update/delete codes).
     """
 
     lookup_field = "uid"
     serializer_class = serializers.SymptomSerializer
-    permission_classes = [IsAuthenticatedRespectStatus, IsPatient, SymptomAccess]
+    permission_classes = [IsAuthenticatedRespectStatus, SymptomAccess]
     parser_classes = [JSONParser]
     pagination_class = CorePageNumberPagination
 
@@ -290,7 +372,17 @@ class SymptomViewSet(
         user = self.request.user
         if not (user and user.is_authenticated):
             return models.Symptom.objects.none()
-        return models.Symptom.objects.filter(patient=user).select_related("symptom_type")
+        if user.is_patient:
+            return models.Symptom.objects.filter(patient=user).select_related("symptom_type")
+        if _is_prescriber(user):
+            qs = models.Symptom.objects.select_related("symptom_type")
+            patient_uid = self.request.query_params.get("patient")
+            if patient_uid:
+                qs = qs.filter(patient__uid=patient_uid)
+            else:
+                qs = qs.filter(patient__medications__prescribed_by=user)
+            return qs.distinct()
+        return models.Symptom.objects.none()
 
     @transaction.atomic
     def perform_create(self, serializer):
@@ -347,6 +439,7 @@ class PatientDashboardView(viewsets.ViewSet):
     parser_classes = [JSONParser]
     pagination_class = None
 
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def list(self, request):
         owner = _patient_scope(request)
         return Response(services.dashboard(owner))

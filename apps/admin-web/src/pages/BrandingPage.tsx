@@ -137,7 +137,7 @@ export function BrandingPage() {
               padding: 20,
               background: 'var(--sw-surface-2)',
               border: '1px dashed var(--sw-border)',
-              borderRadius: 12,
+              borderRadius: 'var(--sw-radius-md)',
               display: 'grid',
               placeItems: 'center',
               minHeight: 160,
@@ -176,7 +176,7 @@ export function BrandingPage() {
                 padding: 16,
                 background: 'var(--sw-surface-2)',
                 border: '1px dashed var(--sw-border)',
-                borderRadius: 12,
+                borderRadius: 'var(--sw-radius-md)',
                 display: 'grid',
                 placeItems: 'center',
               }}

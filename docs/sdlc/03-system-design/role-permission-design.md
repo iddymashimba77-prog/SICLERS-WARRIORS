@@ -367,9 +367,17 @@ The full catalog is the authoritative reference in `role-permission-matrix.md`.
 
 ## 7. Role-Permission Matrix
 
-The complete matrix (12 roles × ~80 permissions, using `A` = ALLOW,
+The complete matrix (14 roles × ~80 permissions, using `A` = ALLOW,
 `D` = DENY, `C` = CONDITIONAL with enumerated conditions) is in
 **`role-permission-matrix.md`**.
+
+The two care-team roles added later — **PSYCHOLOGIST** and **SOCIAL_SUPPORT** —
+follow the separation rule above rather than extending the doctor bundle: PSY
+authors clinical entries under C15 like a doctor but never prescribes, and SOC
+is read-only on the chart. Both are `is_system` roles assigned by an
+administrator and verified in the same professional registry (C5); neither is
+self-registerable, and `is_verified_professional` is a *verification* fact rather
+than a privilege grant.
 
 Rules that govern the matrix:
 

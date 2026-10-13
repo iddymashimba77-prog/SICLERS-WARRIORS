@@ -1,228 +1,149 @@
-"""AUTH-2 — public signup, email verification & role-verification surface.
+"""AUTH-2 — public signup, login-PIN & role-verification surface.
 
-Covers the public authentication experience the mobile app (Stage 4.22)
-relies on, without duplicating the Stage 4.17/4.19 suites:
+Covers the public authentication experience the mobile app relies on, without
+duplicating the Stage 4.17/4.19 suites:
 
-* Register always issues a hashed EMAIL_VERIFY one-time code + JWT pair; the
-  account stays PENDING_VERIFICATION until the code is consumed.
-* POST /auth/verify/email — happy path, invalid, expired, already-verified.
-* POST /auth/verify/email/resend — uniform 202 (no enumeration), cooldown
-  cap, never re-issues for active accounts.
+* Register issues an identity-bound JWT pair and lands a usable ACTIVE account
+  immediately (there is no email-verification step).
+* POST /auth/pin/set (authenticated) configures a hashed 4-digit login PIN.
+* POST /auth/pin/login signs in a device-remembered identity with the PIN.
 * Login/me surface the account status + doctor/facility verification so the
   client can route a PENDING doctor / unverified organisation correctly.
-* Account type is never verification: a newly registered self-registerable
-  role is PENDING_VERIFICATION; DOCTOR/HOSPITAL privileges are never granted
-  by registration.
+* Genuinely administrative roles (ADMIN / SUPER_ADMIN) are never grantable
+  through registration, while professional and facility roles land in the C5
+  verification pipeline.
 """
 
+from django.contrib.auth.hashers import check_password
 from django.test import TestCase
-from django.utils import timezone
 
 from accounts.models import OneTimeToken, SecurityEvent, User
-from doctors.models import Doctor
-from notifications.models import Notification
 
 from . import qa_helpers as h
 
 
-def _delivered_code(user):
-    """Raw one-time code the dev delivery channel put into the last SYSTEM
-    notification (test-only helper; production only ever hashes it)."""
-    n = h.last_notification(user)
-    assert n is not None, "no delivery notification present"
-    body = n.body or ""
-    return body.split("is ")[1].split(" (expires")[0]
-
-
-class RegisterIssuesEmailVerificationTests(TestCase):
-    def test_register_returns_code_and_stays_pending_until_verified(self):
+class RegisterActivatesAccountTests(TestCase):
+    def test_register_activates_account_without_email_verification(self):
         c, resp = h.register("PATIENT")
         self.assertEqual(resp.status_code, 201, resp.data)
-        self.assertTrue(resp.data["email_verification_pending"])
-        self.assertIsNotNone(resp.data["verify_token"])
-        self.assertEqual(resp.data["user"]["account_status"], "PENDING_VERIFICATION")
+        # The response no longer carries any email-verification material.
+        self.assertNotIn("email_verification_pending", resp.data)
+        self.assertNotIn("verify_token", resp.data)
+        self.assertEqual(resp.data["user"]["account_status"], "ACTIVE")
+        self.assertIs(resp.data["user"]["has_login_pin"], False)
         user = User.objects.get(email=resp.data["user"]["email"])
-        self.assertTrue(
-            OneTimeToken.objects.filter(
-                user=user, purpose="EMAIL_VERIFY", used_at__isnull=True
-            ).exists()
+        self.assertEqual(user.account_status, "ACTIVE")
+        self.assertFalse(
+            OneTimeToken.objects.filter(user=user, purpose="EMAIL_VERIFY").exists()
         )
         self.assertTrue(
             SecurityEvent.objects.filter(user=user, event_type="REGISTER").exists()
         )
-        self.assertTrue(
-            SecurityEvent.objects.filter(
-                user=user, event_type="EMAIL_VERIFY_ISSUED"
-            ).exists()
-        )
-        self.assertIsNotNone(h.last_notification(user, "SYSTEM"))
-
-    def test_token_is_stored_hashed_never_raw(self):
-        _, resp = h.register("PATIENT")
-        raw = resp.data["verify_token"]
-        self.assertIsNotNone(raw)
-        # No stored token may ever contain the raw code.
-        self.assertFalse(
-            OneTimeToken.objects.filter(token_hash=raw).exists()
-        )
-        self.assertFalse(
-            list(OneTimeToken.objects.values_list("token_hash", flat=True)).__contains__(raw)
-        )
 
     def test_self_registration_never_grants_privileged_roles(self):
-        for role in ("DOCTOR", "HOSPITAL", "BLOOD_DONOR", "ADMIN", "SUPER_ADMIN"):
+        """Open registration grants care/facility/donor roles, never admin ones."""
+        for role in ("PATIENT", "CAREGIVER", "BLOOD_DONOR", "DOCTOR", "HOSPITAL"):
             _, resp = h.register(role)
-            self.assertIn(resp.status_code, (400, 201), role)
-            if resp.status_code == 201:
-                created = resp.data["user"]["role_codes"]
-                self.assertNotIn("DOCTOR", created)
-                self.assertNotIn("ADMIN", created)
-                self.assertNotIn("HOSPITAL", created)
+            self.assertEqual(resp.status_code, 201, (role, resp.data))
+            created = resp.data["user"]["role_codes"]
+            self.assertIn(role, created)
+            # Care/facility roles are verification-required; never auto-approved.
+            if role in ("DOCTOR", "HOSPITAL"):
+                self.assertTrue(resp.data["verification_required"])
+        for role in ("ADMIN", "SUPER_ADMIN"):
+            _, resp = h.register(role)
+            self.assertEqual(resp.status_code, 400, role)
 
 
-class VerifyEmailTests(TestCase):
-    def _register(self):
-        c, resp = h.register("PATIENT")
-        return resp.data["verify_token"], resp.data["user"]["email"]
+class SetLoginPinTests(TestCase):
+    def test_set_pin_requires_authentication(self):
+        resp = h.APIClient().post("/api/auth/pin/set/", {"pin": "1234"}, format="json")
+        self.assertIn(resp.status_code, (401, 403))
 
-    def test_verify_promotes_account_to_active(self):
-        token, email = self._register()
-        user = User.objects.get(email=email)
-        resp = h.APIClient().post(
-            "/api/auth/verify/email/", {"token": token}, format="json"
-        )
+    def test_set_pin_rejects_non_four_digit_values(self):
+        user = h.orm_user("PATIENT")
+        c = h.client(user)
+        for bad in ("123", "12345", "12ab", "abcd", ""):
+            resp = c.post("/api/auth/pin/set/", {"pin": bad}, format="json")
+            self.assertEqual(resp.status_code, 400, bad)
+
+    def test_set_pin_stores_a_hash_and_marks_the_summary(self):
+        user = h.orm_user("PATIENT")
+        c = h.client(user)
+        resp = c.post("/api/auth/pin/set/", {"pin": "4821"}, format="json")
         self.assertEqual(resp.status_code, 204)
         user.refresh_from_db()
-        self.assertEqual(user.account_status, "ACTIVE")
+        self.assertTrue(user.login_pin_hash)
+        self.assertNotEqual(user.login_pin_hash, "4821")
+        self.assertTrue(check_password("4821", user.login_pin_hash))
+        self.assertIsNotNone(user.login_pin_set_at)
         self.assertTrue(
-            SecurityEvent.objects.filter(user=user, event_type="EMAIL_VERIFIED").exists()
+            SecurityEvent.objects.filter(user=user, event_type="LOGIN_PIN_SET").exists()
         )
-        # Single-use: the same code is rejected afterwards.
-        again = h.APIClient().post(
-            "/api/auth/verify/email/", {"token": token}, format="json"
-        )
-        self.assertIn(again.status_code, (400, 404))
+        me = c.get("/api/auth/me/")
+        self.assertIs(me.data["has_login_pin"], True)
 
-    def test_invalid_code_is_rejected_uniformly(self):
+    def test_set_pin_can_be_changed(self):
+        user = h.orm_user("PATIENT")
+        c = h.client(user)
+        c.post("/api/auth/pin/set/", {"pin": "1111"}, format="json")
+        c.post("/api/auth/pin/set/", {"pin": "2222"}, format="json")
+        user.refresh_from_db()
+        self.assertFalse(check_password("1111", user.login_pin_hash))
+        self.assertTrue(check_password("2222", user.login_pin_hash))
+
+
+class LoginPinTests(TestCase):
+    def test_pin_login_issues_a_token_pair(self):
+        user = h.orm_user("PATIENT")
+        h.client(user).post("/api/auth/pin/set/", {"pin": "9021"}, format="json")
         resp = h.APIClient().post(
-            "/api/auth/verify/email/", {"token": "not-a-real-code"}, format="json"
+            "/api/auth/pin/login/",
+            {"email_or_phone": user.email, "pin": "9021"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertIn("access", resp.data)
+        self.assertIn("refresh", resp.data)
+        self.assertEqual(resp.data["user"]["role_codes"], ["PATIENT"])
+        self.assertTrue(
+            SecurityEvent.objects.filter(
+                user=user, event_type="LOGIN_SUCCESS", detail__method="PIN"
+            ).exists()
+        )
+
+    def test_pin_login_rejects_wrong_pin_and_unknown_identity_uniformly(self):
+        user = h.orm_user("PATIENT")
+        h.client(user).post("/api/auth/pin/set/", {"pin": "1111"}, format="json")
+        wrong = h.APIClient().post(
+            "/api/auth/pin/login/", {"email_or_phone": user.email, "pin": "9999"}, format="json"
+        )
+        ghost = h.APIClient().post(
+            "/api/auth/pin/login/", {"email_or_phone": "nobody@example.com", "pin": "1111"}, format="json"
+        )
+        self.assertEqual(wrong.status_code, 400)
+        self.assertEqual(ghost.status_code, 400)
+        self.assertTrue(
+            SecurityEvent.objects.filter(user=user, event_type="LOGIN_FAILED").exists()
+        )
+
+    def test_pin_login_rejected_when_no_pin_configured(self):
+        user = h.orm_user("PATIENT")
+        resp = h.APIClient().post(
+            "/api/auth/pin/login/", {"email_or_phone": user.email, "pin": "1234"}, format="json"
         )
         self.assertEqual(resp.status_code, 400)
 
-    def test_expired_code_is_rejected(self):
-        _, resp = h.register("PATIENT")
-        token = resp.data["verify_token"]
-        OneTimeToken.objects.filter(purpose="EMAIL_VERIFY").update(
-            expires_at=timezone.now() - timezone.timedelta(minutes=1)
-        )
-        out = h.APIClient().post(
-            "/api/auth/verify/email/", {"token": token}, format="json"
-        )
-        self.assertIn(out.status_code, (400, 404))
-
-    def test_verify_is_idempotent_for_already_active_account(self):
-        token, _email = self._register()
-        fresh = h.APIClient().post(
-            "/api/auth/verify/email/", {"token": token}, format="json"
-        )
-        self.assertEqual(fresh.status_code, 204)
-        # A brand-new code on an already-ACTIVE account still resolves 204.
-        _c, resp = h.register("PATIENT")
-        token2 = resp.data["verify_token"]
-        self.assertEqual(
-            h.APIClient().post("/api/auth/verify/email/", {"token": token2}, format="json").status_code,
-            204,
-        )
-
-
-class EmailVerifyResendTests(TestCase):
-    def test_resend_is_uniform_and_does_not_enumerate(self):
-        c = h.APIClient()
-        known = h.APIClient().post(
-            "/api/auth/register/",
-            {
-                "email": "resend-known@example.com",
-                "password": h._PASSWORD,
-                "role_code": "PATIENT",
-            },
-            format="json",
-        )
-        self.assertEqual(known.status_code, 201)
-        user = User.objects.get(email="resend-known@example.com")
-        before = OneTimeToken.objects.filter(user=user, purpose="EMAIL_VERIFY", used_at__isnull=True).count()
-
-        unknown = c.post(
-            "/api/auth/verify/email/resend/", {"email": "ghost@example.com"}, format="json"
-        )
-        known_resp = c.post(
-            "/api/auth/verify/email/resend/", {"email": "resend-known@example.com"}, format="json"
-        )
-        self.assertEqual(unknown.status_code, 202)
-        self.assertEqual(known_resp.status_code, 202)
-        # Cooldown: the register-issued code is still fresh, so no spam re-issue.
-        self.assertEqual(
-            OneTimeToken.objects.filter(user=user, purpose="EMAIL_VERIFY", used_at__isnull=True).count(),
-            before,
-        )
-
-    def test_resend_issues_a_fresh_code_once_the_previous_has_expired(self):
-        c = h.APIClient()
-        c.post(
-            "/api/auth/register/",
-            {
-                "email": "cooldown@example.com",
-                "password": h._PASSWORD,
-                "role_code": "PATIENT",
-            },
-            format="json",
-        )
-        user = User.objects.get(email="cooldown@example.com")
-        live = lambda: OneTimeToken.objects.filter(  # noqa: E731 - test-only count
-            user=user, purpose="EMAIL_VERIFY", used_at__isnull=True, expires_at__gt=timezone.now()
-        ).count()
-        # Let the register-issued code expire, then resend issues a new one.
-        OneTimeToken.objects.filter(user=user, purpose="EMAIL_VERIFY").update(
-            expires_at=timezone.now() - timezone.timedelta(minutes=1)
-        )
-        first = c.post("/api/auth/verify/email/resend/", {"email": "cooldown@example.com"}, format="json")
-        self.assertEqual(first.status_code, 202)
-        self.assertEqual(live(), 1)
-        # Immediate second resend stays inside the cooldown window.
-        second = c.post("/api/auth/verify/email/resend/", {"email": "cooldown@example.com"}, format="json")
-        self.assertEqual(second.status_code, 202)
-        self.assertEqual(live(), 1)
-
-    def test_resend_never_issues_for_an_active_account(self):
-        c, resp = h.register("PATIENT")
-        user = User.objects.get(email=resp.data["user"]["email"])
-        c = h.APIClient()
-        c.post("/api/auth/verify/email/", {"token": resp.data["verify_token"]}, format="json")
-        user.refresh_from_db()
-        self.assertEqual(user.account_status, "ACTIVE")
-        before = OneTimeToken.objects.filter(user=user, purpose="EMAIL_VERIFY").count()
-        out = c.post("/api/auth/verify/email/resend/", {"email": user.email}, format="json")
-        self.assertEqual(out.status_code, 202)
-        self.assertEqual(
-            OneTimeToken.objects.filter(user=user, purpose="EMAIL_VERIFY").count(), before
-        )
-
-
-class VerificationStatusSurfaceTests(TestCase):
-    def test_pending_doctor_is_surfaced_not_verified(self):
-        doctor = h.orm_user("DOCTOR")
-        Doctor.objects.create(user=doctor, verification_status="PENDING")
-        me = h.client(doctor).get("/api/auth/me/")
+    def test_pin_set_does_not_leak_pin_in_me(self):
+        user = h.orm_user("PATIENT")
+        h.client(user).post("/api/auth/pin/set/", {"pin": "4444"}, format="json")
+        me = h.client(user).get("/api/auth/me/")
         self.assertEqual(me.status_code, 200)
-        self.assertEqual(me.data["doctor_verification_status"], "PENDING")
-        self.assertFalse(me.data["is_verified_doctor"])
+        self.assertNotIn("pin", me.data)
+        self.assertNotIn("login_pin_hash", me.data)
 
-    def test_approved_doctor_is_surfaced_verified(self):
-        doctor = h.orm_user("DOCTOR")
-        Doctor.objects.create(user=doctor, verification_status="APPROVED")
-        me = h.client(doctor).get("/api/auth/me/")
-        self.assertEqual(me.data["doctor_verification_status"], "APPROVED")
-        self.assertTrue(me.data["is_verified_doctor"])
 
+class VerificationSurfaceTests(TestCase):
     def test_non_doctor_is_never_surfaced_with_doctor_state(self):
         patient = h.orm_user("PATIENT")
         me = h.client(patient).get("/api/auth/me/")
@@ -242,17 +163,14 @@ class VerificationStatusSurfaceTests(TestCase):
 
 
 class LoginStatusSurfaceTests(TestCase):
-    def test_login_returns_pending_status_for_unverified_account(self):
+    def test_login_returns_active_status_for_new_account(self):
         _c, resp = h.register("PATIENT")
         user = User.objects.get(email=resp.data["user"]["email"])
-        self.assertEqual(
-            OneTimeToken.objects.filter(user=user, purpose="EMAIL_VERIFY").exists(), True
-        )
         login = h.APIClient().post(
             "/api/auth/login/",
             {"email_or_phone": user.email, "password": h._PASSWORD},
             format="json",
         )
         self.assertEqual(login.status_code, 200)
-        self.assertEqual(login.data["user"]["account_status"], "PENDING_VERIFICATION")
+        self.assertEqual(login.data["user"]["account_status"], "ACTIVE")
         self.assertEqual(login.data["user"]["role_codes"], ["PATIENT"])

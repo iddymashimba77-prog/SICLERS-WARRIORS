@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/responsive/responsive.dart';
 import '../../features/emergency/presentation/pages/emergency_page.dart';
+import 'floating_bottom_nav.dart';
 import 'main_shell.dart' show AppHomeMark;
 
 /// Adaptive shell for the staff/role experiences (FRONTEND-3).
@@ -55,14 +56,14 @@ class _RoleShellState extends State<RoleShell> {
 
         Widget? navigation;
         if (compact) {
-          navigation = NavigationBar(
-            selectedIndex: _index,
-            onDestinationSelected: (i) => setState(() => _index = i),
+          navigation = FloatingBottomNav(
+            index: _index,
+            onIndexChanged: (i) => setState(() => _index = i),
             destinations: [
               for (final d in destinations)
-                NavigationDestination(
-                  icon: Icon(d.icon),
-                  selectedIcon: Icon(d.selectedIcon),
+                NavDestination(
+                  icon: d.icon,
+                  selectedIcon: d.selectedIcon,
                   label: d.label,
                 ),
             ],

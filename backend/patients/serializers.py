@@ -13,6 +13,7 @@ Field-level handling:
 
 from rest_framework import serializers
 
+from accounts.models import User
 from patients.models import CaregiverRelationship, Patient
 
 
@@ -22,7 +23,38 @@ def _name(user) -> str:
     return f"{user.first_name} {user.last_name}".strip() or "Member"
 
 
+class PatientDirectorySerializer(serializers.ModelSerializer):
+    """Doctor picker row: identity only, zero medical data (PHI-free).
+
+    Used by the verified-prescriber patient directory so the doctor UI can
+    target a patient when authoring a medication profile.
+    """
+
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["uid", "email", "full_name"]
+        read_only_fields = fields
+
+    def get_full_name(self, obj) -> str:
+        return _name(obj)
+
+
+class PatientFacilitySerializer(serializers.Serializer):
+    """Minimal facility identity for the patient's treating-facility field."""
+
+    uid = serializers.UUIDField()
+    name = serializers.CharField()
+    facility_type = serializers.CharField()
+    region = serializers.CharField(required=False, allow_blank=True)
+    city = serializers.CharField(required=False, allow_blank=True)
+
+
 class PatientSerializer(serializers.ModelSerializer):
+    facility_uid = serializers.UUIDField(required=False, allow_null=True)
+    facility_detail = PatientFacilitySerializer(source="facility", read_only=True)
+
     class Meta:
         model = Patient
         fields = [
@@ -36,17 +68,59 @@ class PatientSerializer(serializers.ModelSerializer):
             "emergency_contact_relation",
             "address_region",
             "address_city",
+            "facility_uid",
+            "facility_detail",
             "notes",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
 
+    def validate_facility_uid(self, value):
+        """The facility must already exist in the directory.
+
+        Reference data is never free-typed from the client: an unknown uid is
+        rejected so a patient cannot invent a clinic.
+        """
+        if value in (None, ""):
+            return None
+        from facilities.models import Facility
+
+        try:
+            return Facility.objects.get(uid=value)
+        except Facility.DoesNotExist:
+            raise serializers.ValidationError(
+                "Unknown facility. Choose one from the facility directory."
+            )
+        except (TypeError, ValueError):
+            raise serializers.ValidationError("Malformed facility reference.")
+
     def validate_genotype(self, value):
         allowed = {"SS", "SC", "SBetaThal", "SBetaC", "unknown"}
         if value is not None and value not in allowed:
             raise serializers.ValidationError("Unsupported genotype value.")
         return value
+
+    def validate(self, attrs):
+        """Map the write-only ``facility_uid`` onto the model FK.
+
+        Done during validation rather than in ``create``/``update`` so the
+        resolved value is visible to callers (the profile-completion rule in
+        ``PatientMeView`` inspects it before anything is written).
+        """
+        return self._apply_facility(attrs)
+
+    def _apply_facility(self, validated_data):
+        """Map the write-only ``facility_uid`` onto the model FK."""
+        if "facility_uid" in validated_data:
+            validated_data["facility"] = validated_data.pop("facility_uid")
+        return validated_data
+
+    def create(self, validated_data):
+        return super().create(self._apply_facility(validated_data))
+
+    def update(self, instance, validated_data):
+        return super().update(instance, self._apply_facility(validated_data))
 
     def validate_gender(self, value):
         allowed = {"FEMALE", "MALE", "OTHER", "UNSPECIFIED"}

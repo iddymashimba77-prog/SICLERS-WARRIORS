@@ -115,6 +115,7 @@ class _ProfileViewState extends State<ProfileView> {
               initial: profile,
               onSubmit: _save,
               onCancel: () => setState(() => _editing = false),
+              facilityLoader: widget.repository.fetchFacilities,
             )
           else
             PatientProfileForm(

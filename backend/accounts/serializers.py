@@ -12,14 +12,19 @@ Identity pillars from the approved ERD / SSoT:
 
 import hashlib
 import logging
+import re
 import secrets
 import uuid
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError, transaction
 from django.utils import timezone
+from core.media import MediaUrlField
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.settings import api_settings as simplejwt_api_settings
@@ -36,23 +41,57 @@ from .models import (
     User,
     UserRole,
     UserPermissionOverride,
+    VerificationDocument,
 )
 
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
-# Self-registerable roles only (C17 + §18 role-permission design): a
-# newly-registered account may only claim PATIENT or CAREGIVER. Any attempt
-# to self-assign an administrator/doctor/verification/operator role must be
-# rejected server-side — never trusted from the request body.
-SELF_REGISTERABLE_ROLES = ("PATIENT", "CAREGIVER")
+# Self-registerable roles (C17 + §18 role-permission design as extended to the
+# open-registration flow): patients, caregivers and blood donors register and
+# can transact immediately; care professionals (DOCTOR/PSYCHOLOGIST/SOCIAL) and
+# facilities (HOSPITAL/CLINIC/ORGANIZATION) self-register too but must submit
+# government-verified documents before the account may transact (C5 pipeline).
+# Truly administrative/operator roles remain server-granted only.
+SELF_REGISTERABLE_ROLES = (
+    "PATIENT",
+    "CAREGIVER",
+    "BLOOD_DONOR",
+    "DOCTOR",
+    "PSYCHOLOGIST",
+    "SOCIAL_SUPPORT",
+    "HOSPITAL",
+    "CLINIC",
+    "ORGANIZATION",
+)
 
-# Roles that may never be granted through self-registration (defense-in-depth).
-_PRIVILEGED_ROLE_SUBSTRINGS = ("ADMIN", "SUPER", "DOCTOR", "OFFICER", "MODERATOR", "OPERATOR", "NGO")
+# Roles claimed via self-registration that still require document verification
+# before approval. BLOOD_DONOR (like PATIENT/CAREGIVER) registers freely.
+VERIFICATION_REQUIRED_ROLE_CODES = (
+    "DOCTOR",
+    "PSYCHOLOGIST",
+    "SOCIAL_SUPPORT",
+    "HOSPITAL",
+    "CLINIC",
+    "ORGANIZATION",
+)
+
+# Verification family buckets reused by the doctors + facilities submit
+# endpoints and by the register response hint.
+PROFESSIONAL_VERIFICATION_ROLE_CODES = ("DOCTOR", "PSYCHOLOGIST", "SOCIAL_SUPPORT")
+FACILITY_VERIFICATION_ROLE_CODES = ("HOSPITAL", "CLINIC", "ORGANIZATION")
+
+# Roles that may never be granted through self-registration (defense-in-depth):
+# every remaining reserved/privileged role is administrative and must be
+# assigned by an administrator (C17).
+_PRIVILEGED_ROLE_SUBSTRINGS = ("ADMIN", "SUPER", "OFFICER", "MODERATOR", "OPERATOR", "NGO")
 
 # Admin-ready roles hold a shorter refresh lifetime (Stage 4.16 §23).
 _ADMIN_READY_ROLE_CODES = ("SUPER_ADMIN", "ADMIN")
+
+# Fast sign-in PIN: exactly four digits (device-remembered identity + PIN).
+_LOGIN_PIN_RE = re.compile(r"^\d{4}$")
 
 
 def token_pair_for(user):
@@ -137,42 +176,6 @@ def _deliver_reset(user, code):
         logger.exception("Password reset delivery failed (non-blocking).")
 
 
-def _deliver_email_verify(user, code):
-    """Deliver an email-verification one-time code (dev channel, mirrors
-    ``_deliver_reset``). Issuance is recorded for monitoring; the raw code is
-    stored nowhere — only its salted hash (SD-1/16-18)."""
-    SecurityEvent.objects.create(
-        user=user,
-        event_type="EMAIL_VERIFY_ISSUED",
-        detail={"phase": "issued", "masked_code": f"{code[:4]}…{code[-2:]}"},
-    )
-    try:
-        create_notification(
-            recipient=user,
-            type_="SYSTEM",
-            title="Verify your email",
-            body=f"Your email verification code is {code} (expires soon).",
-            related_resource_type="email_verification",
-            related_resource_id=hashlib.sha256(code.encode()).hexdigest()[:16],
-            delivery_key=f"emailverify:{user.pk}:{hashlib.sha256(code.encode()).hexdigest()[:12]}",
-            force=True,
-        )
-    except Exception:  # pragma: no cover — delivery must never break the 201/202
-        logger.exception("Email verification delivery failed (non-blocking).")
-
-
-def _issue_email_verify_token(user, ttl_minutes=60) -> str:
-    """Create + persist a hashed EMAIL_VERIFY one-time token; returns raw."""
-    raw = secrets.token_urlsafe(32)
-    OneTimeToken.objects.create(
-        user=user,
-        purpose="EMAIL_VERIFY",
-        token_hash=_hash_token(raw, "EMAIL_VERIFY"),
-        expires_at=timezone.now() + timezone.timedelta(minutes=ttl_minutes),
-    )
-    return raw
-
-
 class UserSummarySerializer(serializers.ModelSerializer):
     """Safe subset of the authenticated user's identity (§23 /me + §186).
 
@@ -184,13 +187,14 @@ class UserSummarySerializer(serializers.ModelSerializer):
 
     role_codes = serializers.SerializerMethodField(read_only=True)
     permission_codes = serializers.SerializerMethodField(read_only=True)
+    has_login_pin = serializers.SerializerMethodField(read_only=True)
     is_mfa_enabled = serializers.BooleanField(source="mfa_enabled", read_only=True)
     account_status = serializers.CharField(read_only=True)
     uid = serializers.UUIDField(read_only=True)
     is_verified_doctor = serializers.SerializerMethodField(read_only=True)
     doctor_verification_status = serializers.SerializerMethodField(read_only=True)
     facility = serializers.SerializerMethodField(read_only=True)
-    profile_photo_url = serializers.CharField(read_only=True)
+    profile_photo_url = MediaUrlField(required=False, allow_null=True)
 
     class Meta:
         model = User
@@ -206,6 +210,7 @@ class UserSummarySerializer(serializers.ModelSerializer):
             "created_at",
             "role_codes",
             "permission_codes",
+            "has_login_pin",
             "is_verified_doctor",
             "doctor_verification_status",
             "facility",
@@ -219,10 +224,16 @@ class UserSummarySerializer(serializers.ModelSerializer):
     def get_permission_codes(self, obj) -> list[str]:
         return obj.permission_codes()
 
+    def get_has_login_pin(self, obj) -> bool:
+        # Whether the account has configured its 4-digit login PIN. The client
+        # uses this to choose PIN sign-in vs the email+password form; the hash
+        # itself is never exposed.
+        return bool(obj.login_pin_hash)
+
     def get_is_verified_doctor(self, obj) -> bool:
         return obj.is_verified_doctor
 
-    def get_doctor_verification_status(self, obj):
+    def get_doctor_verification_status(self, obj) -> str | None:
         # Professional-verification sub-state for DOCTOR holders so the mobile
         # client can route a PENDING/REJECTED doctor to a status screen instead
         # of the clinical dashboard. Nil for every non-DOCTOR identity.
@@ -233,7 +244,7 @@ class UserSummarySerializer(serializers.ModelSerializer):
         except (AttributeError, ObjectDoesNotExist):
             return None
 
-    def get_facility(self, obj):
+    def get_facility(self, obj) -> dict | None:
         # Organization identity: a HOSPITAL/HEALTHCARE_STAFF operator linked via
         # facilities.operator. `is_verified` is the facility's approval state —
         # never inferred from the account type (account type != verification).
@@ -285,6 +296,21 @@ class RegisterSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
+        # Atomic: user + role + security event + verification token must land
+        # together. Without this a failure after `create_user` (missing role,
+        # token issue, delivery error) left an orphaned user behind, and the
+        # next attempt failed with "email already exists" — permanently locking
+        # the applicant out of the address they just used.
+        try:
+            with transaction.atomic():
+                return self._create_registered_account(validated_data)
+        except IntegrityError:
+            # Concurrent duplicate (validate() cannot close the race window).
+            raise serializers.ValidationError(
+                {"email": "An account with this email already exists."}
+            )
+
+    def _create_registered_account(self, validated_data):
         role_code = validated_data.pop("role_code", "PATIENT")
         user = User.objects.create_user(
             email=validated_data["email"],
@@ -292,6 +318,12 @@ class RegisterSerializer(serializers.Serializer):
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),
             phone=validated_data.get("phone") or None,
+            # No email-verification step: a fresh self-registration is a usable
+            # ACTIVE account immediately. Professional/facility applicants are
+            # still gated by their C5 document verification
+            # (`verification_required`), which is tracked separately from the
+            # account status.
+            account_status="ACTIVE",
         )
         # Initial role assignment is the *only* role change permitted here;
         # restricted to self-registerable roles (never trusted blindly).
@@ -301,25 +333,19 @@ class RegisterSerializer(serializers.Serializer):
             user=user, event_type="REGISTER", detail={"role_code": role_code}
         )
 
-        # Issue an identity-bound JWT pair at registration (BR-002/004);
-        # broker respects account_status (ACTIVE / PENDING_VERIFICATION only)
-        # so a PENDING_VERIFICATION user receives tokens but stays gated.
+        # Issue an identity-bound JWT pair at registration (BR-002/004).
         tokens = token_pair_for(user)
 
-        # Every fresh account also gets a one-time email-verification code so
-        # the FR-AUTH-004 flow is immediately usable (AUTH-005/006). Issued but
-        # never stored raw; account stays PENDING_VERIFICATION until consumed.
-        verify_token = None
-        if user.account_status == "PENDING_VERIFICATION":
-            verify_token = _issue_email_verify_token(user)
-            _deliver_email_verify(user, verify_token)
+        # Verify-on-approval hint for the client: professional and facility
+        # roles must upload government-verified documents before they can
+        # transact (C5); patient/caregiver/blood_donor are ready immediately.
+        verification_required = role_code in VERIFICATION_REQUIRED_ROLE_CODES
 
         return {
             "user": user,
             "access": tokens["access"],
             "refresh": tokens["refresh"],
-            "email_verification_pending": verify_token is not None,
-            "verify_token": verify_token,
+            "verification_required": verification_required,
         }
 
 
@@ -358,7 +384,7 @@ class LoginSerializer(TokenObtainPairSerializer):
         if user is None:
             # Uniform message — do not reveal whether the identifier exists (§8/87).
             raise serializers.ValidationError(
-                {"detail": "Invalid credentials.", "code": "INVALID_CREDENTIALS"}
+                {"detail": "Incorrect email/phone or password.", "code": "INVALID_CREDENTIALS"}
             )
         if not user.is_active or user.account_status in ("SUSPENDED", "DISABLED", "DEACTIVATED"):
             SecurityEvent.objects.create(user=user, event_type="LOGIN_FAILED", status="BLOCKED")
@@ -571,72 +597,67 @@ class PasswordResetConfirmSerializer(serializers.Serializer, OneTimeTokenMixin):
         return self._user
 
 
-class EmailVerifySerializer(serializers.Serializer):
-    """Consume the single-use email-verification code (FR-AUTH-004).
+class SetLoginPinSerializer(serializers.Serializer):
+    """Configure the 4-digit login PIN for the authenticated account.
 
-    On success the account transitions PENDING_VERIFICATION → ACTIVE. The raw
-    code is never stored or logged; validation matches the stored SHA-256 hash.
+    The user enters their email+password the first time and then chooses a PIN;
+    every later launch signs in with the PIN alone against the identity the
+    device remembers. The PIN is hashed with the configured password hasher and
+    never stored or logged raw. Re-issuing simply overwrites the previous PIN.
     """
 
-    purpose = "EMAIL_VERIFY"
+    pin = serializers.CharField(write_only=True, trim_whitespace=False)
 
-    token = serializers.CharField(write_only=True)
-
-    def validate(self, attrs):
-        token_hash = _hash_token(attrs["token"], self.purpose)
-        ot = (
-            OneTimeToken.objects.filter(
-                token_hash=token_hash, purpose=self.purpose, used_at__isnull=True,
-            )
-            .order_by("-expires_at")
-            .first()
-        )
-        if ot is None or ot.expires_at < timezone.now():
-            raise serializers.ValidationError(
-                {"token": "This verification code is invalid or has expired."}
-            )
-        self._ot = ot
-        self._user = ot.user
-        return attrs
+    def validate_pin(self, value: str) -> str:
+        if not _LOGIN_PIN_RE.match(value or ""):
+            raise serializers.ValidationError("Your PIN must be exactly 4 digits.")
+        return value
 
     def save(self):
-        self._ot.used_at = timezone.now()
-        self._ot.save(update_fields=["used_at"])
-        user = self._user
-        if user.account_status == "PENDING_VERIFICATION":
-            user.account_status = "ACTIVE"
-            user.save(update_fields=["account_status", "updated_at"])
-        SecurityEvent.objects.create(user=user, event_type="EMAIL_VERIFIED", status="SUCCESS")
+        user = self.context["request"].user
+        user.login_pin_hash = make_password(self.validated_data["pin"])
+        user.login_pin_set_at = timezone.now()
+        user.save(update_fields=["login_pin_hash", "login_pin_set_at", "updated_at"])
+        SecurityEvent.objects.create(user=user, event_type="LOGIN_PIN_SET", status="SUCCESS")
         return user
 
 
-class EmailVerifyResendSerializer(serializers.Serializer, OneTimeTokenMixin):
-    """Re-issue a fresh email-verification code. Always 202 + uniform body so
-    account existence is never disclosed (NFR-SEC-007). Rate-limited per
-    identity via the auth throttle scope."""
+class LoginPinSerializer(serializers.Serializer):
+    """PIN sign-in for a device-remembered identity (email or phone + 4 digits).
 
-    purpose = "EMAIL_VERIFY"
-    TTL_MINUTES = 60
-    COOLDOWN_SECONDS = 300
+    Uniform failure messages so neither account existence nor PIN-configuration
+    state is disclosed (NFR-SEC-007). The endpoint is auth-throttled per
+    identity, so a 4-digit PIN cannot be ground at system speed.
+    """
 
-    email = serializers.EmailField(write_only=True)
+    email_or_phone = serializers.CharField(write_only=True)
+    pin = serializers.CharField(write_only=True, trim_whitespace=False)
 
-    def save(self) -> None:
-        email = self.validated_data["email"].strip().lower()
-        user = User.objects.filter(email=email).first()
-        if user is None or user.account_status != "PENDING_VERIFICATION":
-            return  # uniform response regardless of existence/state
-        recent = OneTimeToken.objects.filter(
-            user=user,
-            purpose=self.purpose,
-            used_at__isnull=True,
-            expires_at__gt=timezone.now(),
-            created_at__gt=timezone.now() - timezone.timedelta(seconds=self.COOLDOWN_SECONDS),
-        ).exists()
-        if recent:
-            return  # an unexpired code was already issued — do not re-issue/spam
-        code = _issue_email_verify_token(user)
-        _deliver_email_verify(user, code)
+    def validate(self, attrs):
+        identifier = attrs["email_or_phone"].strip().lower()
+        user = (
+            User.objects.filter(email=identifier) | User.objects.filter(phone__iexact=identifier)
+        ).first()
+        valid = (
+            user is not None
+            and bool(user.login_pin_hash)
+            and check_password(attrs["pin"], user.login_pin_hash)
+        )
+        if not valid:
+            if user is not None:
+                SecurityEvent.objects.create(
+                    user=user, event_type="LOGIN_FAILED", status="FAILED",
+                    detail={"method": "PIN"},
+                )
+            raise serializers.ValidationError({"pin": "Incorrect email/phone or PIN."})
+        if user.account_status not in ("ACTIVE", "PENDING_VERIFICATION") or not user.is_active:
+            raise serializers.ValidationError({"pin": "Your account is not eligible to sign in."})
+        attrs["user"] = user
+        attrs["tokens"] = token_pair_for(user)
+        SecurityEvent.objects.create(
+            user=user, event_type="LOGIN_SUCCESS", status="SUCCESS", detail={"method": "PIN"}
+        )
+        return attrs
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -680,3 +701,44 @@ class ProfilePhotoSerializer(serializers.Serializer):
     """
 
     image = serializers.FileField()
+
+
+class VerificationDocumentUploadSerializer(serializers.Serializer):
+    """Verification-document upload payload (multipart ``file``).
+
+    A professional or facility applicant uploads a scan/photo of one
+    government-issued document (C5 verification pipeline). Images are
+    re-encoded server-side exactly like profile photos / news covers; PDFs are
+    stored raw but size- and magic-byte-checked. The response returns the
+    storage key via :class:`core.media.MediaUrlField` — never a public URL — so
+    the caller can attach it to a doctors/facilities verification submission.
+    """
+
+    doc_type = serializers.ChoiceField(choices=VerificationDocument.DOC_TYPE)
+    file = serializers.FileField()
+
+
+class VerificationDocumentReviewSerializer(serializers.ModelSerializer):
+    """Reviewer-facing summary of one submitted document (C5/C6 pipeline).
+
+    Deliberately excludes the storage key: a reviewer opens the actual file
+    through the audited ``GET /admin/verification-documents/{id}/`` endpoint
+    (permission-gated to ``doctors.verify`` / ``facilities.verify``), never via
+    a public URL. ``id`` is the handle the client passes to that endpoint.
+    """
+
+    uploaded_at = serializers.DateTimeField(source="created_at", read_only=True)
+    file_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VerificationDocument
+        fields = [
+            "id", "doc_type", "status", "file_name", "uploaded_at", "reviewed_at",
+        ]
+        read_only_fields = fields
+
+    def get_file_name(self, obj) -> str:
+        from core.media import media_path
+
+        path = media_path(obj.file_url) or obj.file_url or ""
+        return path.rsplit("/", 1)[-1]

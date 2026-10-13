@@ -20,6 +20,9 @@ import 'package:sicklers_warriors/features/doctor/presentation/pages/doctor_shel
 import 'package:sicklers_warriors/features/doctor_network/presentation/pages/doctor_network_page.dart';
 import 'package:sicklers_warriors/features/health/data/health_repository.dart';
 import 'package:sicklers_warriors/features/health/presentation/pages/health_dashboard_page.dart';
+import 'package:sicklers_warriors/core/l10n/app_localizations.dart';
+import 'package:sicklers_warriors/core/l10n/locale_controller.dart';
+import 'package:sicklers_warriors/core/prefs/app_preferences.dart';
 import 'package:sicklers_warriors/features/medical/presentation/pages/medical_records_page.dart';
 import 'package:sicklers_warriors/shared/widgets/main_shell.dart';
 
@@ -42,6 +45,7 @@ MockClient _loginClient(List<String> roles) => MockClient((request) async {
           'user': {
             'email': 'user@example.com',
             'account_status': 'ACTIVE',
+            'has_login_pin': true,
             'role_codes': roles,
             // AUTH-2: clinical access requires server-asserted APPROVED.
             'doctor_verification_status':
@@ -139,6 +143,7 @@ void main() {
                 'user': {
                   'email': 'doctor@example.com',
                   'account_status': 'ACTIVE',
+                  'has_login_pin': true,
                   'role_codes': ['DOCTOR'],
                   'doctor_verification_status': 'PENDING',
                 },
@@ -291,24 +296,66 @@ void main() {
   });
 
   group('Honest empty states where no backend service exists (FRONTEND-3)', () {
-    testWidgets('Health Records never fabricates records', (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: MedicalRecordsPage()));
-      expect(find.text(AppStrings.recordsEmptyTitle), findsOneWidget);
-      expect(find.text(AppStrings.recordsPrivacy), findsOneWidget);
+    testWidgets('Health Records never fabricates records when signed out',
+        (tester) async {
+      // The chart API is live now, but with no session the page must still show
+      // an honest state rather than inventing rows (see medrec_records_test.dart
+      // for the signed-in surface).
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: materialLocalizationsDelegates(
+            LocaleController(AppPreferences.memory()),
+          ),
+          supportedLocales: AppLocalizationsDelegate.supportedLocales,
+          home: const MedicalRecordsPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('No records are shared with you yet.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Doctor Network never lists unverified doctors',
         (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: DoctorNetworkPage()));
-      expect(find.text(AppStrings.doctorDirectoryEmpty), findsOneWidget);
-      expect(find.text(AppStrings.reachCareTeam), findsOneWidget);
+      // The registry is live now; signed out there is nothing to browse and
+      // nothing is invented (see doctor_directory_test.dart for the list).
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: materialLocalizationsDelegates(
+            LocaleController(AppPreferences.memory()),
+          ),
+          supportedLocales: AppLocalizationsDelegate.supportedLocales,
+          home: const DoctorNetworkPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Sign in to browse verified professionals.'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('Clinic shows no fabricated appointments', (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: ClinicPage()));
-      expect(find.text(AppStrings.noAppointments), findsOneWidget);
-      // Helper copy repeats on this page; the heading assertion above covers it.
-      expect(find.text(AppStrings.noAppointmentsToday), findsWidgets);
+    testWidgets('Clinic shows no fabricated appointments when signed out',
+        (tester) async {
+      // The appointment API is live now; signed out, the calendar must still
+      // show an honest state rather than inventing a booking
+      // (see clinic_appointments_test.dart for the signed-in surface).
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: materialLocalizationsDelegates(
+            LocaleController(AppPreferences.memory()),
+          ),
+          supportedLocales: AppLocalizationsDelegate.supportedLocales,
+          home: const ClinicPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('You have no appointments booked yet.'),
+        findsOneWidget,
+      );
     });
   });
 
@@ -337,6 +384,12 @@ void main() {
       final auth = await _authenticated(client);
       await tester.pumpWidget(
         MaterialApp(
+          // The real app always registers these; without them a page renders
+          // through the Swahili fallback instance.
+          localizationsDelegates: materialLocalizationsDelegates(
+            LocaleController(AppPreferences.memory()),
+          ),
+          supportedLocales: AppLocalizationsDelegate.supportedLocales,
           home: HealthDashboardPage(
             authController: auth,
             healthRepository:
@@ -362,7 +415,12 @@ void main() {
       await tester.tap(find.text(AppStrings.healthRecords));
       await tester.pumpAndSettle();
       expect(find.byType(MedicalRecordsPage), findsOneWidget);
-      expect(find.text(AppStrings.recordsEmptyTitle), findsOneWidget);
+      // Signed out (the fallback session has no token), so the chart shows the
+      // honest empty state instead of contacting the API.
+      expect(
+        find.textContaining('No records are shared with you yet.'),
+        findsOneWidget,
+      );
     });
   });
 }

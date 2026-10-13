@@ -128,6 +128,7 @@ screens are listed but inert.
 | 39 | ADM-EDU-001 | Education content list | SUP/ADM | `education.review` | `/app/education` | `GET /admin/education/content` (gap) | content | drafts (locked) | filter/edit(new) | — | loading/empty/403 | ContentTable, CategoryFilter |
 | 40 | ADM-EDU-002 | Content editor (draft) | SUP/ADM | `education.review` (write) | list→editor | `POST /admin/education/content/{id}/draft` (gap) | content | draft text | save draft | draft save | loading/error/403 | MarkdownEditor, FilePicker |
 | 41 | ADM-EDU-003 | Review & publish | SUP/ADM | `education.review` | editor→review | `POST /admin/education/content/{id}/review`, `/publish` (gap) | content | draft review | approve/reject/publish | publish | loading/error/confirm | ApprovalPanel, ReasonInput |
+| 42 | ADM-EDU-004 | Handout manager | SUP/ADM | `education.review` (write) | list→card | `POST`/`DELETE /admin/education/content/{id}/document` | content | attached PDF/PPTX/DOCX/image | attach/replace/remove | document metadata | loading/error/confirm | HandoutRow (hidden while PUBLISHED) |
 
 ---
 

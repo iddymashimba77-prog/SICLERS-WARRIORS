@@ -9,6 +9,8 @@ import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/education_repository.dart';
 import 'education_bookmarks_page.dart';
 import 'education_detail_page.dart';
+import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Education library (approved EDU-001 categories / EDU-002 library + search;
 /// FR-EDU-001..004). Read-only published content from a verified care team —
@@ -26,10 +28,7 @@ class EducationPage extends StatelessWidget {
     final token = (authController ?? SessionScope.controllerOf(context))
         .accessToken;
     if (token == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.education)),
-        body: const Center(child: Text(AppStrings.notSignedIn)),
-      );
+      return const SignedOutGate();
     }
     return EducationLibraryView(
       accessToken: token,
@@ -226,7 +225,7 @@ class _SearchBar extends StatelessWidget {
             onPressed: () => onSubmitted(controller.text),
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: AppShapes.tile,
           ),
           isDense: true,
         ),
@@ -294,12 +293,26 @@ class _ArticleCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppShapes.tile,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (item.coverUrl.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: AppShapes.small,
+                  child: Image.network(
+                    item.coverUrl,
+                    height: 140,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               Row(
                 children: [
                   Icon(

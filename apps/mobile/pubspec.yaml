@@ -47,6 +47,9 @@ dependencies:
   # Device-local persistence for theme, language and the JWT pair.
   shared_preferences: ^2.3.0
   image_picker: ^1.2.3
+  # Doctor-side education handouts: PDF/PPTX/DOCX/image selection (FR-EDU-005).
+  file_picker: ^13.1.0
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:

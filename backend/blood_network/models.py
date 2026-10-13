@@ -24,7 +24,7 @@ Ownership model ("deny by default", §18/19):
   * Cross-role object access flows through the permission+object rules in §3.8;
     no role gets a blanket backdoor.
 
-IMMUTABLE: blood_donation_events — corrected via compensating records (DBD-10).
+IMMUTABLE: blood_donation_events — corrected via compensating records (FR-BLD-010).
 """
 
 import uuid
@@ -220,7 +220,7 @@ class BloodMatch(models.Model):
 
 
 class BloodDonationEvent(models.Model):
-    """Immutable donation record (DBD-10: no update/delete). Corrected via compensating records."""
+    """Immutable donation record (FR-BLD-010: no update/delete). Corrected via compensating records."""
 
     OUTCOME = [
         ("COMPLETED", "COMPLETED"),
@@ -261,3 +261,101 @@ class BloodDonationEvent(models.Model):
 
     def __str__(self):
         return f"Donation({self.donation_serial}:{self.outcome})"
+
+
+class AppendOnlyDecisionQuerySet(models.QuerySet):
+    """Refuses bulk mutation of a decision history.
+
+    Same reasoning as `audit.AuditLog` and `medical_records.MedicalRecordEvent`:
+    instance-level `save()`/`delete()` guards are not enough, because
+    `QuerySet.update()` and `QuerySet.delete()` bypass them. A decision trail
+    that a single `.filter(...).delete()` can erase is not a decision trail.
+    """
+
+    def delete(self):
+        raise ValueError("Decision history is append-only and cannot be deleted.")
+
+    def update(self, **kwargs):
+        raise ValueError("Decision history is append-only and cannot be modified.")
+
+
+class BloodRequestDecision(models.Model):
+    """APPEND-ONLY decision history for a blood request (FR-BLD-011, BR-005).
+
+    `BloodRequest` keeps only the *latest* decision in its own columns
+    (`status`, `verified_by`, `verified_at`, `rejection_reason`), which means a
+    row carries no memory of how it got there. This table is that memory: every
+    submission, verification, rejection, cancellation, matching round and
+    fulfilment is one immutable row, in order, with the actor who decided.
+
+    Why it matters beyond bookkeeping: a rejected request can be resubmitted and
+    re-decided, and an approver must be able to show *why* on the earlier attempt.
+    Overwriting a single status column destroys that.
+
+    `reason` is free text written by the decider and is allowed to be clinical —
+    it is the decider's own justification, not the patient's record. `details`
+    stays non-PHI (codes, counts, ids).
+    """
+
+    DECISION = [
+        ("SUBMITTED", "SUBMITTED"),
+        ("VERIFIED", "VERIFIED"),
+        ("REJECTED", "REJECTED"),
+        ("CANCELLED", "CANCELLED"),
+        ("MATCHING_STARTED", "MATCHING_STARTED"),
+        ("MATCHED", "MATCHED"),
+        ("DONATION_RECORDED", "DONATION_RECORDED"),
+        ("FULFILLED", "FULFILLED"),
+        ("EXPIRED", "EXPIRED"),
+        ("NOTE", "NOTE"),
+    ]
+    DECISIONS = [value for value, _ in DECISION]
+
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    request = models.ForeignKey(
+        BloodRequest, on_delete=models.PROTECT, related_name="decisions",
+        help_text="PROTECT: a decision history that loses its subject is useless.",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="blood_request_decisions",
+    )
+    decision = models.CharField(max_length=20, choices=DECISION, db_index=True)
+    from_status = models.CharField(max_length=24, blank=True)
+    to_status = models.CharField(max_length=24, blank=True)
+    reason = models.TextField(blank=True)
+    details = models.JSONField(default=dict, blank=True)
+    decided_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "blood_request_decisions"
+        ordering = ["-decided_at", "-pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(decision__in=[
+                    "SUBMITTED", "VERIFIED", "REJECTED", "CANCELLED",
+                    "MATCHING_STARTED", "MATCHED", "DONATION_RECORDED",
+                    "FULFILLED", "EXPIRED", "NOTE",
+                ]),
+                name="bldreq_decisions_decision_ck",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["request", "-decided_at"], name="bldreq_dec_req_time_idx",
+            ),
+            models.Index(fields=["decision", "-decided_at"], name="bldreq_dec_type_idx"),
+        ]
+
+    objects = AppendOnlyDecisionQuerySet.as_manager()
+
+    def __str__(self):
+        return f"Decision({self.request_id}:{self.decision})"
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError("BloodRequestDecision is append-only and cannot be modified.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("BloodRequestDecision is append-only and cannot be deleted.")

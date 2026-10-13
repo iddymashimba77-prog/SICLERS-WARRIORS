@@ -7,12 +7,12 @@ are audited (content.* actions) and throttled. Cover uploads are re-encoded
 server-side and never returned raw.
 """
 
-from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Q
+from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status as http_status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
@@ -22,6 +22,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from audit.services import record_audit
+from core.media import store_media_path
 from core.pagination import CorePageNumberPagination
 
 from . import models, serializers, services, upload_validation
@@ -54,8 +55,13 @@ def _by_uid(queryset, uid):
         return None
 
 
+def _truthy(value):
+    return str(value or "").strip().lower() in ("true", "1", "yes", "on")
+
+
 # --------------------------------------------------------------- public news
 
+@extend_schema(responses={200: serializers.PublicNewsCategorySerializer(many=True)})
 class PublicNewsCategoryListView(ListAPIView):
     """Public category vocabulary (dropdowns / filters). AllowAny."""
 
@@ -90,10 +96,16 @@ class PublicNewsViewSet(viewsets.GenericViewSet):
         return serializers.PublicNewsSummarySerializer
 
     def get_queryset(self):
-        return models.NewsArticle.objects.filter(status="PUBLISHED")
+        # Soft-deleted articles are invisible to every public surface.
+        return models.NewsArticle.objects.filter(status="PUBLISHED", deleted_at__isnull=True)
 
     def _base(self):
-        return models.NewsArticle.objects.filter(status="PUBLISHED").select_related("author")
+        """Published, not-deleted articles, pinned first then newest first."""
+        return (
+            models.NewsArticle.objects
+            .filter(status="PUBLISHED", deleted_at__isnull=True)
+            .select_related("author")
+        )
 
     @action(detail=False, methods=["get"])
     def latest(self, request):
@@ -118,7 +130,7 @@ class PublicNewsViewSet(viewsets.GenericViewSet):
                 | Q(excerpt__icontains=query)
                 | Q(body__icontains=query)
             )
-        category = (request.query_params.get("category") or "").strip()
+        category = (request.query_params.get("category") or "").strip().upper()
         if category:
             if category not in [c for c, _ in models.NEWS_CATEGORIES]:
                 raise ValidationError({"category": "Unsupported category."})
@@ -128,7 +140,14 @@ class PublicNewsViewSet(viewsets.GenericViewSet):
             qs = qs.filter(featured=True)
         elif featured in ("false", "0"):
             qs = qs.filter(featured=False)
-        qs = qs.order_by("-published_at", "-id")
+        pinned = (request.query_params.get("pinned") or "").strip()
+        if pinned in ("true", "1"):
+            qs = qs.filter(pinned=True)
+        elif pinned in ("false", "0"):
+            qs = qs.filter(pinned=False)
+        # Pinned articles float to the top of the public list; everything else
+        # stays strictly newest-first.
+        qs = qs.order_by("-pinned", "-published_at", "-id")
         page = self.paginate_queryset(qs)
         serializer = serializers.PublicNewsSummarySerializer(
             page, many=True, context={"request": request},
@@ -146,6 +165,7 @@ class PublicNewsViewSet(viewsets.GenericViewSet):
         )
 
 
+@extend_schema(responses={200: serializers.PublicTickerSerializer(many=True)})
 class PublicTickerListView(ListAPIView):
     """Public top ticker — active + time-effective announcements only."""
 
@@ -207,7 +227,15 @@ class AdminNewsViewSet(viewsets.GenericViewSet):
         return serializers.AdminNewsSerializer
 
     def get_queryset(self):
-        return models.NewsArticle.objects.select_related("author")
+        # Soft-deleted rows are hidden unless the admin explicitly asks for
+        # them, so "deleted" is a filter rather than a destructive hole.
+        if _truthy(self.request.query_params.get("include_deleted")):
+            return models.NewsArticle.objects.select_related(
+                "author", "deleted_by", "pinned_by"
+            )
+        return models.NewsArticle.objects.filter(deleted_at__isnull=True).select_related(
+            "author", "deleted_by", "pinned_by"
+        )
 
     def get_object(self):
         obj = _by_uid(self.get_queryset(), self.kwargs[self.lookup_url_kwarg])
@@ -218,8 +246,10 @@ class AdminNewsViewSet(viewsets.GenericViewSet):
 
     def list(self, request):
         qs = self.get_queryset()
-        status_filter = (request.query_params.get("status") or "").strip()
+        status_filter = (request.query_params.get("status") or "").strip().upper()
         if status_filter:
+            # Case-insensitive so a client sending "published" is not answered
+            # with a 400 that blanks the whole admin table.
             if status_filter not in models.NEWS_STATUSES:
                 raise ValidationError({"status": "Unsupported status."})
             qs = qs.filter(status=status_filter)
@@ -228,13 +258,18 @@ class AdminNewsViewSet(viewsets.GenericViewSet):
             qs = qs.filter(featured=True)
         elif featured in ("false", "0"):
             qs = qs.filter(featured=False)
-        category = (request.query_params.get("category") or "").strip()
+        category = (request.query_params.get("category") or "").strip().upper()
         if category:
             qs = qs.filter(category=category)
+        pinned = (request.query_params.get("pinned") or "").strip()
+        if pinned in ("true", "1"):
+            qs = qs.filter(pinned=True)
+        elif pinned in ("false", "0"):
+            qs = qs.filter(pinned=False)
         query = (request.query_params.get("q") or "").strip()
         if query:
             qs = qs.filter(Q(title__icontains=query) | Q(excerpt__icontains=query))
-        page = self.paginate_queryset(qs.order_by("-created_at"))
+        page = self.paginate_queryset(qs.order_by("-pinned", "-created_at"))
         serializer = serializers.AdminNewsSerializer(
             page, many=True, context={"request": request},
         )
@@ -275,7 +310,7 @@ class AdminNewsViewSet(viewsets.GenericViewSet):
         article = self.get_object()
         if article.status not in models.EDITABLE_STATUSES:
             raise ValidationError(
-                {"status": "Only draft or archived news can be edited."}
+                {"status": "This article cannot be edited in its current state."}
             )
         serializer = serializers.NewsWriteSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -299,15 +334,72 @@ class AdminNewsViewSet(viewsets.GenericViewSet):
         return self.partial_update(request, uid=uid)
 
     @transaction.atomic
+    @transaction.atomic
     def destroy(self, request, uid=None):
+        """Soft delete — hides the article everywhere, keeps the row (§18).
+
+        Production editorial content is never hard-deleted, so an accidental
+        removal is reversible through ``restore`` and the audit trail keeps a
+        referent. Works in any status; there is no longer a "you must unpublish
+        it first" dead end for administrators.
+        """
         article = self.get_object()
-        if article.status != "DRAFT":
-            raise ValidationError(
-                {"status": "Only a never-published draft can be deleted."}
-            )
-        _audit(request, "content.news.delete", "news_article", article.pk)
-        article.delete()
+        services.soft_delete_news(article, actor=request.user)
+        _audit(
+            request, "content.news.delete", "news_article", article.pk,
+            {"status_before": article.status, "soft_delete": True},
+        )
         return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="restore")
+    @transaction.atomic
+    def restore(self, request, uid=None):
+        """Bring a soft-deleted article back as a DRAFT for re-review."""
+        article = _by_uid(models.NewsArticle.objects.all(), uid)
+        if article is None:
+            raise NotFound("Not found.")
+        self.check_object_permissions(request, article)
+        if article.deleted_at is None:
+            raise ValidationError({"detail": "This article was not deleted."})
+        services.restore_news(article, actor=request.user)
+        _audit(request, "content.news.restore", "news_article", article.pk)
+        return Response(
+            serializers.AdminNewsSerializer(article, context={"request": request}).data
+        )
+
+    @action(detail=True, methods=["post"], url_path="pin")
+    @transaction.atomic
+    def pin(self, request, uid=None):
+        """Float a published article to the top of the public list (§17)."""
+        article = self.get_object()
+        serializer = serializers.PinSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            services.set_pinned(
+                article, pinned=serializer.validated_data["pinned"], actor=request.user,
+            )
+        except ValueError as exc:
+            raise ValidationError({"status": str(exc)})
+        _audit(
+            request, "content.news.pin", "news_article", article.pk,
+            {"pinned": article.pinned},
+        )
+        return Response(
+            serializers.AdminNewsSerializer(article, context={"request": request}).data
+        )
+
+    @action(detail=True, methods=["post"], url_path="unpin")
+    @transaction.atomic
+    def unpin(self, request, uid=None):
+        article = self.get_object()
+        try:
+            services.set_pinned(article, pinned=False, actor=request.user)
+        except ValueError as exc:
+            raise ValidationError({"status": str(exc)})
+        _audit(request, "content.news.unpin", "news_article", article.pk)
+        return Response(
+            serializers.AdminNewsSerializer(article, context={"request": request}).data
+        )
 
     @action(detail=True, methods=["post"], url_path="publish")
     @transaction.atomic
@@ -383,9 +475,9 @@ class AdminNewsViewSet(viewsets.GenericViewSet):
             f"content/news/{article.uid}.jpg",
             ContentFile(buffer.getvalue()),
         )
-        article.cover_url = request.build_absolute_uri(
-            f"/{settings.MEDIA_URL}{stored_name}"
-        )
+        # Backend-relative path — absolute form is resolved at render time
+        # (core.media) so no request Host gets pinned into the row.
+        article.cover_url = store_media_path(stored_name)
         if alt:
             article.cover_alt = alt
         article.save(update_fields=["cover_url", "cover_alt", "updated_at"])
@@ -408,8 +500,17 @@ class AdminTickerViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     pagination_class = CorePageNumberPagination
     parser_classes = [JSONParser]
 
+    def get_parsers(self):
+        # Request parsing runs BEFORE ``self.action`` is set, so parser
+        # selection cannot branch on the routed action name (the AdminNewsView
+        # hit the same trap). Accept multipart for the image action alongside
+        # JSON for CRUD; the serializers + Pillow validator enforce the rest.
+        return [MultiPartParser(), FormParser(), JSONParser()]
+
     def get_throttles(self):
         action = getattr(self, "action", None)
+        if action == "upload_image":
+            return [ContentCoverThrottle()]
         if action in ("create", "partial_update", "update", "destroy",
                       "activate", "deactivate"):
             return [ContentWriteThrottle()]
@@ -522,3 +623,31 @@ class AdminTickerViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         services.set_ticker_active(ann, active=False)
         _audit(request, "content.ticker.deactivate", "ticker_announcement", ann.pk)
         return Response(serializers.AdminTickerSerializer(ann).data)
+
+    @action(detail=True, methods=["post"], url_path="image")
+    @transaction.atomic
+    def upload_image(self, request, uid=None):
+        """Multipart announcement artwork — same validation/encoding as news
+        covers (always re-encoded, never served raw)."""
+        ann = self.get_object()
+        serializer = serializers.TickerImageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        image = serializer.validated_data["image"]
+        alt = serializer.validated_data.get("alt", "")
+        try:
+            buffer, _content_type = upload_validation.normalize_cover_image(image)
+        except DjangoValidationError as exc:
+            raise ValidationError({"image": exc.messages})
+        stored_name = default_storage.save(
+            f"content/ticker/{ann.uid}.jpg",
+            ContentFile(buffer.getvalue()),
+        )
+        # Backend-relative media path — absolute form is resolved at render
+        # time (core.media), mirroring news cover_url handling.
+        ann.image = store_media_path(stored_name)
+        ann.image_alt = alt
+        ann.save(update_fields=["image", "image_alt", "updated_at"])
+        _audit(request, "content.ticker.image", "ticker_announcement", ann.pk)
+        return Response(
+            serializers.AdminTickerSerializer(ann, context={"request": request}).data
+        )

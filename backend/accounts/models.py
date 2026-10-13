@@ -18,6 +18,20 @@ from django.db import models
 from django.contrib.auth.base_user import BaseUserManager
 
 
+# Roles whose members are verified professionals (C5). Each still carries its own
+# permission bundle; this tuple only answers "is this identity a professional
+# whose registration has been confirmed", which is what the chat partner gate and
+# the clinical-writer gate need.
+PROFESSIONAL_ROLE_CODES = ("DOCTOR", "PSYCHOLOGIST", "SOCIAL_SUPPORT")
+
+# Facility-operator role that runs on another role's permission bundle. CLINIC
+# keeps its own identity code (role-aware navigation + registration card) but
+# exercises exactly HOSPITAL's operating surface at the permission layer — so
+# clinics and hospitals always behave identically, even as later seed migrations
+# widen the operating bundle.
+ROLE_GRANT_ALIASES = {"CLINIC": "HOSPITAL"}
+
+
 class SWUserManager(BaseUserManager):
     """Custom manager — identity is `email` (unique, citext; login identity)."""
 
@@ -82,6 +96,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
     email = models.EmailField(max_length=255, unique=True, db_index=True)
     phone = models.CharField(max_length=30, unique=True, null=True, blank=True, db_index=True)
+    # Optional 4-digit login PIN (hashed with the configured password hasher,
+    # never stored or logged raw). Set by the user after their first
+    # email+password sign-in so later launches can sign in with the PIN alone.
+    # An empty hash means "PIN not configured" and the account uses password auth.
+    login_pin_hash = models.CharField(max_length=128, blank=True, default="")
+    login_pin_set_at = models.DateTimeField(null=True, blank=True)
 
     password_hash_legacy = models.CharField(max_length=255, blank=True)  # reserved; symmetric w/ Django password mgmt
 
@@ -134,9 +154,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         ]
 
     def _has_active_role(self, *codes: str) -> bool:
-        return bool(
-            self.user_roles.filter(is_active=True, role__code__in=codes).exists()
-        )
+        active = {
+            ur.role.code
+            for ur in self.user_roles.filter(is_active=True).select_related("role")
+        }
+        expanded = set(active)
+        for code in active:
+            alias = ROLE_GRANT_ALIASES.get(code)
+            if alias:
+                expanded.add(alias)
+        return bool(expanded & set(codes))
 
     @property
     def is_patient(self) -> bool:
@@ -154,16 +181,58 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self._has_active_role("CAREGIVER")
 
     @property
+    def is_verified_professional(self) -> bool:
+        """Any APPROVED professional: doctor, psychologist or support worker (C5).
+
+        This is the gate that says "a human being has confirmed this identity".
+        It is deliberately *not* the gate for clinical privileges: what someone
+        may do clinically still comes from their role's permission bundle
+        (C2/C3/C15), so being verified never widens access on its own.
+        """
+        if not (
+            self._has_active_role(*PROFESSIONAL_ROLE_CODES)
+            and self.account_status == "ACTIVE"
+        ):
+            return False
+        try:
+            profile = self.doctor_profile
+        except (AttributeError, ObjectDoesNotExist):
+            return False
+        return profile.verification_status == "APPROVED"
+
+    @property
     def is_verified_doctor(self) -> bool:
         # Role + account status + professional verification (BR-001, C5).
         # The `doctors` registry row must be APPROVED — registration never
         # auto-approves a DOCTOR (database-design §3.4, role-perm §20).
-        if not (self._has_active_role("DOCTOR") and self.account_status == "ACTIVE"):
+        # Strictly narrower than `is_verified_professional`: a psychologist with
+        # an APPROVED registry row is not a doctor and must not satisfy a
+        # doctor-only gate such as prescribing.
+        if not self._has_active_role("DOCTOR"):
             return False
         try:
-            return self.doctor_profile.verification_status == "APPROVED"
+            profile = self.doctor_profile
         except (AttributeError, ObjectDoesNotExist):
             return False
+        return (
+            self.account_status == "ACTIVE"
+            and profile.professional_type == "DOCTOR"
+            and profile.verification_status == "APPROVED"
+        )
+
+    @property
+    def is_verified_psychologist(self) -> bool:
+        if not self._has_active_role("PSYCHOLOGIST"):
+            return False
+        try:
+            profile = self.doctor_profile
+        except (AttributeError, ObjectDoesNotExist):
+            return False
+        return (
+            self.account_status == "ACTIVE"
+            and profile.professional_type == "PSYCHOLOGIST"
+            and profile.verification_status == "APPROVED"
+        )
 
     @property
     def is_blood_donor(self) -> bool:
@@ -177,13 +246,35 @@ class User(AbstractBaseUser, PermissionsMixin):
     def is_admin(self) -> bool:
         return self._has_active_role("SUPER_ADMIN", "ADMIN")
 
+    @property
+    def is_psychologist(self) -> bool:
+        return self._has_active_role("PSYCHOLOGIST")
+
+    @property
+    def is_social_support(self) -> bool:
+        return self._has_active_role("SOCIAL_SUPPORT")
+
     def permission_codes(self) -> list[str]:
         """Effective permission codes = role grants + ALLOW overrides, minus
-        DENY overrides (deny-by-default; overrides are audited, §21)."""
+        DENY overrides (deny-by-default; overrides are audited, §21).
+
+        A role that is a grant alias (CLINIC == HOSPITAL operating bundle)
+        resolves through its alias, so both facility labels always exercise the
+        same abilities even as later seed migrations widen the operating bundle.
+        """
+        role_rows = list(
+            self.user_roles.filter(is_active=True).select_related("role")
+        )
+        grant_role_ids = {ur.role_id for ur in role_rows}
+        for ur in role_rows:
+            alias = ROLE_GRANT_ALIASES.get(ur.role.code)
+            if alias:
+                grant_role_ids.update(
+                    Role.objects.filter(code=alias).values_list("id", flat=True)
+                )
         granted = set(
             Permission.objects.filter(
-                role_permissions__role__user_roles__user=self,
-                role_permissions__role__user_roles__is_active=True,
+                role_permissions__role__id__in=grant_role_ids
             ).values_list("code", flat=True)
         )
         denied = set(
@@ -352,6 +443,7 @@ class SecurityEvent(models.Model):
         ("PASSWORD_RESET", "PASSWORD_RESET"),
         ("EMAIL_VERIFY_ISSUED", "EMAIL_VERIFY_ISSUED"),
         ("EMAIL_VERIFIED", "EMAIL_VERIFIED"),
+        ("LOGIN_PIN_SET", "LOGIN_PIN_SET"),
         ("ROLE_CHANGE", "ROLE_CHANGE"),
         ("TOKEN_REFRESH", "TOKEN_REFRESH"),
         ("ADMIN_ACTION", "ADMIN_ACTION"),

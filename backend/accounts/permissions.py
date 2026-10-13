@@ -96,6 +96,28 @@ def require(permission_code: str, *, require_object_ownership: bool = False):
     )
 
 
+class CanReviewVerificationDocuments(permissions.BasePermission):
+    """C6 reviewers may open the documents submitted with an application.
+
+    A document belongs to an applicant (a doctor/psychologist/social-support
+    professional or a facility operator). Anyone entitled to decide one of
+    those applications — ``doctors.verify`` or ``facilities.verify`` — may read
+    the attachment behind it so the decision is made on the evidence itself.
+    Everyone else is denied (default-deny).
+    """
+
+    message = "You are not allowed to review verification documents."
+    _CODES = ("doctors.verify", "facilities.verify")
+
+    def has_permission(self, request: "HttpRequest", view) -> bool:
+        user = getattr(request, "user", None)
+        if not (user and user.is_authenticated):
+            return False
+        if not IsAuthenticatedRespectStatus().has_permission(request, view):
+            return False
+        return any(user.has_perm_code(code) for code in self._CODES)
+
+
 class IsPatient(permissions.BasePermission):
     message = "Only patients may perform this action."
 
@@ -144,6 +166,23 @@ class IsAdmin(permissions.BasePermission):
         return bool(user and user.is_authenticated and user.is_admin)
 
 
+def _is_prescriber(user) -> bool:
+    """A verified DOCTOR holding the approved ``medications.prescribe`` code.
+
+    This is the C2/C3 "doctor may write the patient's medication profile"
+    gate (Stage 4.6 user cycle): role + account status + professional
+    verification + the clinical permission bundle. It is deliberately
+    narrower than ``is_verified_professional`` (a psychologist is never a
+    prescriber here) and narrower than verification alone.
+    """
+    return bool(
+        user
+        and user.is_authenticated
+        and user.is_verified_doctor
+        and user.has_perm_code("medications.prescribe")
+    )
+
+
 class MedicationAccess(permissions.BasePermission):
     """Approved medication gates (Stage 4.6, "deny by default").
 
@@ -155,9 +194,10 @@ class MedicationAccess(permissions.BasePermission):
         schedule POST/PATCH             -> medications.update
       destroy, schedule DELETE          -> medications.delete
 
-    Doctor/caregiver/hospital conditional cells (C2/C3) are NOT granted here —
-    they are a separate consent+relationship surface implemented in the consent
-    stage. Admin GET-only oversight (C4) is likewise not on patient surfaces.
+    A verified prescriber ([_is_prescriber]: APPROVED DOCTOR holding
+    ``medications.prescribe``) passes every action — the doctor authors the
+    patient's medication profile. No caregiver/hospital role is granted here;
+    admin GET-only oversight (C4) is likewise not on patient surfaces.
     """
 
     message = "You do not have permission to perform this action."
@@ -190,6 +230,8 @@ class MedicationAccess(permissions.BasePermission):
             return False
         if not IsAuthenticatedRespectStatus().has_permission(request, view):
             return False
+        if _is_prescriber(user):
+            return True
         code = self._code_for(request, view)
         return code is not None and user.has_perm_code(code)
 
@@ -200,6 +242,11 @@ class SymptomAccess(permissions.BasePermission):
     No update/delete codes exist in the approved matrix — symptom records are
     append-only evidence with no patient-side deletion (corrected by a new
     record, never by mutating history).
+
+    Verified prescribers ([_is_prescriber]) may *read* a patient's symptom log
+    (list/retrieve only) so the doctor sees the symptom history alongside the
+    medication profile; they can never create a symptom record on the patient's
+    behalf.
     """
 
     message = "You do not have permission to perform this action."
@@ -220,5 +267,26 @@ class SymptomAccess(permissions.BasePermission):
             return False
         if not IsAuthenticatedRespectStatus().has_permission(request, view):
             return False
+        if _is_prescriber(user) and request.method in ("GET",):
+            return True
         code = self._code_for(request, view)
         return code is not None and user.has_perm_code(code)
+
+
+class PatientDirectoryAccess(permissions.BasePermission):
+    """Doctor-facing patient picker (Stage 4.6 doctor cycle).
+
+    Lets a verified prescriber list the identity rows (uid/name/email) of
+    registered patients so the doctor UI can target a patient when authoring
+    their medication profile. No medical data is exposed.
+    """
+
+    message = "Only a verified prescriber can browse the patient directory."
+
+    def has_permission(self, request: "HttpRequest", view) -> bool:
+        user = getattr(request, "user", None)
+        if not (user and user.is_authenticated):
+            return False
+        if not IsAuthenticatedRespectStatus().has_permission(request, view):
+            return False
+        return _is_prescriber(user)

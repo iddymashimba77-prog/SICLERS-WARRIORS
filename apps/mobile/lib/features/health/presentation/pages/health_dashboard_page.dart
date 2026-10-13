@@ -11,6 +11,8 @@ import '../../../medication/presentation/pages/medication_page.dart';
 import '../../data/health_repository.dart';
 import 'symptom_form_page.dart';
 import 'timeline_page.dart';
+import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Health dashboard home (approved FR-MED-007 / "/health" tab).
 class HealthDashboardPage extends StatelessWidget {
@@ -32,10 +34,7 @@ class HealthDashboardPage extends StatelessWidget {
     final session = authController ?? SessionScope.controllerOf(context);
     final token = session.accessToken;
     if (token == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.healthTracking)),
-        body: const Center(child: Text(AppStrings.notSignedIn)),
-      );
+      return const SignedOutGate();
     }
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.healthTracking)),
@@ -190,7 +189,11 @@ class _HealthDashboardViewState extends State<HealthDashboardView> {
                 pct: dash.adherenceLast7.adherencePct,
               ),
             ),
-          ],
+          ] else
+            _SectionCard(
+              title: AppStrings.adherenceLastSeven,
+              child: _AdherenceBar(pct: null),
+            ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -418,7 +421,7 @@ class _AdherenceBar extends StatelessWidget {
       children: [
         Expanded(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: AppShapes.small,
             child: LinearProgressIndicator(
               value: value,
               minHeight: 10,

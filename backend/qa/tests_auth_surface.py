@@ -110,6 +110,47 @@ class AuthLoginThrottleTests(TestCase):
             self.assertEqual(second.status_code, 429)
 
 
+class AdminEmailPasswordLoginTests(TestCase):
+    """The Admin Panel signs in with *email + password* like any other
+    account (there is no separate admin login endpoint). A SUPER_ADMIN must
+    therefore authenticate through the standard ``/api/auth/login/`` and be
+    handed the administrative identity plus a usable token pair."""
+
+    def test_super_admin_logs_in_with_email_and_password(self):
+        admin = h.orm_user("SUPER_ADMIN", email="admin-panel@example.com")
+        resp = h.APIClient().post(
+            "/api/auth/login/",
+            {"email_or_phone": "admin-panel@example.com", "password": h._PASSWORD},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()["data"]
+        self.assertTrue(data["access"])
+        self.assertTrue(data["refresh"])
+        self.assertEqual(data["user"]["email"], admin.email)
+        self.assertIn("SUPER_ADMIN", data["user"]["role_codes"])
+
+    def test_admin_logs_in_with_phone_too(self):
+        admin = h.orm_user("ADMIN", phone="+255700000111")
+        resp = h.APIClient().post(
+            "/api/auth/login/",
+            {"email_or_phone": "+255700000111", "password": h._PASSWORD},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("ADMIN", resp.json()["data"]["user"]["role_codes"])
+
+    def test_admin_login_rejects_wrong_password(self):
+        h.orm_user("ADMIN", email="admin-wrongpw@example.com")
+        resp = h.APIClient().post(
+            "/api/auth/login/",
+            {"email_or_phone": "admin-wrongpw@example.com", "password": "wrong-pass"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertNotIn("access", resp.json().get("data", {}))
+
+
 class AdminIdentifyOnlySanityTests(TestCase):
     def test_admin_user_list_is_identity_only(self):
         # Existing suite asserts the exact field set; here we guard the

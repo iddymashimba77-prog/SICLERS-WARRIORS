@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/constants/app_strings.dart';
 import 'core/l10n/app_localizations.dart';
 import 'core/l10n/locale_controller.dart';
+import 'core/navigation/not_found_page.dart';
 import 'core/prefs/app_preferences.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
@@ -14,15 +15,18 @@ import 'features/auth/data/token_store.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/auth/presentation/pages/continue_as_page.dart';
 import 'features/auth/presentation/pages/doctor_verification_page.dart';
-import 'features/auth/presentation/pages/email_verification_page.dart';
 import 'features/auth/presentation/pages/forgot_password_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/organization_verification_page.dart';
 import 'features/auth/presentation/pages/reset_password_page.dart';
+import 'features/auth/presentation/pages/role_workspace_page.dart';
+import 'features/auth/presentation/pages/set_pin_page.dart';
 import 'features/auth/presentation/pages/signup_page.dart';
+import 'features/auth/presentation/pages/verification_submission_page.dart';
 import 'features/auth/presentation/widgets/auth_gate.dart';
 import 'features/auth/presentation/widgets/session_scope.dart';
 import 'features/blood_donation/presentation/pages/blood_donation_page.dart';
+import 'features/blood_donation/presentation/pages/donor_home_page.dart';
 import 'features/blood_donation/presentation/pages/donor_shell.dart';
 import 'features/caregiver/presentation/pages/caregiver_shell.dart';
 import 'features/clinic/presentation/pages/clinic_page.dart';
@@ -32,8 +36,10 @@ import 'features/doctor_network/presentation/pages/doctor_network_page.dart';
 import 'features/donations/presentation/pages/changia_hub_page.dart';
 import 'features/donations/presentation/pages/donations_page.dart';
 import 'features/doctor/presentation/pages/doctor_hub_page.dart';
+import 'features/doctor/presentation/pages/doctor_medications_page.dart';
 import 'features/doctor/presentation/pages/doctor_shell.dart';
 import 'features/emergency/presentation/pages/emergency_page.dart';
+import 'features/education/presentation/pages/doctor_education_page.dart';
 import 'features/education/presentation/pages/education_page.dart';
 import 'features/health/presentation/pages/health_dashboard_page.dart';
 import 'features/medical/presentation/pages/medical_profile_page.dart';
@@ -179,23 +185,33 @@ class _MaterialAppView extends StatelessWidget {
         AuthGate.routeName: (_) => const AuthGate(),
         LoginPage.routeName: (_) => const LoginPage(),
         SignupPage.routeName: (_) => const SignupPage(),
-        ForgotPasswordPage.routeName: (_) => const ForgotPasswordPage(),
-        ResetPasswordPage.routeName: (_) => const ResetPasswordPage(),
-        ContinueAsPage.routeName: (_) => const ContinueAsPage(),
-        EmailVerificationPage.routeName: (context) {
+        VerificationSubmissionPage.routeName: (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
-          final email =
-              args is Map ? (args['email'] as String? ?? '') : '';
-          return EmailVerificationPage(email: email);
+          final roleCode = args is Map ? (args['roleCode'] as String? ?? '') : null;
+          return VerificationSubmissionPage(roleCode: roleCode);
         },
+        ForgotPasswordPage.routeName: (_) => const ForgotPasswordPage(),
+        // Same argument contract as EmailVerificationPage: a `token` map
+        // entry lets a caller hand the reset code straight over, while the
+        // plain `pushNamed('/reset-password')` path falls back to the
+        // user-entered code field on the page itself.
+        ResetPasswordPage.routeName: (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          final token = args is Map ? (args['token'] as String? ?? '') : '';
+          return ResetPasswordPage(token: token);
+        },
+        ContinueAsPage.routeName: (_) => const ContinueAsPage(),
+        SetPinPage.routeName: (_) => const SetPinPage(),
         DoctorVerificationPage.routeName: (_) =>
             const DoctorVerificationPage(),
         OrganizationVerificationPage.routeName: (_) =>
             const OrganizationVerificationPage(),
+        RoleWorkspacePage.routeName: (_) => const RoleWorkspacePage(),
         ProfilePage.routeName: (_) => const ProfilePage(),
         EmergencyPage.routeName: (_) => const EmergencyPage(),
         CommunityPage.routeName: (_) => const CommunityPage(),
         EducationPage.routeName: (_) => const EducationPage(),
+        DoctorEducationPage.routeName: (_) => const DoctorEducationPage(),
         ConversationListPage.routeName: (_) =>
             const ConversationListPage(),
         MedicalProfilePage.routeName: (_) => const MedicalProfilePage(),
@@ -203,6 +219,7 @@ class _MaterialAppView extends StatelessWidget {
         HealthDashboardPage.routeName: (_) =>
             const HealthDashboardPage(),
         BloodDonationPage.routeName: (_) => const BloodDonationPage(),
+        DonorHomePage.routeName: (_) => const DonorHomePage(),
         DoctorNetworkPage.routeName: (_) => const DoctorNetworkPage(),
         ClinicPage.routeName: (_) => const ClinicPage(),
         DonationsPage.routeName: (_) => const DonationsPage(),
@@ -213,10 +230,18 @@ class _MaterialAppView extends StatelessWidget {
         ChangiaHubPage.routeName: (_) => const ChangiaHubPage(),
         MedicalRecordsPage.routeName: (_) => const MedicalRecordsPage(),
         DoctorShell.routeName: (_) => const DoctorShell(),
+        DoctorMedicationsPage.routeName: (_) => const DoctorMedicationsPage(),
         DonorShell.routeName: (_) => const DonorShell(),
         CaregiverShell.routeName: (_) => const CaregiverShell(),
         MainShell.routeName: (_) => const MainShell(),
       },
+      // Stale deep links and mis-typed named routes must degrade to a real
+      // page: WidgetsApp throws (debug) / null-check crashes (release) when
+      // no generator can resolve a route.
+      onUnknownRoute: (settings) => MaterialPageRoute<void>(
+        settings: settings,
+        builder: (_) => NotFoundPage(failedRoute: settings.name),
+      ),
     );
   }
 }

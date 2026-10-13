@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
+import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/app_logo.dart';
 import '../../data/auth_repository.dart';
 import '../../data/token_store.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/session_scope.dart';
-import 'email_verification_page.dart';
+import 'set_pin_page.dart';
+import 'verification_submission_page.dart';
 
 /// Sign up page for new user registration (AUTH-2 / AUTH-005).
 ///
-/// Allows a self-registrable account type (Patient/Sickler or Caregiver) with
-/// email, password, and optional name fields. Backend validates email
-/// uniqueness and password strength, assigns the role, and issues a one-time
-/// email-verification code so the account can move out of PENDING_VERIFICATION.
-/// Roles that are *not* self-registerable (Doctor, Hospital, Organization,
-/// Blood Donor, ...) are surfaced with honest guidance — account type is never
-/// treated as verification.
+/// Every non-admin role is self-registerable here (Patient/Sickler, Caregiver,
+/// Blood Donor, Doctor, Psychologist, Social Support, Hospital, Clinic,
+/// Organization). Professional and facility roles mark the account
+/// "requires verification": the server gates them behind government-verified
+/// documents (C5 pipeline), and this page routes them straight to
+/// [VerificationSubmissionPage] after registration. Emails are always confirmed
+/// with a one-time code so the account can move out of PENDING_VERIFICATION.
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
 
@@ -43,6 +47,24 @@ class _SignupPageState extends State<SignupPage> {
         repository: AuthRepository(tokenStore: EphemeralTokenStore()),
       );
 
+  /// Every registerable role (no administrator roles). The `verified` flag is
+  /// a copy of the server's `verification_required` contract: those codes are
+  /// gated behind the government-verified document pipeline (C5).
+  static const List<(String, String, IconData, bool)> _roleOptions = [
+    ('PATIENT', 'auth.rolePatient', Icons.favorite_outline, false),
+    ('CAREGIVER', 'auth.roleCaregiver', Icons.family_restroom_outlined, false),
+    ('BLOOD_DONOR', 'auth.roleDonor', Icons.bloodtype_outlined, false),
+    ('DOCTOR', 'auth.roleDoctor', Icons.medical_services_outlined, true),
+    ('PSYCHOLOGIST', 'auth.rolePsychologist', Icons.psychology_outlined, true),
+    ('SOCIAL_SUPPORT', 'auth.roleSocialWorker', Icons.support_agent_outlined, true),
+    ('HOSPITAL', 'auth.roleHospital', Icons.local_hospital_outlined, true),
+    ('CLINIC', 'auth.roleClinic', Icons.healing_outlined, true),
+    ('ORGANIZATION', 'auth.roleOrganization', Icons.account_balance_outlined, true),
+  ];
+
+  static bool _needsVerification(String roleCode) =>
+      _roleOptions.firstWhere((o) => o.$1 == roleCode).$4;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -54,32 +76,35 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   String? _validateEmail(String? value) {
+    final s = l10n(context);
     if (value == null || value.isEmpty) {
-      return 'Email is required';
+      return s.tr('auth.emailRequired');
     }
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
-      return 'Enter a valid email address';
+      return s.tr('auth.emailInvalid');
     }
     return null;
   }
 
   String? _validatePassword(String? value) {
+    final s = l10n(context);
     if (value == null || value.isEmpty) {
-      return 'Password is required';
+      return s.tr('auth.passwordRequired');
     }
     if (value.length < 8) {
-      return 'Password must be at least 8 characters';
+      return s.tr('auth.passwordMin');
     }
     return null;
   }
 
   String? _validateConfirmPassword(String? value) {
+    final s = l10n(context);
     if (value == null || value.isEmpty) {
-      return 'Please confirm your password';
+      return s.tr('auth.confirmAgain');
     }
     if (value != _passwordController.text) {
-      return 'Passwords do not match';
+      return s.tr('auth.passwordMismatch');
     }
     return null;
   }
@@ -103,18 +128,49 @@ class _SignupPageState extends State<SignupPage> {
     if (!mounted) return;
     setState(() => _submitting = false);
 
+    final s = l10n(context);
     if (_controller.lastError != null) {
-      _showError(_controller.lastError!.message);
-    } else {
-      // Backend created the account (PENDING_VERIFICATION) and emailed a
-      // one-time code. Route straight into email verification; only a
-      // consumed code moves the account to ACTIVE (AUTH-005/006).
-      Navigator.pushReplacementNamed(
-        context,
-        EmailVerificationPage.routeName,
-        arguments: {'email': _emailController.text.trim()},
+      final err = _controller.lastError!;
+      _showError(
+        err.code == 'NETWORK_ERROR' ? s.tr('err.network') : err.message,
       );
+      return;
     }
+
+    // Registration succeeded — always confirm it explicitly so the user is not
+    // met with an ambiguous spinner/route swap.
+    if (_needsVerification(_roleCode)) {
+      // IAS-331/C5: professional & facility roles must attach government
+      // documents next. The server already holds a usable session.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.tr('auth.registrationSuccess'))),
+      );
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        VerificationSubmissionPage.routeName,
+        (route) => false,
+        arguments: {'roleCode': _roleCode},
+      );
+      return;
+    }
+    if (_controller.isAuthenticated) {
+      // Non-professional account: the server issued a usable session at
+      // registration. Create the 4-digit login PIN, then enter the app.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.tr('auth.registrationSuccess'))),
+      );
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        SetPinPage.routeName,
+        (route) => false,
+      );
+      return;
+    }
+    // No usable session was returned — send the new account to sign in.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(s.tr('auth.registrationSuccess'))),
+    );
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   void _showError(String message) {
@@ -126,9 +182,10 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = l10n(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Account'),
+        title: Text(s.tr('auth.signUpCta')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -143,17 +200,16 @@ class _SignupPageState extends State<SignupPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 16),
-                Icon(Icons.person_add_outlined,
-                    size: 72, color: theme.colorScheme.primary),
+                const AppLogo(height: 88),
                 const SizedBox(height: 16),
                 Text(
-                  'Create Your Account',
+                  s.tr('auth.signUpTitle'),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Join the Sickler\'s Warriors community',
+                  s.tr('auth.joinCommunity'),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -161,56 +217,73 @@ class _SignupPageState extends State<SignupPage> {
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  'I\'m creating this account for...',
+                  s.tr('auth.accountFor'),
                   textAlign: TextAlign.start,
                   style: theme.textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _PurposeOption(
-                        icon: Icons.favorite_outline,
-                        label: 'Patient / Sickler',
-                        selected: _roleCode == 'PATIENT',
-                        onTap: () => setState(() => _roleCode = 'PATIENT'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _PurposeOption(
-                        icon: Icons.family_restroom_outlined,
-                        label: 'Caregiver / Family',
-                        selected: _roleCode == 'CAREGIVER',
-                        onTap: () => setState(() => _roleCode = 'CAREGIVER'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: () {
-                    showModalBottomSheet<void>(
-                      context: context,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(20),
-                        ),
-                      ),
-                      builder: (ctx) => const _RoleGuidanceSheet(),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    // 2 columns on very narrow devices so role chips never
+                    // truncate; 3 everywhere else.
+                    final columns = constraints.maxWidth < 340 ? 2 : 3;
+                    return GridView.count(
+                      crossAxisCount: columns,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: columns == 2 ? 1.45 : 1.15,
+                      children: [
+                        for (final (code, labelKey, icon, verified) in _roleOptions)
+                          _PurposeOption(
+                            icon: icon,
+                            label: s.tr(labelKey),
+                            verified: verified,
+                            selected: _roleCode == code,
+                            onTap: () => setState(() => _roleCode = code),
+                          ),
+                      ],
                     );
                   },
-                  icon: const Icon(Icons.info_outline),
-                  label: const Text('Doctor, hospital or organization?'),
-                  style: TextButton.styleFrom(alignment: Alignment.centerLeft),
                 ),
+                if (_needsVerification(_roleCode)) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      borderRadius: AppShapes.tile,
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.6),
+                      border: Border.all(color: theme.colorScheme.outlineVariant),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.badge_outlined,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            s.tr('auth.verificationRequired'),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
-                    helperText: 'This will be your login identity',
+                  decoration: InputDecoration(
+                    labelText: s.tr('auth.email'),
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    helperText: s.tr('auth.emailLoginIdentity'),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
@@ -222,9 +295,9 @@ class _SignupPageState extends State<SignupPage> {
                     Expanded(
                       child: TextFormField(
                         controller: _firstNameController,
-                        decoration: const InputDecoration(
-                          labelText: 'First Name',
-                          prefixIcon: Icon(Icons.person_outline),
+                        decoration: InputDecoration(
+                          labelText: s.tr('auth.firstName'),
+                          prefixIcon: const Icon(Icons.person_outline),
                         ),
                         textCapitalization: TextCapitalization.words,
                       ),
@@ -233,9 +306,9 @@ class _SignupPageState extends State<SignupPage> {
                     Expanded(
                       child: TextFormField(
                         controller: _lastNameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Last Name',
-                          prefixIcon: Icon(Icons.person_outline),
+                        decoration: InputDecoration(
+                          labelText: s.tr('auth.lastName'),
+                          prefixIcon: const Icon(Icons.person_outline),
                         ),
                         textCapitalization: TextCapitalization.words,
                       ),
@@ -247,7 +320,7 @@ class _SignupPageState extends State<SignupPage> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: s.tr('auth.password'),
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -261,7 +334,7 @@ class _SignupPageState extends State<SignupPage> {
                         });
                       },
                     ),
-                    helperText: 'Minimum 8 characters',
+                    helperText: s.tr('auth.minChars'),
                   ),
                   validator: _validatePassword,
                 ),
@@ -270,7 +343,7 @@ class _SignupPageState extends State<SignupPage> {
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirmPassword,
                   decoration: InputDecoration(
-                    labelText: 'Confirm Password',
+                    labelText: s.tr('auth.confirmPassword'),
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -299,7 +372,7 @@ class _SignupPageState extends State<SignupPage> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Create Account'),
+                      : Text(s.tr('auth.signUpCta')),
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -307,7 +380,7 @@ class _SignupPageState extends State<SignupPage> {
                   children: [
                     Flexible(
                       child: Text(
-                        'Already have an account? ',
+                        '${s.tr('auth.haveAccount')} ',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -318,7 +391,7 @@ class _SignupPageState extends State<SignupPage> {
                         context,
                         '/login',
                       ),
-                      child: const Text('Sign In'),
+                      child: Text(s.tr('auth.signIn')),
                     ),
                   ],
                 ),
@@ -337,6 +410,7 @@ class _PurposeOption extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.verified = false,
   });
 
   final IconData icon;
@@ -344,122 +418,67 @@ class _PurposeOption extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  /// Server contract: this role is gated behind the government-verified
+  /// document pipeline (C5).
+  final bool verified;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final color = selected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: AppShapes.tile,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: AppShapes.tile,
           border: Border.all(
             color: selected
                 ? theme.colorScheme.primary
                 : theme.colorScheme.outlineVariant,
-            width: selected ? 2 : 1,
+            width: selected ? 1.5 : 1,
           ),
           color: selected
               ? theme.colorScheme.primary.withValues(alpha: 0.08)
               : null,
         ),
-        child: Column(
+        child: Stack(
           children: [
-            Icon(
-              icon,
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: selected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
-                fontWeight:
-                    selected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RoleGuidanceSheet extends StatelessWidget {
-  const _RoleGuidanceSheet();
-
-  static const List<(IconData, String, String)> _items = [
-    (
-      Icons.medical_services_outlined,
-      'Doctor',
-      'Professional accounts are issued after identity verification. Sign in if you already have one.',
-    ),
-    (
-      Icons.local_hospital_outlined,
-      'Hospital / Clinic',
-      'Hospitals and clinics join through facility verification. Contact the support desk.',
-    ),
-    (
-      Icons.account_balance_outlined,
-      'Organization',
-      'Organizations are onboarded with a verified facility identity. Contact the support desk.',
-    ),
-    (
-      Icons.bloodtype_outlined,
-      'Blood Donor',
-      'Donor accounts are opened at a partner donation centre. Contact the support desk.',
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Professional or organization sign-up',
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'These roles are verified before an account is issued, so they '
-                  'aren\'t created during public sign-up.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 16),
-            for (final (icon, title, subtitle) in _items)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(icon, color: theme.colorScheme.primary),
-                title: Text(title, style: theme.textTheme.titleSmall),
-                subtitle: Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 22, color: color),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: 10.5,
+                      height: 1.1,
+                      color: color,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
+                ],
+              ),
+            ),
+            if (verified)
+              Positioned(
+                top: 2,
+                right: 2,
+                child: Icon(
+                  Icons.verified,
+                  size: 13,
+                  color: theme.colorScheme.primary
+                      .withValues(alpha: selected ? 1 : 0.7),
                 ),
               ),
-            const SizedBox(height: 8),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-              ),
-              child: const Text('Close'),
-            ),
           ],
         ),
       ),

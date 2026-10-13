@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// Reusable KPI card for admin dashboard (FRONTEND-4).
 ///
@@ -36,15 +37,15 @@ class AdminKpiCard extends StatelessWidget {
     
     return Material(
       color: theme.colorScheme.surface,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: AppShapes.card,
       elevation: 0,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppShapes.card,
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: AppShapes.card,
             border: Border.all(color: theme.colorScheme.outlineVariant),
           ),
           child: Column(
@@ -56,7 +57,7 @@ class AdminKpiCard extends StatelessWidget {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: cardColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: AppShapes.medium,
                     ),
                     child: Icon(
                       icon,
@@ -130,7 +131,7 @@ class _TrendBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: AppShapes.small,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

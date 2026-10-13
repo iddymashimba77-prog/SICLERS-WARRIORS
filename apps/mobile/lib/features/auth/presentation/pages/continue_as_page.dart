@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../widgets/session_router.dart';
 import '../widgets/session_scope.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// AUTH-2 — multi-role post-auth context selector ("Continue as").
 ///
@@ -81,7 +82,7 @@ class _ContextOption extends StatelessWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppShapes.card,
         side: BorderSide(color: theme.colorScheme.outlineVariant),
       ),
       child: ListTile(

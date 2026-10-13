@@ -12,6 +12,7 @@ import '../../core/responsive/responsive.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import 'app_card.dart';
+import '../../core/theme/app_shapes.dart';
 
 /// Section header — micro title + optional action row above a dashboard block.
 class SectionHeader extends StatelessWidget {
@@ -180,10 +181,10 @@ class QuickAction extends StatelessWidget {
       label: label,
       child: Material(
         color: Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppShapes.tile,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: AppShapes.tile,
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
@@ -197,7 +198,7 @@ class QuickAction extends StatelessWidget {
                   height: 44,
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: AppShapes.tile,
                   ),
                   child: Icon(icon, color: accent, size: 22),
                 ),
@@ -283,7 +284,7 @@ class HealthSummaryCard extends StatelessWidget {
             height: 52,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: AppShapes.tile,
             ),
             child: Icon(icon, color: accent, size: 26),
           ),
@@ -354,7 +355,7 @@ class ProgressCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: AppShapes.small,
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 8,
@@ -462,7 +463,7 @@ class AlertCard extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: bg,
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: AppShapes.medium,
             ),
             child: Icon(icon, size: 20, color: accent),
           ),
@@ -519,7 +520,7 @@ class RecommendationCard extends StatelessWidget {
             height: 46,
             decoration: BoxDecoration(
               color: AppColors.blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppShapes.tile,
             ),
             child: Icon(icon, color: AppColors.blue, size: 22),
           ),

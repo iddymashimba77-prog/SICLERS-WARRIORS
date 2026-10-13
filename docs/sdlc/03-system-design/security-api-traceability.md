@@ -59,6 +59,7 @@ code) · `Sensitive` (Highest data class in response) · `Rate limit` (3.5 §29 
 | Admin `GET /patients/{pid}` (C4) | T | `patients.view` C4 | HS PHI | 20/h | `access_open` + reason | reason-locked gate; no bulk |
 | `GET /medical_records/{mid}` (grantee) | T | consent-resolved `view` | HS PHI | 30/min | `medical_records.view` | grant-check in query |
 | `GET /medical_records/{mid}/download` | T | `medical_records.download` C4/owner | HS file | 10/h | download | signed URL issuance |
+| `PATCH /medications/{id}` `instructions` | T | own (`medications.update`) | HS PHI | 30/min | modify | ≤2000 chars, plain text only (FR-MED-007) |
 
 ---
 
@@ -74,6 +75,11 @@ code) · `Sensitive` (Highest data class in response) · `Rate limit` (3.5 §29 
 | `GET /admin/blood/requests` | T | `blood_requests.view` (C6/VO scope) | SS (no donor PII) | 60/min | — | BR-006 mask |
 | `POST /admin/blood/verification-queue/:verify` | T | `blood_requests.verify` | SS | 60/h | `blood.verify` | reason |
 | `POST /admin/blood/matches/run` | T | `blood_matches.run` (C6/7) | matched pairs (C9) | 10/h | run | C9 scope; no contact leak |
+| `GET /doctors` (directory) | T | `doctors.view` | public subset | 60/min | — | server filters to APPROVED + active; public projection omits contact data and licence numbers |
+| `GET /doctors/{uid}/verification-history` | T | self **or** `doctors.verify` | licence meta | 30/min | view | 404 (not 403) for anyone else, so the route never confirms an application exists |
+| `GET /admin/doctors/verification-history` | T | `doctors.verify` C6 | licence meta | 30/min | view | registry-wide trail |
+| `POST /admin/doctors/{uid}/reinstate` | T | `doctors.verify` | SS | 60/h | reinstate | reason required; appends a decision |
+| `GET /blood/requests/{uid}/decisions` | T | owner/admin/eligible donor | SS + decider's reason | 60/min | view | reached through the request's own object gate; reason shown verbatim so it can be contested |
 
 ---
 
@@ -109,6 +115,24 @@ code) · `Sensitive` (Highest data class in response) · `Rate limit` (3.5 §29 
 | `POST /admin/community/reports/{rid}/resolve` | T | `community.moderate` | reports | 60/h | `community.moderate` | reason; hide-first |
 | `GET/POST /education/content` | T | `education.review`/create | drafts | 30/min | publish | category/state |
 | `POST /admin/education/content/{id}/review\|publish` | T | `education.review` | draft | 60/h | decision | publish after review |
+| `POST/DELETE /education/content/{id}/document` | T | `education.publish` (C12) | own, non-PUBLISHED article | 30/min | document_upload/remove | MIME+magic+size+extension match; no PUBLISHED edit |
+| `POST/DELETE /admin/education/content/{id}/document` | T | `education.review` | non-PUBLISHED article | 30/min | document_upload/remove | same validation; metadata-only audit |
+| `GET/POST /medical-records/` | T | `medical_records.view` / `.create` | O/C | own, or C15 clinical writer | 30/min | view/create | list is metadata-only; read set is the gate |
+| `GET/PATCH/DELETE /medical-records/{id}/` | T | `view` / `update` / `delete` | O/C | own, C15, or C4 with reason | 30/min | view/update/delete | soft delete; foreign uid → 404 |
+| `GET/POST /medical-records/{id}/files/` | T | `view` / `upload` | O/C | owner or C15 | 20/min | upload | PDF/JPEG/PNG ≤15MB; magic + extension; SHA-256 |
+| `GET /medical-records/files/{fid}/download` | T | `medical_records.download` | O/C | chart read gate + download | global | download | no public URL exists for clinical bytes |
+| `POST /medical-records/{id}/share/` | T | `view` | O | patient only | 20/min | share | narrowest grant: 1 record, 1 user, optional expiry |
+| `GET /medical-records/{id}/history/` | T | `medical_records.view` | O/C | read set | global | — | append-only; non-PHI details only |
+| `GET /admin/*/medical-records/*` (C4) | T | `medical_records.view` | — | requires `X-Oversight-Reason` ≥10 chars | global | view | reason stored; a plain GET is 403 |
+| `GET /patients/me/medical-records/` | T | `medical_records.view` | O | own chart only | 30/min | view | `me` alias resolves to the caller; never another patient |
+| `GET /blood/requests/{id}/decisions` | T | owner / admin / eligible donor (C8) | decision trail | global | — | append-only; ineligible donor gets 404, not 403 |
+| `POST /admin/doctors/{uid}/reinstate` | T | `doctors.verify` (C6) | professional standing | 60/h | `doctors.verify` | reason required; suspended status required |
+| `GET /doctors/{uid}/verification-history` | T | self, else `doctors.verify` | licence history | global | — | append-only; 404 for anyone else (no existence leak) |
+| `GET /admin/doctors/verification-history` | T | `doctors.verify` (C6) | licence history | 60/min | — | `?decision=` must be a known code; newest 200 |
+| `POST /chat/conversations` (PSY/SOC) | T | `chat.start` | care conversation | 20/min | conversations.create | partner must be APPROVED in the registry; role alone is not enough |
+| `POST /medical-records/` (PSY) | T | `medical_records.create` | O/C | C15: verified + live consent scope | 30/min | create | attributed to the psychologist; no prescribing rights |
+| `POST /medical-records/` (SOC) | T | — | O/C | denied | — | — | consent grants access, never authorship |
+| `POST /doctors/me/verification` (PSY/SOC) | T | `doctors.self_manage` | professional identity | 10/day | `doctors.verify` trail | claimed `professional_type` must match the account role |
 | `POST /notifications/broadcast` | T | `notifications.broadcast` | template (PHI-stripped) | 5/h | send | privacy-safe preview; no PHI |
 | `POST /files/upload` | T | per-doc permission | file | daily cap | `files.upload` | MIME+magic+size+allowlist |
 | `GET /files/{uid}/download` | T | per-doc permission | file (signed URL) | 30/min | `files.download` | signed URL, short TTL |

@@ -36,6 +36,16 @@ export interface AdminPermissionRow {
   description?: string;
 }
 
+export interface AdminVerificationDocument {
+  /** Handle for `GET /admin/verification-documents/{id}/` (audited stream). */
+  id: number;
+  doc_type: string;
+  status: string;
+  file_name?: string;
+  uploaded_at?: string;
+  reviewed_at?: string | null;
+}
+
 export interface AdminDoctorRow {
   uid: string;
   email: string;
@@ -49,6 +59,19 @@ export interface AdminDoctorRow {
   rejection_reason?: string;
   created_at?: string;
   submitted_at?: string;
+  verification_documents?: AdminVerificationDocument[];
+}
+
+export interface AdminDoctorDecisionRow {
+  uid: string;
+  doctor_uid: string;
+  license_number: string;
+  decision: string;
+  from_status: string;
+  to_status: string;
+  reason: string;
+  actor_name: string;
+  decided_at: string;
 }
 
 export interface AdminFacilityRow {
@@ -57,13 +80,16 @@ export interface AdminFacilityRow {
   operator_email: string;
   operator_uid?: string;
   facility_type: string;
-  phone?: string;
-  address?: string;
+  region?: string;
   city?: string;
-  verification_status: string;
+  address?: string;
+  registration_number?: string;
+  /** `FacilityAdminSerializer` exposes `is_verified` — there is no `verification_status`. */
   is_verified?: boolean;
+  verified_at?: string | null;
   created_at?: string;
-  submitted_at?: string;
+  /** Submitted-attachment summary (`FacilityAdminSerializer.verification_documents`). */
+  verification_documents?: AdminVerificationDocument[];
 }
 
 export interface AdminBloodRequestRow {
@@ -103,27 +129,36 @@ export interface AdminEducationItemRow {
   author?: { display_name?: string } | null;
   status: string;
   created_at?: string;
+  document_url?: string | null;
+  document_name?: string;
+  document_content_type?: string;
+  document_size?: number | null;
 }
 
 export interface AdminCommunityReportRow {
   id: number;
-  reporter?: string;
+  /** `AuthorBriefSerializer` — an object, not a bare string. */
+  reporter?: { uid?: string; display_name?: string } | null;
   target_type?: string;
   target_id?: string;
+  target_preview?: string;
+  target_exists?: boolean;
   reason?: string;
   status: string;
-  detailed_reason?: string;
+  review_notes?: string;
   created_at?: string;
 }
 
 export interface AdminDonationRow {
   uid: string;
-  donor_email?: string;
+  /** `AdminDonationSerializer.donor_display` (never a raw email field). */
+  donor_display?: string;
   amount: number;
   currency: string;
   status: string;
   provider?: string;
   campaign_title?: string;
+  is_refunded?: boolean;
   created_at?: string;
 }
 
@@ -140,24 +175,25 @@ export interface AdminFinancialSummary {
 
 export interface AdminAuditLogRow {
   id: number;
-  actor?: { email?: string; display_name?: string } | null;
-  action: string;
+  actor_email?: string;
+  action_code: string;
   resource_type?: string;
-  resource_id?: string;
-  reason?: string;
+  resource_id?: string | number;
   result?: string;
   ip_address?: string;
+  request_id?: string;
   created_at?: string;
-  details?: unknown;
 }
 
 export interface AdminSecurityEventRow {
   id: number;
+  user_uid?: string;
+  user_email?: string;
   event_type: string;
   status: string;
-  actor?: { email?: string } | null;
   ip_address?: string;
-  reason?: string;
+  user_agent?: string;
+  detail?: Record<string, unknown>;
   created_at?: string;
 }
 
@@ -172,8 +208,14 @@ export interface AdminNewsRow {
   cover_alt: string;
   tags: string[];
   featured: boolean;
+  /** Editorial override that floats the article to the top of the public list. */
+  pinned?: boolean;
+  pinned_at?: string | null;
   status: string;
   author?: { display_name?: string } | null;
+  /** Soft delete — the row is retained and restorable, never destroyed. */
+  deleted_at?: string | null;
+  deleted_by_uid?: string | null;
   published_at?: string | null;
   created_at?: string;
 }
@@ -188,6 +230,8 @@ export interface AdminTickerRow {
   priority: number;
   start_at?: string | null;
   end_at?: string | null;
+  image_url?: string | null;
+  image_alt?: string;
   created_at?: string;
 }
 
@@ -195,6 +239,8 @@ export interface AdminDashboard {
   generated_at: string;
   role_kernel: string;
   kpis: Record<string, number>;
+  /** 'live' = computed for this request; 'snapshot' = last aggregation run. */
+  kpi_sources?: Record<string, 'live' | 'snapshot'>;
   trends?: Record<string, { measured_at?: string; date?: string; value?: number }[]>;
 }
 
@@ -214,6 +260,7 @@ export interface BrandingInfo {
   logo_alt: string;
   has_logo: boolean;
   updated_at?: string;
+  logo_version?: string;
   updated_by?: { id: number; full_name: string } | null;
 }
 

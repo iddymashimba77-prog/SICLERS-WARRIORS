@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { listNews, createNews, updateNews, setNewsStatus, setNewsFeatured, deleteNews, uploadNewsCover, type NewsDraft } from '../lib/api/admin';
+import { listNews, createNews, updateNews, setNewsStatus, setNewsFeatured, setNewsPinned, deleteNews, restoreNews, uploadNewsCover, type NewsDraft } from '../lib/api/admin';
 import { useAsync } from '../lib/useAsync';
 import { friendlyError } from '../lib/auth/AuthContext';
 import { Badge, Button, ConfirmDialog, EmptyState, ErrorState, Field, Input, LoadingState, Modal, PageHeader, Select, StatusChip, TextArea } from '../components/ui';
@@ -8,9 +8,17 @@ import type { AdminNewsRow } from '../lib/api/types';
 
 const EMPTY_DRAFT: NewsDraft = { title: '', category: 'HEALTH', body: '', excerpt: '', cover_url: '', cover_alt: '', tags: [] };
 
+/** The API speaks upper-case statuses; normalise defensively so a status chip
+ *  or filter never silently fails to match. */
+const isDeleted = (a: AdminNewsRow) => Boolean(a.deleted_at);
+
 export function NewsPage() {
   const [status, setStatus] = useState('');
-  const { data, loading, error, reload } = useAsync(() => listNews({ status: status || undefined }), [status]);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const { data, loading, error, reload } = useAsync(
+    () => listNews({ status: status || undefined, includeDeleted: showDeleted }),
+    [status, showDeleted],
+  );
   const [editing, setEditing] = useState<AdminNewsRow | 'new' | null>(null);
   const [deleting, setDeleting] = useState<AdminNewsRow | null>(null);
   const [busy, setBusy] = useState(false);
@@ -21,11 +29,14 @@ export function NewsPage() {
       <div className="sw-toolbar">
         <Select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status" style={{ maxWidth: 220 }}>
           <option value="">All statuses</option>
-          <option value="draft">DRAFT</option>
-          <option value="pending">PENDING</option>
-          <option value="published">PUBLISHED</option>
-          <option value="archived">ARCHIVED</option>
+          <option value="DRAFT">DRAFT</option>
+          <option value="PUBLISHED">PUBLISHED</option>
+          <option value="ARCHIVED">ARCHIVED</option>
         </Select>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} />
+          <span>Show deleted</span>
+        </label>
         <Button variant="secondary" onClick={reload}>Refresh</Button>
         <Button onClick={() => setEditing('new')} style={{ marginLeft: 'auto' }}>New article</Button>
       </div>
@@ -40,7 +51,7 @@ export function NewsPage() {
                   <th scope="col">Article</th>
                   <th scope="col">Category</th>
                   <th scope="col">Status</th>
-                  <th scope="col">Featured</th>
+                  <th scope="col">Flags</th>
                   <th scope="col">Actions</th>
                 </tr>
               </thead>
@@ -57,30 +68,48 @@ export function NewsPage() {
                     </td>
                     <td><Badge tone="blue">{a.category_label || a.category}</Badge></td>
                     <td><StatusChip status={a.status} /></td>
-                    <td>{a.featured ? <Badge tone="amber">Featured</Badge> : '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <Button variant="secondary" onClick={() => setEditing(a)}>Edit</Button>
-                        {a.status === 'draft' || a.status === 'archived' ? (
-                          <Button onClick={() => act(`publish-${a.uid}`, () => setNewsStatus(a.uid, 'publish'))}>Publish</Button>
-                        ) : null}
-                        {a.status === 'published' ? (
+                        {a.featured ? <Badge tone="amber">Featured</Badge> : null}
+                        {a.pinned ? <Badge tone="blue">Pinned</Badge> : null}
+                        {isDeleted(a) ? <Badge tone="red">Deleted</Badge> : null}
+                        {!a.featured && !a.pinned && !isDeleted(a) ? '—' : null}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {isDeleted(a) ? (
+                          <Button onClick={() => act(`restore-${a.uid}`, () => restoreNews(a.uid))}>Restore</Button>
+                        ) : (
                           <>
-                            <Button variant="secondary" onClick={() => act(`unpublish-${a.uid}`, () => setNewsStatus(a.uid, 'unpublish'))}>Unpublish</Button>
-                            <Button variant="soft" onClick={() => act(`archive-${a.uid}`, () => setNewsStatus(a.uid, 'archive'))}>Archive</Button>
+                            <Button variant="secondary" onClick={() => setEditing(a)}>Edit</Button>
+                            {a.status === 'DRAFT' || a.status === 'ARCHIVED' ? (
+                              <Button onClick={() => act(`publish-${a.uid}`, () => setNewsStatus(a.uid, 'publish'))}>Publish</Button>
+                            ) : null}
+                            {a.status === 'PUBLISHED' ? (
+                              <>
+                                <Button variant="secondary" onClick={() => act(`unpublish-${a.uid}`, () => setNewsStatus(a.uid, 'unpublish'))}>Unpublish</Button>
+                                <Button variant="soft" onClick={() => act(`archive-${a.uid}`, () => setNewsStatus(a.uid, 'archive'))}>Archive</Button>
+                                <Button
+                                  variant="soft"
+                                  onClick={() => act(`pin-${a.uid}`, () => setNewsPinned(a.uid, !a.pinned))}
+                                  title={a.pinned ? 'Remove from the top of the public list' : 'Show at the top of the public list'}
+                                >
+                                  {a.pinned ? 'Unpin' : 'Pin to top'}
+                                </Button>
+                              </>
+                            ) : null}
+                            {a.status === 'PUBLISHED' ? (
+                              <Button
+                                variant="soft"
+                                onClick={() => act(`feature-${a.uid}`, () => setNewsFeatured(a.uid, !a.featured))}
+                              >
+                                {a.featured ? 'Unfeature' : 'Feature'}
+                              </Button>
+                            ) : null}
+                            <Button variant="danger" onClick={() => setDeleting(a)}>Delete</Button>
                           </>
-                        ) : null}
-                        {a.status !== 'draft' ? (
-                          <Button
-                            variant="soft"
-                            onClick={() => act(`feature-${a.uid}`, () => setNewsFeatured(a.uid, !a.featured))}
-                          >
-                            {a.featured ? 'Unfeature' : 'Feature'}
-                          </Button>
-                        ) : null}
-                        {a.status === 'draft' ? (
-                          <Button variant="danger" onClick={() => setDeleting(a)}>Delete</Button>
-                        ) : null}
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -104,9 +133,13 @@ export function NewsPage() {
       ) : null}
       <ConfirmDialog
         open={!!deleting}
-        title="Delete article?"
-        message={deleting ? `"${deleting.title}" will be permanently removed.` : ''}
-        confirmLabel="Delete"
+        title="Remove article from the site?"
+        message={
+          deleting
+            ? `"${deleting.title}" will be hidden from all public pages and unarchived. The article is kept in the database and can be restored afterwards.`
+            : ''
+        }
+        confirmLabel="Remove"
         destructive
         loading={busy}
         onCancel={() => setDeleting(null)}
@@ -196,7 +229,7 @@ function NewsEditorModal({ article, onClose, onSaved }: { article: AdminNewsRow 
       const payload = { ...draft, tags: tagsText.split(',').map((t) => t.trim()).filter(Boolean) };
       if (uid) {
         await updateNews(uid, payload);
-        if (article?.status !== 'published') {
+        if (article?.status !== 'PUBLISHED') {
           await setNewsStatus(uid, 'publish');
         }
       } else {
@@ -238,7 +271,7 @@ function NewsEditorModal({ article, onClose, onSaved }: { article: AdminNewsRow 
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
           <Button loading={busy} onClick={save}>{uid ? 'Save changes' : 'Save draft'}</Button>
-          {uid === null || article?.status !== 'published' ? (
+          {uid === null || article?.status !== 'PUBLISHED' ? (
             <Button loading={busy} onClick={saveAndPublish}>Save &amp; publish</Button>
           ) : null}
         </>

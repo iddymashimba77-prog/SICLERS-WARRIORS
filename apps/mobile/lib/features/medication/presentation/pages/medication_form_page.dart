@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../auth/domain/auth_types.dart';
 import '../../data/medication_repository.dart';
@@ -10,17 +11,23 @@ import '../../data/medication_repository.dart';
 /// Pushed via `MaterialPageRoute`; pops `true` when a record was saved so the
 /// list view can refresh. All validation mirrors the server-side rules
 /// (route vocabulary, end >= start).
+///
+/// [patientUid] drives the verified-prescriber authoring path: when set and
+/// creating (no [medication]), the payload targets that patient so the backend
+/// can attach ``prescribed_by`` to the current doctor.
 class MedicationFormPage extends StatefulWidget {
   const MedicationFormPage({
     super.key,
     required this.accessToken,
     required this.repository,
     this.medication,
+    this.patientUid,
   });
 
   final String accessToken;
   final MedicationRepository repository;
   final Medication? medication;
+  final String? patientUid;
 
   @override
   State<MedicationFormPage> createState() => _MedicationFormPageState();
@@ -34,6 +41,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
   late final TextEditingController _strength;
   late final TextEditingController _dosage;
   late final TextEditingController _frequency;
+  late final TextEditingController _instructions;
   String _route = 'ORAL';
   DateTime? _startDate;
   DateTime? _endDate;
@@ -50,6 +58,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
     _strength = TextEditingController(text: med?.strength ?? '');
     _dosage = TextEditingController(text: med?.dosage ?? '');
     _frequency = TextEditingController(text: med?.frequency ?? '');
+    _instructions = TextEditingController(text: med?.instructions ?? '');
     _route = med?.route ?? 'ORAL';
     _startDate = med?.startDate != null ? DateTime.tryParse(med!.startDate!) : null;
     _endDate = med?.endDate != null ? DateTime.tryParse(med!.endDate!) : null;
@@ -62,6 +71,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
     _strength.dispose();
     _dosage.dispose();
     _frequency.dispose();
+    _instructions.dispose();
     super.dispose();
   }
 
@@ -112,6 +122,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
         dosage: _dosage.text.trim(),
         route: _route,
         frequency: _frequency.text.trim(),
+        instructions: _instructions.text.trim(),
         startDate: _startDate?.toIso8601String().split('T').first,
         endDate: _endDate?.toIso8601String().split('T').first,
         isActive: widget.medication?.isActive ?? true,
@@ -122,6 +133,12 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
         await widget.repository.updateMedication(
           access: widget.accessToken,
           medication: med,
+        );
+      } else if (widget.patientUid != null) {
+        await widget.repository.createMedicationForPatient(
+          access: widget.accessToken,
+          medication: med,
+          patientUid: widget.patientUid!,
         );
       } else {
         await widget.repository.createMedication(
@@ -231,6 +248,19 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
                     DropdownMenuItem(value: r, child: Text(r)),
                 ],
                 onChanged: (v) => setState(() => _route = v ?? 'ORAL'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _instructions,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context).tr('meds.instructions'),
+                  hintText: AppLocalizations.of(context).tr('meds.instructionsHint'),
+                  prefixIcon: const Icon(Icons.menu_book_outlined),
+                ),
+                maxLines: 3,
+                maxLength: 2000,
+                // The server bounds this too; the counter keeps the limit
+                // visible while typing rather than after a failed save.
               ),
               const SizedBox(height: 12),
               Row(

@@ -26,24 +26,34 @@
 | PAT-003 | Emg contacts | patient | own | `GET/PATCH /patients/me/emergency-contact` | `patients` | owner-only |
 | MED-001 | Record list | patient / grantee | own / `medical_records.view` C2/3 | `GET /patients/me/medical-records`; doc: `/doctors/me/patients/{uid}/medical-records` | `medical_records*` | consent gate; no blanket |
 | MED-002 | Record detail | patient / grantee | `medical_records.view` +C2/3 | `GET /patients/me/medical-records/{id}` | `medical_records`, links | object scoping; sensitive read audit |
-| MED-003 | File viewer | authorized | `medical_records.download` C2/3 | `…/files/{fid}` (signed) | `medical_record_files` | signed URL; encryption; FLAG_SECURE |
-| MED-004 | Entry (own) | patient | `medical_records.create` C16 | `POST /patients/me/medical-records` | `medical_records` | self-entry authorship; PHI warning |
+| MED-003 | File viewer | authorized | `medical_records.download` C2/3 | `GET /medical-records/files/{fid}/download` | `medical_record_files` | chart read gate re-checked; no public URL; encryption at rest |
+| MED-004 | Entry (own) | patient | `medical_records.create` C16 | `POST /medical-records/` | `medical_records` | self-entry authorship; PHI warning |
+| MED-005 | Record history | patient / grantee | `medical_records.view` C2/3 | `GET /medical-records/{id}/history/`, `/medical-records/history/` | `medical_record_events` | append-only; non-PHI details |
+| MED-006 | Share one record | patient | `medical_records.view` (owner) | `POST /medical-records/{id}/share/`, `/share/revoke/` | `medical_record_links` | 1 record → 1 user; optional expiry; revoke immediate |
+| MED-007 | Visibility | patient | `medical_records.update` (owner) | `POST /medical-records/{id}/visibility/` | `medical_records` | per-record opt-out of consent reads |
+| MED-008 | Attach file | patient / clinician | `medical_records.upload` C16/C15 | `POST /medical-records/{id}/files/` | `medical_record_files` | PDF/JPEG/PNG ≤15MB; magic + extension + SHA-256 |
+| MED-009 | Archive/suppress | patient / clinician | `medical_records.update` | `POST /medical-records/{id}/status/` | `medical_records`, `medical_record_events` | soft status; suppressed leaves read set |
 | CONS-001 | Consent list | patient | `consents.view` | `GET /consents`, `/consents/active` | `consents` | owner/grantee; active-filter C2 |
 | CONS-002 | Consent detail | patient | `consents.view` | `GET /consents/{id}`, `/revoke`, `/renew` | `consents`, links | owner operate; revoke immediate |
 | CONS-003 | Grant | patient | `consents.grant` | `POST /consents` | `consents` | owner explicit gesture; expiry |
 | MEDT-001 | Meds list | patient/caregiver | own / `medications.view` | `GET /medications`, `GET /medications/stats` | `medications*` | own/consent scope |
+| MEDT-002 | Meds add/edit | own / C16 | `medications.create/update` | `POST/PATCH /medications` | `medications` | `instructions` = prescriber directions, ≤2000 chars, separate from schedule `notes` (FR-MED-007) |
 | MEDT-004 | Dose log | own / C16 | `medications.update` | `POST /medications/{id}/log-dose` | `medication_events` | idempotency key; server ack |
 | APP-001..005 | Appointments | patient/doc/staff | `appointments.*` C7/C2/3 | `GET/POST /appointments`, `…/confirm/reschedule/cancel/complete` | `appointments` | state-transition checks server-side |
+| APP-003 | Booking registries | patient | `facilities.view` / `doctors.view` | `GET /facilities`, `GET /doctors` | `facilities`, `doctors` | verified rows only; pre-selection only when exactly one facility; no free-text venue |
 | BLOOD-002 | Create request | patient | `blood_requests.create` | `POST /blood/requests` | `blood_requests` | idempotent; BR-005/006 |
 | BLOOD-003 | Request detail | owner / C3/C8 | `blood_requests.view` | `GET /blood/requests/{id}`, `/matches` | `blood_requests`, `blood_matches` | C8/C9; no donor PII |
 | BLOOD-004 | Donor profile | blood donor | `blood_donors.self_manage` | `GET/PATCH /blood/donors/me` | `blood_donors` | self; location privacy |
 | BLOOD-006 | Respond match | donor | `blood_requests.respond` C8/C9 | `POST /blood/matches/{id}/respond` | `blood_matches` | own match only |
+| BLOOD-008 | Request decisions | owner / admin / eligible donor | same gate as BLOOD-003 | `GET /blood/requests/{uid}/decisions` | `blood_request_decisions` | append-only; decider reason shown verbatim |
 | EMG-002..005 | Emergency | auth/patient | `emergency_requests.*` C14/C10 | `POST /emergency/requests`, `GET /emergency/requests/{id}`, `/cancel`, `/resolve` | `emergency_requests`, `emergency_responders`, `emergency_access_grants` | rate limit; idempotency; audit; bounded override |
 | EMG-006 | Access status | patient | `emergency_requests.view` C10 | `GET /emergency/access-grants` | `emergency_access_grants` | bounded, expiring, audited |
 | DOC-002 | Verification | doctor | `doctors.self_manage` C5 | `POST /doctors/me/verification` | `doctors`, `verification_documents` | verified-gating |
 | DOC-003 | Patients | doctor | `patients.view` C2/3 | `GET /doctors/me/patients` | `patients`, consents | relationship+consent only |
 | DOC-004 | Records (doc) | doctor | `medical_records.view` C2/3 | `GET /doctors/me/patients/{uid}/medical-records` | `medical_records*` | consent; authored only unless C15 |
 | DOC-006 | Clinical note | doctor/staff | C15 | `POST /patients/{uid}/medical-records` | `medical_records` | clinical authorship; consent |
+| DOC-008 | Verification history | self / `doctors.verify` | applicant or reviewer | `GET /doctors/{uid}/verification-history`, `GET /admin/doctors/verification-history` | `doctor_verification_decisions` | append-only; 404 (not 403) for everyone else |
+| DOC-009 | Care directory | any auth | `doctors.view` | `GET /doctors`, `?professional_type=` | `doctors` | server narrows to APPROVED + active; public projection; also feeds APP-003's clinician picker |
 | CAR-002 | Invite accept | caregiver | `caregivers.invite/accept` C14 | `POST /caregivers/{id}/accept|decline` | `caregivers` | invitee-only; scope+expiry |
 | CAR-004 | Auth info view | caregiver | consent scope | scoped `GET /patients/me/*` | `patients`, `medical_records*`, `medications*` | consent scope only |
 | CAR-006 | Remove | patient | `caregivers.remove` | `DELETE /caregivers/{id}` | `caregivers`, consents | patient-only; immediate |

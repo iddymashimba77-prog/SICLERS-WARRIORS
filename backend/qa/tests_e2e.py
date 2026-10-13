@@ -33,7 +33,8 @@ class PatientDayOneJourneyTests(TestCase):
 
         profile = c.patch(
             "/api/patients/me/",
-            {"genotype": "SC", "date_of_birth": "1998-06-01", "gender": "FEMALE"},
+            {"genotype": "SC", "date_of_birth": "1998-06-01", "gender": "FEMALE",
+             "facility_uid": str(h.directory_facility().uid)},
             format="json",
         )
         self.assertEqual(profile.status_code, 200)

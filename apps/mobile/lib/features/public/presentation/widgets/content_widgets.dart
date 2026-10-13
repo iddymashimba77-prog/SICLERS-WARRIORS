@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart' show AppColors;
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 /// Renders an article cover from the server (already origin-resolved).
 /// A branded illustration placeholder is shown while loading or on failure so
@@ -33,6 +34,11 @@ class PublicNewsCover extends StatelessWidget {
             height: height,
             width: double.infinity,
             fit: BoxFit.cover,
+            // Covers may be admin-supplied external URLs (e.g. pinned stock
+            // photos) whose hosts do not send CORS headers. On Flutter web the
+            // default byte-fetch is blocked by the browser, so fall back to an
+            // <img> element, which is not subject to CORS. No effect off web.
+            webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
             errorBuilder: (_, __, ___) => const _CoverFallback(),
             loadingBuilder: (context, child, progress) =>
                 progress == null ? child : const _CoverFallback(),
@@ -62,7 +68,7 @@ class _CoverFallback extends StatelessWidget {
         child: Icon(
           Icons.handshake_outlined,
           size: 44,
-          color: Color(0xFFFDECEF),
+          color: AppColors.lightRed,
         ),
       ),
     );
@@ -81,7 +87,7 @@ class PublicNewsCategoryChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 3),
       decoration: BoxDecoration(
         color: AppColors.lightBlue,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: AppShapes.pill,
       ),
       child: Text(
         label.toUpperCase(),

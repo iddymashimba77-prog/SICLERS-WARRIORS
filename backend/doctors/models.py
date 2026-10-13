@@ -180,7 +180,27 @@ class Doctor(models.Model):
       enforces both). Registration never auto-approves.
     * ``doctor.signup`` — separate from chat — is the approved entry point; the
       world-crossing surface stays a look-up of the professional registry.
+
+    `professional_type` says which kind of professional the row describes. It is
+    one column rather than three near-identical tables because the *verification
+    question is the same question* for all of them: is this person who they say
+    they are, and is that registration current? The queue, the documents, the
+    decision trail and the suspension path are shared for that reason.
+
+    What the type does **not** do is grant privileges. ``DOCTOR``,
+    ``PSYCHOLOGIST`` and ``SOCIAL_SUPPORT`` are separate *account roles* with
+    separate permission bundles (accounts migration 0014); this column only
+    records which professional the verified row belongs to, so that
+    ``is_verified_doctor`` can stay doctor-specific and the directory can say
+    "psychologist" instead of "doctor".
     """
+
+    PROFESSIONAL_TYPES = [
+        ("DOCTOR", "Doctor"),
+        ("PSYCHOLOGIST", "Psychologist"),
+        ("SOCIAL_SUPPORT", "Social support worker"),
+    ]
+    PROFESSIONAL_TYPE_CODES = [value for value, _ in PROFESSIONAL_TYPES]
 
     VERIFICATION_STATUS = [
         ("PENDING", "PENDING"),
@@ -199,6 +219,10 @@ class Doctor(models.Model):
     license_number = models.CharField(max_length=120, blank=True)
     specialty = models.CharField(max_length=120, blank=True, help_text="Clinical specialty code.")
     registration_body = models.CharField(max_length=200, blank=True)
+    professional_type = models.CharField(
+        max_length=16, choices=PROFESSIONAL_TYPES, default="DOCTOR", db_index=True,
+        help_text="Which professional this registry row describes; not a privilege grant.",
+    )
     verification_status = models.CharField(
         max_length=16, choices=VERIFICATION_STATUS, default="PENDING", db_index=True,
     )
@@ -223,13 +247,114 @@ class Doctor(models.Model):
                 ]),
                 name="doctors_verification_status_ck",
             ),
+            models.CheckConstraint(
+                condition=models.Q(professional_type__in=[
+                    "DOCTOR", "PSYCHOLOGIST", "SOCIAL_SUPPORT",
+                ]),
+                name="doctors_professional_type_ck",
+            ),
         ]
         indexes = [
             models.Index(
                 fields=["verification_status", "created_at"],
                 name="doctors_status_created_idx",
             ),
+            models.Index(
+                fields=["professional_type", "verification_status"],
+                name="doctors_type_status_idx",
+            ),
         ]
 
     def __str__(self):
-        return f"Doctor({self.user_id}:{self.verification_status})"
+        return f"Doctor({self.user_id}:{self.professional_type}:{self.verification_status})"
+
+class AppendOnlyDoctorDecisionQuerySet(models.QuerySet):
+    """Bulk-mutation guard; instance guards alone are bypassed by the ORM."""
+
+    def delete(self):
+        raise ValueError("Decision history is append-only and cannot be deleted.")
+
+    def update(self, **kwargs):
+        raise ValueError("Decision history is append-only and cannot be modified.")
+
+
+class DoctorVerificationDecision(models.Model):
+    """APPEND-ONLY verification history for a doctor account (FR-DOC-006, BR-001).
+
+    `Doctor` stores only the current `verification_status` plus the last
+    `verified_by`/`verified_at`/`rejection_reason`. That is the right shape for
+    a fast authorization check, but it is not a record of *how* the doctor got
+    there: a rejected applicant who reapplies and is then approved would leave
+    only the approval behind, and the earlier rejection — the reason the licence
+    was doubted in the first place — would be unrecoverable.
+
+    This table is that record. Every submission, approval, rejection, suspension
+    and reinstatement is one immutable row, in order, naming the officer who
+    decided and the reason they gave. C6 requires every decision to carry a
+    reason and be audited; this is where the reason survives.
+
+    `request` is PROTECT for the same reason as everywhere else in this codebase:
+    history that can lose its subject is not history.
+    """
+
+    DECISION = [
+        ("SUBMITTED", "SUBMITTED"),
+        ("APPROVED", "APPROVED"),
+        ("REJECTED", "REJECTED"),
+        ("SUSPENDED", "SUSPENDED"),
+        ("REINSTATED", "REINSTATED"),
+        ("RESUBMITTED", "RESUBMITTED"),
+        ("NOTE", "NOTE"),
+    ]
+    DECISIONS = [value for value, _ in DECISION]
+
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    doctor = models.ForeignKey(
+        Doctor, on_delete=models.PROTECT, related_name="verification_decisions",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="doctor_verification_decisions",
+    )
+    decision = models.CharField(max_length=16, choices=DECISION, db_index=True)
+    from_status = models.CharField(max_length=16, blank=True)
+    to_status = models.CharField(max_length=16, blank=True)
+    reason = models.TextField(blank=True)
+    details = models.JSONField(default=dict, blank=True)
+    decided_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "doctor_verification_decisions"
+        ordering = ["-decided_at", "-pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(decision__in=[
+                    "SUBMITTED", "APPROVED", "REJECTED", "SUSPENDED",
+                    "REINSTATED", "RESUBMITTED", "NOTE",
+                ]),
+                name="doctor_verdec_decision_ck",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["doctor", "-decided_at"], name="doctor_verdec_time_idx",
+            ),
+            models.Index(fields=["decision", "-decided_at"], name="doctor_verdec_type_idx"),
+        ]
+
+    objects = AppendOnlyDoctorDecisionQuerySet.as_manager()
+
+    def __str__(self):
+        return f"DoctorDecision({self.doctor_id}:{self.decision})"
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError(
+                "DoctorVerificationDecision is append-only and cannot be modified."
+            )
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("DoctorVerificationDecision is append-only and cannot be deleted.")
+
+

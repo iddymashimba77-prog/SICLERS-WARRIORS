@@ -15,24 +15,32 @@ class BrandingInfo {
     required this.hasLogo,
     required this.logoUrl,
     required this.logoAlt,
+    this.logoVersion = '',
   });
 
   const BrandingInfo.none()
       : hasLogo = false,
         logoUrl = '',
-        logoAlt = '';
+        logoAlt = '',
+        logoVersion = '';
 
   factory BrandingInfo.fromJson(Map<String, dynamic> json) {
     return BrandingInfo(
       hasLogo: json['has_logo'] == true,
       logoUrl: (json['logo_url'] as String?) ?? '',
       logoAlt: (json['logo_alt'] as String?) ?? '',
+      logoVersion: (json['logo_version'] as String?) ?? '',
     );
   }
 
   final bool hasLogo;
   final String logoUrl;
   final String logoAlt;
+
+  /// Stamp the server sets whenever the artwork changes; appended to the logo
+  /// URL as a query param so the network image cache is busted on replacement
+  /// (the URL itself never changes otherwise).
+  final String logoVersion;
 }
 
 /// Fetches and holds the live admin branding (once per app launch).
@@ -53,14 +61,21 @@ class BrandingController extends ChangeNotifier {
   bool get hasLogo => _info.hasLogo;
 
   /// Absolute URL for the live logo, resolving server-relative paths
-  /// (`/api/branding/logo/`) against the API origin.
+  /// (`/api/branding/logo/`) against the API origin. The logo version stamps
+  /// the URL so a replaced artwork is fetched fresh instead of serving cached
+  /// bytes.
   String get resolvedLogoUrl {
     final raw = _info.logoUrl;
     if (raw.isEmpty) return '';
-    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final versioned = _info.logoVersion.isNotEmpty
+        ? '${raw.contains('?') ? '&' : '?'}v=${Uri.encodeQueryComponent(_info.logoVersion)}'
+        : '';
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return '$raw$versioned';
+    }
     final base = Uri.parse(AppConfig.apiBaseUrl);
     final origin = Uri(scheme: base.scheme, host: base.host, port: base.port);
-    return origin.resolve(raw).toString();
+    return origin.resolve('$raw$versioned').toString();
   }
 
   Future<void> load() async {

@@ -15,6 +15,7 @@ Privacy posture (AD-7 / database-design §19):
 import logging
 
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import status as http_status
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.parsers import JSONParser
@@ -31,6 +32,7 @@ from .throttles import AiChatThrottle, AiTrendsThrottle
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(request=AiChatSerializer, responses={200: OpenApiTypes.OBJECT})
 class AiChatView(APIView):
     """Ask the assistant one turn (education + decision support, FR-AI-001/002)."""
 
@@ -47,6 +49,7 @@ class AiChatView(APIView):
         return Response(payload, status=http_status.HTTP_200_OK)
 
 
+@extend_schema(parameters=[AiTrendsSerializer], responses={200: OpenApiTypes.OBJECT})
 class AiTrendsView(APIView):
     """GET /api/ai/trends/<patient_uid>/ — own health-trend analysis (FR-AI-004)."""
 

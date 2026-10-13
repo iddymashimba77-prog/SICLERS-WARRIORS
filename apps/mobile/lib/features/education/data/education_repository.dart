@@ -46,6 +46,12 @@ class EducationAuthor {
   final String displayName;
 }
 
+/// Must stay in step with `education.models.EDITABLE_STATUSES`.
+const _editableStatuses = <String>{'DRAFT', 'REJECTED', 'ARCHIVED'};
+
+/// Must stay in step with `education.models.SUBMITTABLE_STATUSES`.
+const _submittableStatuses = <String>{'DRAFT', 'REJECTED'};
+
 class EducationalContent {
   const EducationalContent({
     required this.id,
@@ -58,6 +64,10 @@ class EducationalContent {
     this.coverUrl = '',
     this.publishedAt,
     this.createdAt,
+    this.documentUrl,
+    this.documentName = '',
+    this.documentContentType = '',
+    this.documentSize,
   });
 
   factory EducationalContent.fromJson(Map<String, dynamic> json) =>
@@ -77,6 +87,10 @@ class EducationalContent {
         publishedAt: (json['published_at'] as String?) ??
             (json['created_at'] as String?),
         createdAt: json['created_at'] as String?,
+        documentUrl: json['document_url'] as String?,
+        documentName: (json['document_name'] as String?) ?? '',
+        documentContentType: (json['document_content_type'] as String?) ?? '',
+        documentSize: (json['document_size'] as num?)?.toInt(),
       );
 
   final int id;
@@ -89,8 +103,87 @@ class EducationalContent {
   final String coverUrl;
   final String? publishedAt;
   final String? createdAt;
+  final String? documentUrl;
+  final String documentName;
+  final String documentContentType;
+  final int? documentSize;
 
   bool get isPublished => status == 'PUBLISHED';
+
+  /// True once the article carries a downloadable handout.
+  bool get hasDocument => (documentUrl ?? '').isNotEmpty;
+
+  /// A published article is frozen: the server refuses any handout change
+  /// until an admin unpublishes it, so the UI must not offer one.
+  bool get canChangeDocument => !isPublished;
+
+  /// Mirrors `education.models.EDITABLE_STATUSES`. An in-review or published
+  /// article is owned by the reviewers, so the author cannot quietly rewrite it.
+  bool get canEdit => _editableStatuses.contains(status);
+
+  /// Mirrors `education.models.SUBMITTABLE_STATUSES`. Archived content has to
+  /// be resubmitted through the archive path, not straight back into review.
+  bool get canSubmit => _submittableStatuses.contains(status);
+
+  /// A draft that was never public can be hard-deleted (EDU-005); anything
+  /// else keeps its review history.
+  bool get canDelete => status == 'DRAFT';
+
+  bool get isEditableDraft => canEdit && !isPublished;
+
+  String get readableDocumentSize {
+    final bytes = documentSize;
+    if (bytes == null || bytes <= 0) return '';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+}
+
+/// A local file chosen on the device, ready to be sent as a handout.
+class DocumentUpload {
+  const DocumentUpload({
+    required this.path,
+    required this.filename,
+    required this.sizeBytes,
+  });
+
+  final String path;
+  final String filename;
+  final int sizeBytes;
+
+  static const allowedExtensions = <String>[
+    'pdf',
+    'pptx',
+    'docx',
+    'jpg',
+    'jpeg',
+    'png',
+    'webp',
+  ];
+
+  static const maxBytes = 20 * 1024 * 1024;
+
+  String get extension {
+    final dot = filename.lastIndexOf('.');
+    return dot == -1 ? '' : filename.substring(dot + 1).toLowerCase();
+  }
+
+  /// Mirrors ``education.services.DOCUMENT_ALLOWED_EXTENSIONS``. Checking on
+  /// the device saves the user a slow upload the server would only reject.
+  bool get hasAllowedExtension => allowedExtensions.contains(extension);
+
+  bool get isWithinSizeLimit => sizeBytes > 0 && sizeBytes <= maxBytes;
+
+  /// Human-readable rejection reason, or null when the file can be sent.
+  String? get rejectionReason {
+    if (!hasAllowedExtension) {
+      return 'Choose a PDF, PPTX, DOCX, JPEG, PNG or WebP file.';
+    }
+    if (sizeBytes <= 0) return 'That file is empty.';
+    if (!isWithinSizeLimit) return 'That file is larger than 20 MB.';
+    return null;
+  }
 }
 
 class EducationRepository {
@@ -186,6 +279,139 @@ class EducationRepository {
   }) async {
     final res = await _client
         .get(_uri(['education', 'content', uid]), headers: _headers(access))
+        .timeout(_timeout);
+    return EducationalContent.fromJson(_body(res));
+  }
+
+  // --- Author workspace (doctor side, FR-EDU-005) ---------------------------
+
+  /// The signed-in author's own articles in every status — the doctor-side
+  /// counterpart to the public feed, which only ever returns PUBLISHED rows.
+  Future<List<EducationalContent>> listMyContent({
+    required String access,
+    String? status,
+  }) async {
+    final params = <String, String>{'mine': '1'};
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    final uri = _uri(['education', 'content'])
+        .replace(queryParameters: params);
+    final res = await _client.get(uri, headers: _headers(access)).timeout(_timeout);
+    return _list(res)
+        .map((e) => EducationalContent.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Create a draft article. The server sanitises the title/body and rejects a
+  /// category code it does not know, so the form sends codes, not labels.
+  Future<EducationalContent> createContent({
+    required String access,
+    required String title,
+    required String body,
+    required String category,
+    String coverUrl = '',
+  }) async {
+    final res = await _client
+        .post(
+          _uri(['education', 'content']),
+          headers: _headers(access),
+          body: jsonEncode({
+            'title': title,
+            'body': body,
+            'category': category,
+            if (coverUrl.isNotEmpty) 'cover_url': coverUrl,
+          }),
+        )
+        .timeout(_timeout);
+    return EducationalContent.fromJson(_body(res));
+  }
+
+  /// Patch an existing article. Only the fields passed are sent, so an edit
+  /// that changes the title does not blank the cover URL the author set earlier.
+  Future<EducationalContent> updateContent({
+    required String access,
+    required String uid,
+    required String title,
+    required String body,
+    required String category,
+    String? coverUrl,
+  }) async {
+    final res = await _client
+        .patch(
+          _uri(['education', 'content', uid]),
+          headers: _headers(access),
+          body: jsonEncode({
+            'title': title,
+            'body': body,
+            'category': category,
+            if (coverUrl != null) 'cover_url': coverUrl,
+          }),
+        )
+        .timeout(_timeout);
+    return EducationalContent.fromJson(_body(res));
+  }
+
+  /// Send the article to the review queue. Only DRAFT/REJECTED may be sent.
+  Future<EducationalContent> submitContent({
+    required String access,
+    required String uid,
+  }) async {
+    final res = await _client
+        .post(
+          _uri(['education', 'content', uid, 'submit']),
+          headers: _headers(access),
+          body: '{}',
+        )
+        .timeout(_timeout);
+    return EducationalContent.fromJson(_body(res));
+  }
+
+  /// Delete a never-published draft.
+  Future<void> deleteContent({
+    required String access,
+    required String uid,
+  }) async {
+    final res = await _client
+        .delete(_uri(['education', 'content', uid]), headers: _headers(access))
+        .timeout(_timeout);
+    if (res.statusCode >= 400) throw _errorFrom(res, res.body);
+  }
+
+  /// Attach or replace the article handout. Multipart, so the file is streamed
+  /// with an explicit boundary and no `Content-Type: application/json`.
+  Future<EducationalContent> uploadDocument({
+    required String access,
+    required String uid,
+    required DocumentUpload upload,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      _uri(['education', 'content', uid, 'document']),
+    )
+      ..headers['Accept'] = 'application/json'
+      ..headers['Authorization'] = 'Bearer $access'
+      ..files.add(await http.MultipartFile.fromPath(
+        'document',
+        upload.path,
+        filename: upload.filename,
+      ));
+    // A deck on a slow clinic connection can take a while to send.
+    final streamed = await _client
+        .send(request)
+        .timeout(const Duration(seconds: 90));
+    final res = await http.Response.fromStream(streamed);
+    return EducationalContent.fromJson(_body(res));
+  }
+
+  /// Detach the handout. The stored file is deleted server-side.
+  Future<EducationalContent> removeDocument({
+    required String access,
+    required String uid,
+  }) async {
+    final res = await _client
+        .delete(
+          _uri(['education', 'content', uid, 'document']),
+          headers: _headers(access),
+        )
         .timeout(_timeout);
     return EducationalContent.fromJson(_body(res));
   }

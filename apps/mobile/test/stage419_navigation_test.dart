@@ -15,6 +15,7 @@ import 'package:sicklers_warriors/features/doctor/presentation/pages/doctor_hub_
 import 'package:sicklers_warriors/features/emergency/presentation/pages/emergency_page.dart';
 import 'package:sicklers_warriors/features/health/presentation/pages/health_dashboard_page.dart';
 import 'package:sicklers_warriors/features/profile/presentation/pages/profile_page.dart';
+import 'package:sicklers_warriors/shared/widgets/floating_bottom_nav.dart';
 import 'package:sicklers_warriors/shared/widgets/main_shell.dart';
 
 http.Response _json(Map<String, dynamic> body, [int status = 200]) =>
@@ -46,16 +47,12 @@ void main() {
       await _phoneViewport(tester);
       await _pumpShell(tester);
 
-      expect(find.byType(NavigationBar), findsOneWidget);
-      Finder inNav(String label) => find.descendant(
-            of: find.byType(NavigationBar),
-            matching: find.text(label),
-          );
-      expect(inNav(AppStrings.navHome), findsOneWidget);
-      expect(inNav(AppStrings.navDoctor), findsOneWidget);
-      expect(inNav(AppStrings.navTreatment), findsOneWidget);
-      expect(inNav(AppStrings.navDonate), findsOneWidget);
-      expect(inNav(AppStrings.navProfile), findsOneWidget);
+      expect(find.byType(FloatingBottomNav), findsOneWidget);
+      for (var i = 0; i < 5; i++) {
+        expect(find.byKey(ValueKey<String>('bottom-nav-$i')), findsOneWidget);
+      }
+      // Center crest hosts the AI action.
+      expect(find.textContaining('Sickler AI'), findsOneWidget);
 
       final fab = find.byType(FloatingActionButton);
       expect(fab, findsOneWidget);
@@ -86,21 +83,21 @@ void main() {
       await _phoneViewport(tester);
       await _pumpShell(tester);
 
-      await tester.tap(find.text(AppStrings.navDoctor));
+      await tester.tap(find.byKey(const ValueKey<String>('bottom-nav-1')));
       await tester.pump();
       expect(find.byType(DoctorHubPage, skipOffstage: false), findsOneWidget);
 
-      await tester.tap(find.text(AppStrings.navTreatment));
+      await tester.tap(find.byKey(const ValueKey<String>('bottom-nav-2')));
       await tester.pump();
       expect(
           find.byType(HealthDashboardPage, skipOffstage: false), findsOneWidget);
 
-      await tester.tap(find.text(AppStrings.navDonate));
+      await tester.tap(find.byKey(const ValueKey<String>('bottom-nav-3')));
       await tester.pump();
       expect(
           find.byType(ChangiaHubPage, skipOffstage: false), findsOneWidget);
 
-      await tester.tap(find.text(AppStrings.navProfile));
+      await tester.tap(find.byKey(const ValueKey<String>('bottom-nav-4')));
       await tester.pump();
       expect(find.byType(ProfilePage, skipOffstage: false), findsOneWidget);
     });
@@ -128,6 +125,7 @@ void main() {
               'user': {
                 'email': 'warrior@example.com',
                 'account_status': 'ACTIVE',
+                'has_login_pin': true,
                 'role_codes': ['PATIENT'],
               },
             },
@@ -159,7 +157,7 @@ void main() {
 
       expect(controller.isAuthenticated, isTrue);
       expect(controller.roles, ['PATIENT']);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(FloatingBottomNav), findsOneWidget);
       expect(find.byType(MainShell), findsOneWidget);
       expect(await store.readAccess(), 'access-1');
       expect(await store.readRefresh(), 'refresh-1');
@@ -187,7 +185,7 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, AppStrings.login));
       await tester.pumpAndSettle();
 
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(FloatingBottomNav), findsNothing);
       expect(controller.lastError?.message, 'Invalid credentials.');
       expect(find.text('Invalid credentials.'), findsOneWidget);
     });

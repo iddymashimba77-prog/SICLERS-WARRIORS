@@ -221,6 +221,56 @@ class QueryValidationTests(TestCase):
         self.assertEqual(dash["kpis"]["users_active"], 4.0)
         self.assertEqual(dash["kpis"]["users_active_patients"], 3.0)
 
+    def test_dashboard_is_live_without_any_snapshot_rows(self):
+        """A missing/late aggregation job must not blank or stale the cards.
+
+        The dashboard answers directly from the source tables, so it is correct
+        even on a fresh database where the nightly job has never run.
+        """
+        AnalyticsSnapshot.objects.all().delete()
+        _orm_user("PATIENT")
+        _orm_user("DOCTOR")
+        dash = self.c.get("/api/admin/dashboard/").data
+        self.assertEqual(dash["kpis"]["users_total"], 3)  # admin + 2
+        self.assertEqual(dash["kpis"]["users_patient"], 1)
+        self.assertEqual(dash["kpis"]["users_doctor"], 1)
+
+    def test_dashboard_counts_roles_from_the_source_tables(self):
+        _orm_user("PATIENT")
+        _orm_user("PATIENT")
+        _orm_user("BLOOD_DONOR")
+        _orm_user("FINANCIAL_DONOR")
+        _orm_user("CAREGIVER")
+        dash = self.c.get("/api/admin/dashboard/").data["kpis"]
+        self.assertEqual(dash["users_patient"], 2)
+        self.assertEqual(dash["users_blood_donor"], 1)
+        self.assertEqual(dash["users_financial_donor"], 1)
+        self.assertEqual(dash["users_caregiver"], 1)
+
+    def test_dashboard_reports_pending_verifications_live(self):
+        BloodRequest.objects.create(
+            patient=_orm_user("PATIENT"), created_by=self.admin,
+            blood_group_needed="O+", units=1, status="PENDING_VERIFICATION",
+        )
+        dash = self.c.get("/api/admin/dashboard/").data["kpis"]
+        self.assertEqual(dash["blood_requests_pending_verification"], 1)
+        self.assertEqual(dash["pending_verifications"], 1)
+
+    def test_dashboard_labels_the_source_of_every_kpi(self):
+        dash = self.c.get("/api/admin/dashboard/").data
+        sources = dash["kpi_sources"]
+        for key in dash["kpis"]:
+            self.assertIn(key, sources)
+        self.assertEqual(sources["users_total"], "live")
+
+    def test_suspended_users_are_not_counted_as_active(self):
+        _orm_user("ADMIN", account_status="SUSPENDED")
+        _orm_user("ADMIN", account_status="PENDING_VERIFICATION")
+        dash = self.c.get("/api/admin/dashboard/").data["kpis"]
+        self.assertEqual(dash["users_suspended"], 1)
+        self.assertEqual(dash["users_pending_verification"], 1)
+        self.assertLess(dash["users_active"], dash["users_total"])
+
     def test_series_reflects_snapshots(self):
         _orm_user("PATIENT")
         _orm_user("PATIENT")

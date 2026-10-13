@@ -7,8 +7,9 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../../health/data/health_repository.dart';
 import '../../data/medication_repository.dart';
-import '../pages/medication_form_page.dart';
 import '../pages/medication_detail_page.dart';
+import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Medication list home (approved FR-MED-001/003/006).
 ///
@@ -34,10 +35,7 @@ class MedicationPage extends StatelessWidget {
     final token = (authController ?? SessionScope.controllerOf(context))
         .accessToken;
     if (token == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.medications)),
-        body: const Center(child: Text(AppStrings.notSignedIn)),
-      );
+      return const SignedOutGate();
     }
     return MedicationHomeView(
       accessToken: token,
@@ -107,14 +105,11 @@ class _MedicationHomeViewState extends State<MedicationHomeView> {
 
   @override
   Widget build(BuildContext context) {
+    // Patient-facing view-only list (FR-MED-001/003/006): medications arrive
+    // from the care team; patients read their profile and log doses, they do
+    // not author medications from this screen.
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.medications)),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'add-medication',
-        tooltip: AppStrings.addMedication,
-        onPressed: () => _navigateToAdd(context),
-        child: const Icon(Icons.add),
-      ),
       body: _buildBody(),
     );
   }
@@ -155,12 +150,6 @@ class _MedicationHomeViewState extends State<MedicationHomeView> {
               const Icon(Icons.medication_outlined, size: 48),
               const SizedBox(height: 12),
               const Text(AppStrings.noMedications),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => _navigateToAdd(context),
-                icon: const Icon(Icons.add),
-                label: const Text(AppStrings.addMedication),
-              ),
             ],
           ),
         ),
@@ -177,23 +166,9 @@ class _MedicationHomeViewState extends State<MedicationHomeView> {
               medication: med,
               onTap: () => _navigateToDetail(context, med),
             ),
-          const SizedBox(height: 80), // space behind FAB
         ],
       ),
     );
-  }
-
-  void _navigateToAdd(BuildContext context) async {
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MedicationFormPage(
-          accessToken: widget.accessToken,
-          repository: widget.repository,
-        ),
-      ),
-    );
-    if (result == true && mounted) _load();
   }
 
   void _navigateToDetail(BuildContext context, Medication med) async {
@@ -288,7 +263,7 @@ class _MedicationListTile extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: AppShapes.tile,
                 ),
                 child: Text(
                   AppStrings.active,

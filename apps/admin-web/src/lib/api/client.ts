@@ -7,7 +7,7 @@
 ///   - errors `{"error": {code, message, details}}`,
 ///   - `401` -> refresh-once then retry once, else sign out.
 /// No request is a raw `fetch`; all endpoints go through this layer.
-import { clearSession, loadSession, notifyAuthChanged, updateAccess } from '../auth/session';
+import { clearSession, loadSession, notifyAuthChanged, updateTokens } from '../auth/session';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -31,9 +31,17 @@ const TIMEOUT_MS = 20000;
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
+  /** multipart/form-data payload. Mutually exclusive with `body`. */
+  form?: FormData;
   headers?: Record<string, string>;
   authenticated?: boolean;
   timeout?: number;
+  /**
+   * `text` returns the raw body (used by the CSV export endpoints, whose
+   * `text/csv` payload is not an JSON envelope). Status errors are still
+   * decoded as `ApiError`.
+   */
+  response?: 'json' | 'text';
 }
 
 function extractError(body: string, status: number): ApiError {
@@ -83,6 +91,8 @@ async function doFetch(path: string, opts: RequestOptions, access: string | null
     const timer = setTimeout(() => controller.abort(), opts.timeout ?? TIMEOUT_MS);
     const headers: Record<string, string> = {
       Accept: 'application/json',
+      // A FormData body must NOT carry an explicit Content-Type: the browser
+      // has to append the multipart boundary itself.
       ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       ...(access ? { Authorization: `Bearer ${access}` } : {}),
       ...opts.headers,
@@ -91,17 +101,35 @@ async function doFetch(path: string, opts: RequestOptions, access: string | null
       const res = await fetch(`${BASE}${path}`, {
         method: opts.method ?? 'GET',
         headers,
-        body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+        body:
+          opts.form !== undefined
+            ? opts.form
+            : opts.body === undefined
+              ? undefined
+              : JSON.stringify(opts.body),
         signal: controller.signal,
       });
       const text = await res.text();
+      if (opts.response === 'text') {
+        if (res.status >= 400) throw extractError(text, res.status);
+        return text as unknown;
+      }
       return unwrap(text, res.status);
     } catch (e) {
+      // HTTP errors (400/401/403/500 …) are real answers from the server —
+      // surface them as-is. Retrying them, or flattening them into a generic
+      // "network error", hides validation and permission failures behind a
+      // misleading offline message (and made the 401-refresh path unreachable).
+      if (e instanceof ApiError) throw e;
       if (e instanceof DOMException && e.name === 'AbortError') {
         throw new ApiError('Request timed out. Please try again.', 0, 'TIMEOUT');
       }
+      if (e instanceof SyntaxError) {
+        throw new ApiError('The server returned an unreadable response.', 0, 'BAD_RESPONSE');
+      }
       lastError = new ApiError('Network error. Please check your connection.', 0, 'NETWORK');
-      // Do not burn retries on aborts; only re-attempt fetched-connection fails.
+      // Only genuine connection-level failures (dead keep-alive sockets,
+      // momentary restarts) are re-attempted.
     } finally {
       clearTimeout(timer);
     }
@@ -166,12 +194,43 @@ export class Client {
         body: JSON.stringify({ refresh: session.refresh }),
       });
       if (!res.ok) return false;
-      const body = (await res.json()) as { access?: string; refresh?: string };
-      if (!body.access) return false;
-      updateAccess(body.access);
+      // The backend renders through `ApiEnvelopeRenderer`, so the rotated pair
+      // arrives as `{"data": {access, refresh}}` — never as a bare body.
+      const raw = (await res.json()) as { data?: { access?: string; refresh?: string }; access?: string; refresh?: string };
+      const pair = (raw && typeof raw === 'object' && raw.data ? raw.data : raw) as { access?: string; refresh?: string };
+      if (!pair?.access) return false;
+      updateTokens(pair.access, pair.refresh);
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Fetch a binary resource (e.g. a verification document) with the bearer
+   * token attached, since a protected file cannot be opened by a plain `<a>`
+   * or `window.open`. Refreshes once on 401 like {@link request}.
+   */
+  async blob(path: string): Promise<Blob> {
+    const load = async (): Promise<Blob> => {
+      const access = loadSession()?.access ?? null;
+      const res = await fetch(`${BASE}${path}`, {
+        headers: { ...(access ? { Authorization: `Bearer ${access}` } : {}) },
+      });
+      if (!res.ok) throw extractError(await res.text(), res.status);
+      return res.blob();
+    };
+    try {
+      return await load();
+    } catch (e) {
+      if (e instanceof ApiError && (e.status === 401 || e.code === 'TOKEN_EXPIRED')) {
+        const refreshed = await this.refresh();
+        if (refreshed) return load();
+        clearSession();
+        notifyAuthChanged();
+        throw new ApiError('Session expired. Please sign in again.', 401, 'TOKEN_EXPIRED');
+      }
+      throw e;
     }
   }
 }

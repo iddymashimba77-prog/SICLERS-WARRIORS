@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/domain/auth_types.dart';
@@ -11,6 +13,8 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../../profile/data/profile_repository.dart';
 import '../../data/emergency_repository.dart';
+import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Emergency quick-request flow (approved FR-EMG-001..006, screens EMG-001..006).
 ///
@@ -40,10 +44,7 @@ class EmergencyPage extends StatelessWidget {
     final token = (authController ?? SessionScope.controllerOf(context))
         .accessToken;
     if (token == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.emergencyHome)),
-        body: const Center(child: Text(AppStrings.notSignedIn)),
-      );
+      return const SignedOutGate();
     }
     return EmergencyHomeView(
       accessToken: token,
@@ -262,6 +263,8 @@ class _EmergencyHomeViewState extends State<EmergencyHomeView> {
               enabled: !_submitting,
               onTriggered: _confirmAndSubmit,
             ),
+            const SizedBox(height: 12),
+            const _EmergencyNumbersCard(),
             if (_contact?.emergencyContactName != null &&
                 _contact!.emergencyContactName!.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -348,6 +351,99 @@ class _EmergencyHomeViewState extends State<EmergencyHomeView> {
 }
 
 /// EMG-002: the red SOS action must be deliberately armed (press-and-hold).
+/// Tanzania emergency lines that must always be reachable, even with no data
+/// connection — the SOS request path needs the network, a phone call does not.
+///
+/// 115 — M-MAMA / AMBULANCE (free, maternal & emergency ambulance line, the
+///       number sickle-cell warriors in Tanzania are told to call for a
+///       transfer to a recognised facility).
+/// 112 — national emergency number (police, fire, ambulance dispatch).
+///
+/// Both launch the platform dialler through `tel:`; the page never claims a
+/// call happened, because the app cannot know that.
+class _EmergencyNumbersCard extends StatelessWidget {
+  const _EmergencyNumbersCard();
+
+  static const List<({String number, String labelKey, String label, IconData icon})>
+      _lines = [
+    (
+      number: '115',
+      labelKey: 'sos.mMama',
+      label: 'M-MAMA ambulance & maternal emergency',
+      icon: Icons.local_hospital_outlined,
+    ),
+    (
+      number: '112',
+      labelKey: 'sos.nationalEmergency',
+      label: 'National emergency number',
+      icon: Icons.emergency_outlined,
+    ),
+  ];
+
+  Future<void> _dial(BuildContext context, String number) async {
+    final uri = Uri(scheme: 'tel', path: number);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n(context).tr('sos.cannotDial')),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.phone_in_talk_outlined,
+                    size: 18, color: AppColors.emergency),
+                const SizedBox(width: 8),
+                Text(
+                  l10n(context).tr('sos.callNow'),
+                  style: theme.textTheme.titleSmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              l10n(context).tr('sos.callNowHint'),
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            for (final line in _lines)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                leading: Icon(line.icon, color: AppColors.emergency),
+                title: Text(
+                  line.number,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.emergency,
+                  ),
+                ),
+                subtitle: Text(l10n(context).tr(line.labelKey, args: {
+                  'service': line.label,
+                })),
+                trailing: const Icon(Icons.call),
+                onTap: () => _dial(context, line.number),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SosHoldButton extends StatefulWidget {
   const _SosHoldButton({required this.onTriggered, required this.enabled});
 
@@ -395,7 +491,7 @@ class _SosHoldButtonState extends State<_SosHoldButton> {
           height: 96,
           decoration: BoxDecoration(
             color: AppColors.emergency.withValues(alpha: _holding ? 1 : 0.9),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: AppShapes.card,
             boxShadow: _holding
                 ? [
                     BoxShadow(
@@ -901,7 +997,7 @@ class _EmergencyTriggerCard extends StatelessWidget {
       color: AppColors.emergency.withValues(alpha: 0.06),
       shape: RoundedRectangleBorder(
         side: BorderSide(color: AppColors.emergency.withValues(alpha: 0.4)),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppShapes.tile,
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),

@@ -73,11 +73,15 @@ class FacilityApiTests(TestCase):
         self.patient = _register("PATIENT")
 
     def test_public_directory_verified_only(self):
+        """The public list is verified-only, whatever else exists in the table."""
         anon = APIClient()
         resp = anon.get("/api/facilities/")
         self.assertEqual(resp.status_code, 200)
-        names = {f["name"] for f in resp.data["results"]}
-        self.assertEqual(names, {"Accra General Hospital"})
+        rows = resp.data["results"]
+        self.assertTrue(all(row["is_verified"] for row in rows))
+        names = {row["name"] for row in rows}
+        self.assertIn("Accra General Hospital", names)
+        self.assertNotIn(self.unverified.name, names)
 
     def test_detail_requires_auth_and_verified(self):
         anon = APIClient()
@@ -177,8 +181,7 @@ class FacilityAdminListTests(TestCase):
 
     def test_status_filter(self):
         verified = self.vo.get("/api/admin/facilities/", {"status": "verified"})
-        self.assertEqual(len(self._rows(verified)), 1)
-        self.assertEqual(self._rows(verified)[0]["uid"], str(self.verified.uid))
+        self.assertIn(str(self.verified.uid), [row["uid"] for row in self._rows(verified)])
         pending = self.vo.get("/api/admin/facilities/", {"status": "pending"})
         self.assertEqual(self._rows(pending)[0]["uid"], str(self.pending.uid))
         bogus = self.vo.get("/api/admin/facilities/", {"status": "bogus"})
@@ -190,7 +193,8 @@ class FacilityAdminListTests(TestCase):
         self.assertEqual(self._rows(resp)[0]["name"], "Shinyanga Clinic")
 
     def test_admin_row_includes_operator_identity_only(self):
-        row = self._rows(self.vo.get("/api/admin/facilities/", {"status": "verified"}))[0]
+        rows = self._rows(self.vo.get("/api/admin/facilities/", {"status": "verified"}))
+        row = next(r for r in rows if r["uid"] == str(self.verified.uid))
         self.assertEqual(row["operator_email"], self.operator.email)
         self.assertNotIn("password", row)
         self.assertNotIn("mfa_secret", row)

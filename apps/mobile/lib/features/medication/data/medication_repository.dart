@@ -66,6 +66,7 @@ class Medication {
     required this.dosage,
     required this.route,
     required this.frequency,
+    required this.instructions,
     required this.startDate,
     required this.endDate,
     required this.isActive,
@@ -81,6 +82,7 @@ class Medication {
         dosage: (json['dosage'] as String?) ?? '',
         route: (json['route'] as String?) ?? 'ORAL',
         frequency: (json['frequency'] as String?) ?? '',
+        instructions: (json['instructions'] as String?) ?? '',
         startDate: json['start_date'] as String?,
         endDate: json['end_date'] as String?,
         isActive: (json['is_active'] as bool?) ?? true,
@@ -97,6 +99,10 @@ class Medication {
   final String dosage;
   final String route;
   final String frequency;
+
+  /// The prescriber's directions for the patient (`FR-MED-007`). Separate from a
+  /// schedule's `notes`, which describes one reminder time.
+  final String instructions;
   final String? startDate;
   final String? endDate;
   final bool isActive;
@@ -115,9 +121,38 @@ class Medication {
         'dosage': dosage,
         'route': route,
         'frequency': frequency,
+        'instructions': instructions,
         if (startDate != null) 'start_date': startDate,
         if (endDate != null) 'end_date': endDate,
       };
+
+  /// Prescription payload: the doctor's create includes the target patient
+  /// (the backend validates the patient and sets ``prescribed_by``).
+  Map<String, dynamic> toPrescriptionJson(String patientUid) => {
+        ...toJson(),
+        'patient': patientUid,
+      };
+}
+
+/// Identity row for the verified-prescriber patient directory
+/// (`GET /api/patients/directory/`). PHI-free: uid/name/email only.
+class PatientDirectoryEntry {
+  const PatientDirectoryEntry({
+    required this.uid,
+    required this.email,
+    required this.fullName,
+  });
+
+  factory PatientDirectoryEntry.fromJson(Map<String, dynamic> json) =>
+      PatientDirectoryEntry(
+        uid: json['uid'] as String,
+        email: (json['email'] as String?) ?? '',
+        fullName: (json['full_name'] as String?) ?? '',
+      );
+
+  final String uid;
+  final String email;
+  final String fullName;
 }
 
 class MedicationEvent {
@@ -288,6 +323,59 @@ class MedicationRepository {
     final list = _listPayload(res);
     return list
         .map((e) => Medication.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// The verified prescriber's project-scoped read of one patient's
+  /// medications (`GET /api/medications/?patient=<uid>`).
+  Future<List<Medication>> listMedicationsForPatient({
+    required String access,
+    required String patientUid,
+  }) async {
+    final uri = _uri(['medications']).replace(
+      queryParameters: {'patient': patientUid},
+    );
+    final res = await _client.get(uri, headers: _headers(access)).timeout(_timeout);
+    final list = _listPayload(res);
+    return list
+        .map((e) => Medication.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// The verified prescriber's authoring call: creates the medication for the
+  /// selected patient (backend sets ``prescribed_by`` to the doctor).
+  Future<Medication> createMedicationForPatient({
+    required String access,
+    required Medication medication,
+    required String patientUid,
+  }) async {
+    final res = await _client
+        .post(
+          _uri(['medications']),
+          headers: _headers(access),
+          body: jsonEncode(medication.toPrescriptionJson(patientUid)),
+        )
+        .timeout(_timeout);
+    return Medication.fromJson(_body(res));
+  }
+
+  /// Verified-prescriber patient directory (`GET /api/patients/directory/`).
+  Future<List<PatientDirectoryEntry>> fetchPatientDirectory({
+    required String access,
+  }) async {
+    final res = await _client
+        .get(Uri.parse('${AppConfig.apiBaseUrl}/patients/directory/'),
+            headers: _headers(access))
+        .timeout(_timeout);
+    if (res.statusCode >= 400) throw _errorFrom(res, res.body);
+    final decoded = jsonDecode(res.body);
+    final rows = decoded is List
+        ? decoded
+        : decoded is Map<String, dynamic> && decoded['data'] is List
+            ? decoded['data'] as List
+            : const [];
+    return rows
+        .map((e) => PatientDirectoryEntry.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 

@@ -106,6 +106,8 @@ class TickerAnnouncement {
     required this.message,
     this.type = 'INFO',
     this.linkUrl = '',
+    this.imageUrl = '',
+    this.imageAlt = '',
   });
 
   factory TickerAnnouncement.fromJson(Map<String, dynamic> json) =>
@@ -113,13 +115,18 @@ class TickerAnnouncement {
         message: _str(json['message']),
         type: _str(json['announcement_type']),
         linkUrl: _str(json['link_url']),
+        imageUrl: _str(json['image_url']),
+        imageAlt: _str(json['image_alt']),
       );
 
   final String message;
   final String type;
   final String linkUrl;
+  final String imageUrl;
+  final String imageAlt;
 
   bool get isUrgent => type == 'URGENT';
+  bool get hasImage => imageUrl.isNotEmpty;
 }
 
 class PublicContentPage {

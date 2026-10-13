@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
+import 'blood_decision_history_page.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../shared/widgets/state_views.dart';
@@ -8,6 +11,7 @@ import '../../../auth/domain/auth_types.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/blood_repository.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Blood donation hub (approved FR-BLD-001..009).
 ///
@@ -31,10 +35,7 @@ class BloodDonationPage extends StatelessWidget {
     final token = (authController ?? SessionScope.controllerOf(context))
         .accessToken;
     if (token == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.bloodRequests)),
-        body: const Center(child: Text(AppStrings.notSignedIn)),
-      );
+      return const SignedOutGate();
     }
     return BloodHomeView(
       accessToken: token,
@@ -647,8 +648,22 @@ class _BloodRequestDetailPageState extends State<BloodRequestDetailPage> {
                   onAccept: () => _respond(match, true),
                   onDecline: () => _respond(match, false),
                 ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => BloodDecisionHistoryPage(
+                    accessToken: widget.accessToken,
+                    repository: widget.repository,
+                    requestUid: _request.uid,
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.history),
+              label: Text(AppLocalizations.of(context).tr('blood.decisionHistory')),
+            ),
             if (_request.isOpen) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _cancel,
                 icon: const Icon(Icons.cancel_outlined),

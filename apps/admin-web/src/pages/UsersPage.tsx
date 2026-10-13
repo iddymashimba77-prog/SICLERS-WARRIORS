@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { listUsers, setUserActive, getUserRoles, changeUserRole, listRoles } from '../lib/api/admin';
 import { useAsync } from '../lib/useAsync';
 import { useAuth } from '../lib/auth/AuthContext';
@@ -20,12 +20,14 @@ export function UsersPage() {
     [status, debounced],
   );
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
   const canManageRoles = hasPerm('admin.roles.manage') || hasPerm('admin.permissions.manage');
 
   async function toggleActive(user: AdminUserRow, activate: boolean) {
-    if (!activate) {
-      // require confirmation; use a simple confirm via state
-    }
     setBusy(user.uid);
     try {
       await setUserActive(user.uid, activate, activate ? 'Reactivated via Admin Panel.' : 'Deactivated via Admin Panel.');
@@ -46,11 +48,7 @@ export function UsersPage() {
         <Input
           placeholder="Search by email, name or phone…"
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            const v = e.target.value;
-            setTimeout(() => setDebounced(v), 400);
-          }}
+          onChange={(e) => setQuery(e.target.value)}
           aria-label="Search users"
           style={{ maxWidth: 320 }}
         />
@@ -179,7 +177,6 @@ function UserDetailModal({ user, canManageRoles, busy, onClose, onToggleActive, 
             <Button variant="ghost" onClick={onClose}>
               Close
             </Button>
-            {active ? null : null}
           </>
         }
       >

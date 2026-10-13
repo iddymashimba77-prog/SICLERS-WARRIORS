@@ -7,6 +7,7 @@ serializers add workflow fields (status, featured, author, dates). Reuses the
 community ``uid + display_name`` author projection and HTML sanitisation.
 """
 
+from core.media import MediaUrlField, media_prefix
 from rest_framework import serializers
 
 from community.sanitizers import sanitize_html
@@ -46,12 +47,14 @@ class PublicNewsSummarySerializer(serializers.ModelSerializer):
     category_label = serializers.CharField(read_only=True)
     author = ItemAuthorSerializer(read_only=True)
     tags = serializers.ListField(child=serializers.CharField(), read_only=True)
+    # Served absolute at render time; stored backend-relative (core.media).
+    cover_url = MediaUrlField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = models.NewsArticle
         fields = [
             "uid", "title", "category", "category_label", "excerpt",
-            "cover_url", "cover_alt", "tags", "featured",
+            "cover_url", "cover_alt", "tags", "featured", "pinned",
             "author", "published_at", "created_at", "updated_at",
         ]
         read_only_fields = fields
@@ -71,12 +74,13 @@ class PublicNewsCategorySerializer(serializers.Serializer):
 
 class PublicTickerSerializer(serializers.ModelSerializer):
     announcement_type_label = serializers.CharField(read_only=True)
+    image_url = MediaUrlField(source="image", required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = models.TickerAnnouncement
         fields = [
             "uid", "message", "announcement_type", "announcement_type_label",
-            "link_url", "priority",
+            "link_url", "priority", "image_url", "image_alt",
         ]
         read_only_fields = fields
 
@@ -87,12 +91,15 @@ class AdminNewsSerializer(serializers.ModelSerializer):
     category_label = serializers.CharField(read_only=True)
     author = ItemAuthorSerializer(read_only=True)
     tags = serializers.ListField(child=serializers.CharField(), read_only=True)
+    deleted_by_uid = serializers.UUIDField(source="deleted_by.uid", read_only=True)
+    cover_url = MediaUrlField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = models.NewsArticle
         fields = [
             "uid", "title", "category", "category_label", "excerpt", "body",
-            "cover_url", "cover_alt", "tags", "featured", "status", "author",
+            "cover_url", "cover_alt", "tags", "featured", "pinned", "pinned_at",
+            "status", "author", "deleted_at", "deleted_by_uid",
             "published_at", "created_at", "updated_at",
         ]
         read_only_fields = fields
@@ -144,7 +151,13 @@ class NewsWriteSerializer(serializers.Serializer):
 
     def validate_cover_url(self, value):
         cleaned = _clean(value, URL_MAX)
-        if cleaned and not (cleaned.startswith("http://") or cleaned.startswith("https://")):
+        if cleaned and not (
+            cleaned.startswith("http://")
+            or cleaned.startswith("https://")
+            # Uploaded covers round-trip as backend-relative /media/... paths
+            # (core.media); accepting them keeps edit-save idempotent.
+            or cleaned.startswith(media_prefix())
+        ):
             raise serializers.ValidationError("Cover URL must be an http(s) link.")
         return cleaned
 
@@ -159,6 +172,12 @@ class FeatureSerializer(serializers.Serializer):
     featured = serializers.BooleanField()
 
 
+class PinSerializer(serializers.Serializer):
+    """Payload for POST /admin/news/{uid}/pin (and /unpin, which ignores it)."""
+
+    pinned = serializers.BooleanField(default=True)
+
+
 class NewsCoverSerializer(serializers.Serializer):
     image = serializers.FileField()
     alt = serializers.CharField(
@@ -170,12 +189,14 @@ class NewsCoverSerializer(serializers.Serializer):
 
 class AdminTickerSerializer(serializers.ModelSerializer):
     announcement_type_label = serializers.CharField(read_only=True)
+    image_url = MediaUrlField(source="image", required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = models.TickerAnnouncement
         fields = [
             "uid", "message", "announcement_type", "announcement_type_label",
             "link_url", "is_active", "priority", "start_at", "end_at",
+            "image_url", "image_alt",
             "created_at", "updated_at",
         ]
         read_only_fields = fields
@@ -212,3 +233,10 @@ class TickerWriteSerializer(serializers.Serializer):
                 {"end_at": "End date must be on or after the start date."}
             )
         return attrs
+
+
+class TickerImageSerializer(serializers.Serializer):
+    image = serializers.FileField()
+    alt = serializers.CharField(
+        max_length=ALT_MAX, required=False, allow_blank=True, default="",
+    )

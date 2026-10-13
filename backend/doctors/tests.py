@@ -19,7 +19,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.models import Role, User, UserRole
 from audit.models import AuditLog
-from doctors.models import Conversation, Doctor, Message
+from doctors.models import (
+    Conversation,
+    Doctor,
+    DoctorVerificationDecision,
+    Message,
+)
 
 _PASSWORD = "Str0ng!Pass9"
 
@@ -176,3 +181,223 @@ class ChatApiTests(TestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, 400)
+
+
+class DoctorVerificationHistoryTests(TestCase):
+    """FR-DOC-006/007: the verification trail is immutable and answerable.
+
+    The failure this prevents: a rejected applicant reapplies and is approved.
+    `Doctor.verification_status` says APPROVED and nothing anywhere says the
+    licence was doubted first, or why.
+    """
+
+    def setUp(self):
+        self.doctor_user = _orm_user("DOCTOR")
+        self.doctor = Doctor.objects.create(
+            user=self.doctor_user,
+            license_number=f"LIC-{_uuid.uuid4().hex[:8]}",
+            verification_status="PENDING",
+        )
+        self.vo_user = _orm_user("VERIFICATION_OFFICER")
+        self.vo = _client(self.vo_user)
+        self.other_user = _orm_user("DOCTOR")
+        self.other_doctor = Doctor.objects.create(
+            user=self.other_user,
+            license_number=f"LIC-{_uuid.uuid4().hex[:8]}",
+            verification_status="PENDING",
+        )
+        self.patient = _client(_orm_user("PATIENT"))
+
+    def _submit(self, client=None, **extra):
+        body = {
+            "license_number": f"LIC-{_uuid.uuid4().hex[:8]}",
+            "documents": [
+                {"doc_type": "CERTIFICATE", "file_url": "media/cert-mock.pdf"},
+                {"doc_type": "NATIONAL_ID", "file_url": "media/nida-mock.jpg"},
+            ],
+            **extra,
+        }
+        return (client or _client(self.doctor_user)).post(
+            "/api/doctors/me/verification/", body, format="json"
+        )
+
+    def _rows(self, doctor=None):
+        return DoctorVerificationDecision.objects.filter(
+            doctor=doctor or self.doctor
+        ).order_by("pk")
+
+    def _verify(self, approve, reason="", client=None):
+        return (client or self.vo).post(
+            f"/api/admin/doctors/{self.doctor.user.uid}/verify/",
+            {"approve": approve, "reason": reason},
+            format="json",
+        )
+
+    def _suspend(self, reason="Licence under review", client=None):
+        return (client or self.vo).post(
+            f"/api/admin/doctors/{self.doctor.user.uid}/suspend/",
+            {"reason": reason},
+            format="json",
+        )
+
+    def test_submission_is_appended_with_the_applicant_as_actor(self):
+        response = self._submit()
+        self.assertIn(response.status_code, (200, 201))
+        rows = self._rows()
+        self.assertEqual([r.decision for r in rows], ["SUBMITTED"])
+        self.assertEqual(rows[0].actor_id, self.doctor_user.id)
+        self.assertEqual(rows[0].to_status, "PENDING")
+
+    def test_rejection_then_resubmit_then_approval_keeps_every_reason(self):
+        self._submit()
+        self.assertEqual(self._verify(approve=False, reason="Licence number unverifiable").status_code, 200)
+        self._submit(specialty="Cardiology")
+        self.assertEqual(self._verify(approve=True).status_code, 200)
+
+        rows = self._rows()
+        self.assertEqual(
+            [r.decision for r in rows], ["SUBMITTED", "REJECTED", "RESUBMITTED", "APPROVED"],
+        )
+        self.assertEqual(rows[1].reason, "Licence number unverifiable")
+        self.assertEqual(rows[1].to_status, "REJECTED")
+        self.assertEqual(rows[2].from_status, "REJECTED")
+        self.assertEqual(rows[3].actor_id, self.vo_user.id)
+        self.assertEqual(rows[3].to_status, "APPROVED")
+        # The current row still remembers only the latest outcome...
+        self.doctor.refresh_from_db()
+        self.assertEqual(self.doctor.verification_status, "APPROVED")
+        self.assertEqual(self.doctor.rejection_reason, "")
+
+    def test_suspension_and_reinstatement_are_both_appended(self):
+        self._submit()
+        self._verify(approve=True)
+        self.assertEqual(self._suspend(reason="Suspected fraud").status_code, 200)
+        self.doctor.refresh_from_db()
+        self.assertEqual(self.doctor.verification_status, "SUSPENDED")
+
+        reinstate = self.vo.post(
+            f"/api/admin/doctors/{self.doctor.user.uid}/reinstate/",
+            {"reason": "Investigation closed, licence confirmed"},
+            format="json",
+        )
+        self.assertEqual(reinstate.status_code, 200, reinstate.data)
+        rows = self._rows()
+        self.assertEqual(
+            [r.decision for r in rows], ["SUBMITTED", "APPROVED", "SUSPENDED", "REINSTATED"],
+        )
+        self.assertEqual(rows[2].reason, "Suspected fraud")
+        self.assertEqual(rows[3].from_status, "SUSPENDED")
+        self.assertEqual(rows[3].to_status, "APPROVED")
+
+    def test_reinstate_requires_a_reason_and_a_suspended_doctor(self):
+        self._submit()
+        self._verify(approve=True)
+        no_reason = self.vo.post(
+            f"/api/admin/doctors/{self.doctor.user.uid}/reinstate/", {"reason": "  "}, format="json"
+        )
+        self.assertEqual(no_reason.status_code, 400)
+        not_suspended = self.vo.post(
+            f"/api/admin/doctors/{self.doctor.user.uid}/reinstate/",
+            {"reason": "no need"}, format="json",
+        )
+        self.assertEqual(not_suspended.status_code, 400)
+        self.assertEqual(self._rows().filter(decision="REINSTATED").count(), 0)
+
+    def test_suspension_requires_a_reason(self):
+        self._submit()
+        self._verify(approve=True)
+        self.assertEqual(
+            self.vo.post(
+                f"/api/admin/doctors/{self.doctor.user.uid}/suspend/", {}, format="json"
+            ).status_code,
+            400,
+        )
+        self.assertEqual(self._rows().filter(decision="SUSPENDED").count(), 0)
+
+    def test_history_is_append_only_at_instance_and_queryset_level(self):
+        self._submit()
+        row = self._rows()[0]
+        row.reason = "rewritten"
+        with self.assertRaises(ValueError):
+            row.save()
+        with self.assertRaises(ValueError):
+            row.delete()
+        with self.assertRaises(ValueError):
+            DoctorVerificationDecision.objects.filter(doctor=self.doctor).update(reason="x")
+        with self.assertRaises(ValueError):
+            DoctorVerificationDecision.objects.filter(doctor=self.doctor).delete()
+        row.refresh_from_db()
+        self.assertEqual(row.reason, "")
+
+    def test_history_is_protected_from_its_subject(self):
+        self._submit()
+        from django.db.models import ProtectedError
+
+        with self.assertRaises(ProtectedError):
+            Doctor.objects.filter(pk=self.doctor.pk).delete()
+        self.assertEqual(self._rows().count(), 1)
+
+    def test_applicant_reads_their_own_trail(self):
+        self._submit()
+        self._verify(approve=False, reason="Licence number unverifiable")
+        response = _client(self.doctor_user).get(
+            f"/api/doctors/{self.doctor.user.uid}/verification-history/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["verification_status"], "REJECTED")
+        self.assertEqual(response.data["count"], 2)
+        self.assertEqual(
+            [row["decision"] for row in response.data["decisions"]], ["REJECTED", "SUBMITTED"],
+        )
+        self.assertEqual(
+            response.data["decisions"][0]["reason"], "Licence number unverifiable"
+        )
+
+    def test_reviewer_reads_any_doctors_trail(self):
+        self._submit()
+        response = self.vo.get(f"/api/doctors/{self.doctor.user.uid}/verification-history/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+
+    def test_another_doctor_gets_404_not_403(self):
+        self._submit()
+        response = _client(self.other_user).get(
+            f"/api/doctors/{self.doctor.user.uid}/verification-history/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_patient_and_anonymous_are_refused(self):
+        self._submit()
+        self.assertEqual(
+            self.patient.get(f"/api/doctors/{self.doctor.user.uid}/verification-history/").status_code,
+            404,
+        )
+        anon = APIClient()
+        self.assertEqual(
+            anon.get(f"/api/doctors/{self.doctor.user.uid}/verification-history/").status_code, 401
+        )
+
+    def test_registry_trail_requires_the_verify_permission(self):
+        self._submit()
+        response = self.vo.get("/api/admin/doctors/verification-history/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            self.patient.get("/api/admin/doctors/verification-history/").status_code, 403
+        )
+
+    def test_registry_trail_filters_by_decision(self):
+        self._submit()
+        self._verify(approve=False, reason="nope")
+        approvals = self.vo.get("/api/admin/doctors/verification-history/?decision=REJECTED")
+        self.assertEqual(approvals.status_code, 200)
+        self.assertEqual([r["decision"] for r in approvals.data], ["REJECTED"])
+        bad = self.vo.get("/api/admin/doctors/verification-history/?decision=NOPE")
+        self.assertEqual(bad.status_code, 400)
+
+    def test_history_endpoint_cannot_be_written_to(self):
+        self._submit()
+        response = self.vo.post(
+            f"/api/doctors/{self.doctor.user.uid}/verification-history/", {}, format="json"
+        )
+        self.assertEqual(response.status_code, 405)

@@ -35,6 +35,12 @@ import uuid as _uuid
 
 from django.db import transaction
 from django.db.models import Q
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import permissions, status as http_status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
@@ -292,6 +298,22 @@ class AdminCampaignViewSet(viewsets.GenericViewSet):
         )
 
 
+@extend_schema_view(
+    retrieve=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="uid", type=OpenApiTypes.STR, location=OpenApiParameter.PATH,
+            ),
+        ],
+    ),
+    receipt=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="uid", type=OpenApiTypes.STR, location=OpenApiParameter.PATH,
+            ),
+        ],
+    ),
+)
 class DonationViewSet(viewsets.GenericViewSet):
     """Donation lifecycle (FR-CAM-004/005, FR-PAY, BR-008)."""
 
@@ -478,6 +500,22 @@ class AdminDonationViewSet(viewsets.GenericViewSet):
         )
 
 
+@extend_schema_view(
+    retrieve=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="transaction_id", type=OpenApiTypes.STR, location=OpenApiParameter.PATH,
+            ),
+        ],
+    ),
+    retry=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="transaction_id", type=OpenApiTypes.STR, location=OpenApiParameter.PATH,
+            ),
+        ],
+    ),
+)
 class PaymentViewSet(viewsets.GenericViewSet):
     """Payment transaction surface (FR-PAY-001..005)."""
 
@@ -554,6 +592,7 @@ class PaymentViewSet(viewsets.GenericViewSet):
         )
 
 
+@extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
 class PaymentWebhookView(APIView):
     """Provider callback (payments.verify — service-internal, BR-008).
 
@@ -598,6 +637,7 @@ class AdminFinancialAccess(permissions.BasePermission):
         return MfaPolicy().is_compliant(request, user)
 
 
+@extend_schema(responses={200: OpenApiTypes.OBJECT})
 class AdminFinancialSummaryView(APIView):
     """GET /api/admin/financial/summary/ — confirmed-ledger aggregates (§4.16).
 

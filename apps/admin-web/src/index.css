@@ -3,13 +3,19 @@
   --sw-primary: #c81e3a;
   --sw-primary-hover: #b31a33;
   --sw-dark-red: #9f1530;
+  --sw-red-strong: #c81e3a;
   --sw-red-soft: #fdecef;
   --sw-navy: #0b1f3d;
   --sw-navy-soft: #12294d;
+  /* Fixed dark navy for filled surfaces (sidebar/topbar/badges) in BOTH themes
+     — `--sw-navy` doubles as heading text and flips to a light value in dark. */
+  --sw-navy-dark: #0b1f3d;
   --sw-blue: #1b5fae;
   --sw-blue-soft: #eaf3fb;
   --sw-bg: #f5f7fa;
   --sw-surface: #ffffff;
+  /* Second surface: inset panels, wells, code blocks. */
+  --sw-surface-2: #f7f7f9;
   --sw-text: #172033;
   --sw-text-2: #667085;
   --sw-text-muted: #98a2b3;
@@ -19,6 +25,19 @@
   --sw-error: #c81e3a;
   --sw-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
+
+  /* Shape / elevation scale (mirrors `design/tokens.ts`). */
+  --sw-radius-sm: 8px;
+  --sw-radius-md: 12px;
+  --sw-radius-lg: 16px;
+  --sw-radius-pill: 999px;
+  --sw-shadow-card: 0 1px 2px rgba(11, 31, 61, 0.05),
+    0 1px 3px rgba(11, 31, 61, 0.08);
+  --sw-shadow-pop: 0 4px 16px rgba(11, 31, 61, 0.16);
+  --sw-z-header: 20;
+  --sw-z-sidebar: 30;
+  --sw-z-modal: 100;
+  --sw-z-toast: 200;
 }
 
 /* Dark mode — re-resolves every token without touching component code. */
@@ -27,16 +46,19 @@
   --sw-primary: #dc2f4c;
   --sw-primary-hover: #e44862;
   --sw-dark-red: #c4203d;
+  --sw-red-strong: #dc2f4c;
   --sw-red-soft: #3a1620;
   /* --sw-navy doubles as heading text *and* sidebar background; under dark it
-     becomes the light heading color and the navy surfaces are re-pinned to a
-     fixed dark in the shell stylesheet. */
+     becomes the light heading color and the navy surfaces are re-pinned via
+     --sw-navy-dark below. */
   --sw-navy: #e8eef7;
   --sw-navy-soft: #12294d;
+  --sw-navy-dark: #0b1f3d;
   --sw-blue: #6ea8f5;
   --sw-blue-soft: #183253;
   --sw-bg: #0d1524;
   --sw-surface: #141e32;
+  --sw-surface-2: #1b2740;
   --sw-text: #e7ecf5;
   --sw-text-2: #a6b2c7;
   --sw-text-muted: #7a87a0;
@@ -44,6 +66,8 @@
   --sw-success: #46c878;
   --sw-warning: #eeb23a;
   --sw-error: #ff5c76;
+  --sw-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --sw-shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 * {

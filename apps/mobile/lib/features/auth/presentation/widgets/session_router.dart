@@ -29,14 +29,15 @@ class AppContext {
 /// Resolves role-aware post-auth routing (AUTH-2).
 ///
 /// Rules:
-/// * A DOCTOR routes to the clinical dashboard only when the server asserts
+/// * Care professionals (DOCTOR / PSYCHOLOGIST / SOCIAL_SUPPORT) route to the
+///   clinical dashboard only when the server asserts
 ///   `doctor_verification_status == APPROVED`; PENDING/REJECTED/SUSPENDED (or
 ///   absent) resolve to the verification-status screen — never the dashboard.
 /// * Multiple contexts (e.g. PATIENT + BLOOD_DONOR) resolve to a "Continue
 ///   as" selection, never to a silently-dropped role.
-/// * HOSPITAL / HEALTHCARE_STAFF / ORGANIZATION surface an organization
-///   context (facility identity + verification); they never enter the patient
-///   shell just because no dedicated hospital shell exists yet.
+/// * Facility operators (HOSPITAL / CLINIC / ORGANIZATION) surface an
+///   organization context (facility identity + verification); they never enter
+///   the patient shell just because no dedicated hospital shell exists yet.
 /// * Unknown/empty sessions fall back to the patient shell as the public
 ///   default only when at least one role exists (legacy behaviour).
 class SessionRouter {
@@ -98,6 +99,46 @@ class SessionRouter {
     icon: Icons.account_balance_outlined,
   );
 
+  static const AppContext workspace = AppContext(
+    id: 'workspace',
+    route: '/role-workspace',
+    title: 'Role',
+    subtitle: 'Custom workspace',
+    icon: Icons.workspaces_outlined,
+  );
+
+  static const AppContext psychologistVerified = AppContext(
+    id: 'psychologist',
+    route: '/doctor-shell',
+    title: 'Psychologist',
+    subtitle: 'Mental health support',
+    icon: Icons.psychology_outlined,
+  );
+
+  static const AppContext psychologistPending = AppContext(
+    id: 'psychologist-pending',
+    route: '/doctor-status',
+    title: 'Psychologist',
+    subtitle: 'Verification pending',
+    icon: Icons.psychology_outlined,
+  );
+
+  static const AppContext socialSupportVerified = AppContext(
+    id: 'social-support',
+    route: '/doctor-shell',
+    title: 'Social Support',
+    subtitle: 'Care coordination',
+    icon: Icons.support_agent_outlined,
+  );
+
+  static const AppContext socialSupportPending = AppContext(
+    id: 'social-support-pending',
+    route: '/doctor-status',
+    title: 'Social Support',
+    subtitle: 'Verification pending',
+    icon: Icons.support_agent_outlined,
+  );
+
   /// Ordered list of contexts available to the session (deduplicated).
   static List<AppContext> contextsFor({
     required List<String> roles,
@@ -117,17 +158,46 @@ class SessionRouter {
         add(doctorPending);
       }
     }
+    if (roles.contains('PSYCHOLOGIST')) {
+      add(doctorVerificationStatus == 'APPROVED'
+          ? psychologistVerified
+          : psychologistPending);
+    }
+    if (roles.contains('SOCIAL_SUPPORT')) {
+      add(doctorVerificationStatus == 'APPROVED'
+          ? socialSupportVerified
+          : socialSupportPending);
+    }
     if (roles.contains('BLOOD_DONOR')) add(bloodDonor);
     if (roles.contains('CAREGIVER')) add(caregiver);
     if (AppRoles.isPatient(roles)) add(patient);
-    if ({'HOSPITAL', 'HEALTHCARE_STAFF', 'ORGANIZATION'}
+    if ({'HOSPITAL', 'CLINIC', 'HEALTHCARE_STAFF', 'ORGANIZATION'}
         .intersection(roles.toSet())
         .isNotEmpty) {
       add(organization);
     }
+    // Admin-created roles that this build has no dedicated shell for (REQ-4)
+    // must still get an honest workspace instead of a silent patient fallback.
+    if (roles.any((role) => !_knownRoles.contains(role))) add(workspace);
     if (contexts.isEmpty) add(patient);
     return contexts;
   }
+
+  static const Set<String> _knownRoles = {
+    'ADMIN',
+    'SUPER_ADMIN',
+    AppRoles.doctor,
+    'PSYCHOLOGIST',
+    'SOCIAL_SUPPORT',
+    'BLOOD_DONOR',
+    'CAREGIVER',
+    'PATIENT',
+    'SICKLER',
+    'HOSPITAL',
+    'CLINIC',
+    'HEALTHCARE_STAFF',
+    'ORGANIZATION',
+  };
 
   /// Single unambiguous destination, or `null` when the session spans multiple
   /// contexts and must be resolved through the "Continue as" screen.

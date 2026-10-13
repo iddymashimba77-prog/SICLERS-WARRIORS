@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/app_assets.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/l10n/app_localizations.dart';
 import '../../core/responsive/responsive.dart';
+import '../../features/ai_assistant/presentation/pages/ai_assistant_page.dart';
 import '../../features/donations/presentation/pages/changia_hub_page.dart';
 import '../../features/doctor/presentation/pages/doctor_hub_page.dart';
 import '../../features/emergency/presentation/pages/emergency_page.dart';
 import '../../features/health/presentation/pages/health_dashboard_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
+import 'floating_bottom_nav.dart';
 
 /// Sickler's Warriors — adaptive patient application shell (FRONTEND-1).
 ///
@@ -37,28 +40,28 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
 
-  List<_Destination> _destinationsOf(BuildContext context) {
+  List<NavDestination> _destinationsOf(BuildContext context) {
     final s = AppLocalizations.of(context);
     return [
-      _Destination(icon: Icons.home_outlined, selected: Icons.home, label: s.tr('nav.home')),
-      _Destination(
+      NavDestination(icon: Icons.home_outlined, selectedIcon: Icons.home, label: s.tr('nav.home')),
+      NavDestination(
         icon: Icons.medical_services_outlined,
-        selected: Icons.medical_services_outlined,
+        selectedIcon: Icons.medical_services_outlined,
         label: s.tr('nav.doctor'),
       ),
-      _Destination(
+      NavDestination(
         icon: Icons.medication_outlined,
-        selected: Icons.medication,
+        selectedIcon: Icons.medication,
         label: s.tr('nav.treatment'),
       ),
-      _Destination(
+      NavDestination(
         icon: Icons.favorite_outline,
-        selected: Icons.favorite,
+        selectedIcon: Icons.favorite,
         label: s.tr('nav.donate'),
       ),
-      _Destination(
+      NavDestination(
         icon: Icons.person_outline,
-        selected: Icons.person,
+        selectedIcon: Icons.person,
         label: s.tr('nav.profile'),
       ),
     ];
@@ -125,7 +128,7 @@ class _MainShellState extends State<MainShell> {
             for (final d in destinations)
               NavigationRailDestination(
                 icon: Icon(d.icon),
-                selectedIcon: Icon(d.selected),
+                selectedIcon: Icon(d.selectedIcon),
                 label: Text(d.label),
               ),
           ],
@@ -145,17 +148,16 @@ class _MainShellState extends State<MainShell> {
         return Scaffold(
           body: _content(constraints),
           bottomNavigationBar: compact
-              ? NavigationBar(
-                  selectedIndex: _index,
-                  onDestinationSelected: (i) => setState(() => _index = i),
-                  destinations: [
-                    for (final d in destinations)
-                      NavigationDestination(
-                        icon: Icon(d.icon),
-                        selectedIcon: Icon(d.selected),
-                        label: d.label,
-                      ),
-                  ],
+              ? FloatingBottomNav(
+                  index: _index,
+                  onIndexChanged: (i) => setState(() => _index = i),
+                  destinations: destinations,
+                  centerAction: NavCenterAction(
+                    icon: Icons.auto_awesome,
+                    label: AppLocalizations.of(context).tr('nav.askAi'),
+                    onTap: () => Navigator.of(context)
+                        .pushNamed(AiAssistantPage.routeName),
+                  ),
                 )
               : null,
           floatingActionButton: _sosButton(),
@@ -163,18 +165,6 @@ class _MainShellState extends State<MainShell> {
       },
     );
   }
-}
-
-class _Destination {
-  const _Destination({
-    required this.icon,
-    required this.selected,
-    required this.label,
-  });
-
-  final IconData icon;
-  final IconData selected;
-  final String label;
 }
 
 /// Small brand mark rendered above the rail and on the desktop shell head.
@@ -189,14 +179,19 @@ class AppHomeMark extends StatelessWidget {
     return Container(
       width: 36,
       height: 36,
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(11),
+        shape: BoxShape.circle,
       ),
-      child: const Icon(
-        Icons.favorite,
-        color: AppColors.textOnDark,
-        size: 20,
+      child: Image.asset(
+        AppAssets.brandLogo,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Icon(
+          Icons.favorite,
+          color: AppColors.textOnDark,
+          size: 20,
+        ),
       ),
     );
   }
