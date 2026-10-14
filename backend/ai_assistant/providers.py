@@ -10,15 +10,18 @@ Layering (approved architecture):
             │
     Configured Provider     (settings.AI_PROVIDER)
 
-Only one provider ships in this build:
+Providers shipped in this build:
 
 * ``RuleBasedProvider`` — deterministic, template-driven, safe, offline. This is
   the sandbox default (no external calls, no API keys, no client↔provider path).
+* ``GeminiProvider`` — Google Gemini via the Generative Language REST API. It is
+  OPT-IN: activate with ``AI_PROVIDER=gemini`` and a ``GEMINI_API_KEY`` env var.
+  With no key it fails honestly (503, audited) rather than answering. The key is
+  read only from the environment and is never logged or persisted.
 
-External LLM providers are the documented extension point behind the same
-interface. They are NOT configured: no provider API key exists anywhere in this
-repository's settings or environment variables, so this build never claims an
-external LLM is operational (see 4.15 implementation note §7/§8).
+External LLM providers remain behind the same interface; unknown names raise
+``ProviderUnavailable`` so the system never silently falls back to a different
+model than the operator configured (see 4.15 implementation note §7/§8).
 
 ``ChatPayload`` is the provider-independent request contract. It carries only
 authorized, minimum-necessary context assembled server-side (ai_assistant.context)
@@ -27,7 +30,10 @@ contains full medical records, other patients' data, or free-form user-supplied
 "context" — the pipeline never trusts client text as context.
 """
 
+import json
 import logging
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 
 from django.conf import settings
@@ -274,8 +280,150 @@ class RuleBasedProvider(BaseAIProvider):
         frame += " This number is a computation from your dose records, not a medical judgement."
         return frame
 
+#: System instruction handed to Google Gemini. It pins the assistant to sickle
+#: cell disease and the Sickler's Warriors platform, forbids diagnosis /
+#: prescribing, and mandates the polite off-topic refusal. The deterministic
+#: safety layer (ai_assistant.safety) still runs before and after every call.
+GEMINI_SYSTEM_INSTRUCTION = (
+    "Wewe ni msaidizi wa afya wa app ya Sickler's Warriors. Unajibu KWA KISWAHILI "
+    "au Kiingereza kufuatana na lugha ya mtumiaji.\n"
+    "SCOPE: You ONLY answer questions about sickle cell disease (seli mundu) and "
+    "the Sickler's Warriors app/health topics directly related to sickle cell — "
+    "education, symptoms, complications, pain crises, medication used in sickle "
+    "cell (e.g. hydroxyurea/hydroxycarbamide, folic acid), hydration, nutrition, "
+    "vaccination, when to seek care, and how to use the app (reminders, records, "
+    "appointments, emergencies).\n"
+    "For ANY question outside this scope (general trivia, other diseases "
+    "unrelated to sickle cell, politics, coding, etc.), you MUST politely refuse "
+    "with exactly this sentiment and do not answer the question: "
+    "\"Samahani, niko hapa kukujibu kuhusu seli mundu (sickle cell disease) na "
+    "mambo yanayohusiana na app yetu ya Sickler's Warriors pekee. Tafadhali uliza "
+    "swali linalohusiana na seli mundu.\"\n"
+    "SAFETY RULES (never break):\n"
+    "- Never diagnose, never prescribe, never tell anyone to start, stop or change "
+    "a dose of any medicine. Direct all clinical decisions to a doctor/pharmacist.\n"
+    "- If the user reports a medical emergency (difficulty breathing, loss of "
+    "consciousness, severe chest pain, stroke signs, uncontrolled bleeding, "
+    "self-harm), tell them to use the app's Emergency/SOS features and contact "
+    "local emergency services immediately.\n"
+    "- Never invent medical records, test results, or make up facts. If you are "
+    "unsure, say so and recommend a healthcare professional.\n"
+    "- Prefer the approved knowledge snippets provided in the prompt; when you use "
+    "them, stay faithful to them and do not contradict them.\n"
+    "- Keep answers clear, kind, non-alarming, and free of certainty claims "
+    "(no words like 'guaranteed cure', '100%').\n"
+)
+
+
+class GeminiProvider(BaseAIProvider):
+    """Google Gemini provider (opt-in via ``AI_PROVIDER=gemini``).
+
+    Calls the Generative Language REST API using only the Python standard
+    library (no new dependency). The API key is read from the environment
+    (``GEMINI_API_KEY``) and is never logged, echoed, or persisted. Missing key
+    or transport/API errors raise ``ProviderUnavailable`` (→ 503, audited) so the
+    system never fabricates an answer.
+    """
+
+    model_id = "gemini"
+
+    def __init__(self):
+        self._model = getattr(settings, "GEMINI_MODEL", "gemini-2.0-flash")
+        self.model_id = f"gemini:{self._model}"
+
+    def generate(self, payload: ChatPayload) -> AIResult:
+        api_key = getattr(settings, "GEMINI_API_KEY", "") or ""
+        if not api_key:
+            logger.error("ai.provider: GEMINI_API_KEY is not configured")
+            raise ProviderUnavailable()
+
+        body = {
+            "system_instruction": {
+                "parts": [{"text": GEMINI_SYSTEM_INSTRUCTION}],
+            },
+            "contents": [
+                {"role": "user", "parts": [{"text": self._user_text(payload)}]},
+            ],
+            "generationConfig": {
+                "temperature": getattr(settings, "GEMINI_TEMPERATURE", 0.30),
+                "maxOutputTokens": getattr(settings, "GEMINI_MAX_OUTPUT_TOKENS", 800),
+            },
+            "safetySettings": [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            ],
+        }
+        url = (
+            f"{getattr(settings, 'GEMINI_API_BASE', 'https://generativelanguage.googleapis.com/v1beta')}"
+            f"/models/{self._model}:generateContent"
+        )
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": api_key,
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(
+                req, timeout=getattr(settings, "GEMINI_TIMEOUT_SECONDS", 30)
+            ) as resp:
+                raw = resp.read().decode("utf-8")
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:
+            logger.error("ai.provider: Gemini request failed: %s", type(exc).__name__)
+            raise ProviderUnavailable() from exc
+
+        text = self._extract_text(raw)
+        if not text:
+            logger.error("ai.provider: Gemini returned no usable text")
+            raise ProviderUnavailable()
+
+        return AIResult(
+            text=text,
+            sources=[dict(s) for s in payload.sources],
+            model_id=self.model_id,
+            metrics=dict(payload.metrics) if payload.metrics else None,
+        )
+
+    @staticmethod
+    def _user_text(payload: ChatPayload) -> str:
+        parts = [payload.message.strip()]
+        sources = payload.sources or []
+        if sources:
+            snippets = "\n".join(
+                f"- {s.get('title', 'Approved material')}: {s.get('snippet', '')}"
+                for s in sources
+            )
+            parts.append(
+                "Approved Sickler's Warriors knowledge you may cite:\n" + snippets
+            )
+        if payload.metrics:
+            parts.append(f"Pre-computed metrics (explain, do not recompute): {payload.metrics}")
+        return "\n\n".join(parts)
+
+    @staticmethod
+    def _extract_text(raw: str) -> str:
+        try:
+            data = json.loads(raw)
+        except (ValueError, TypeError):
+            return ""
+        candidates = data.get("candidates") or []
+        if not candidates:
+            return ""
+        out = []
+        for part in candidates[0].get("content", {}).get("parts", []) or []:
+            if isinstance(part, dict) and part.get("text"):
+                out.append(part["text"])
+        return "\n".join(out).strip()
+
+
 _PROVIDERS = {
     "rule_based": lambda: RuleBasedProvider(),
+    "gemini": lambda: GeminiProvider(),
 }
 
 

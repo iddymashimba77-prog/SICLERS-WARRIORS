@@ -436,3 +436,17 @@ AI_DISCLAIMER = (
     "For diagnosis, treatment decisions, or urgent symptoms, consult a qualified "
     "healthcare professional."
 )
+
+# --- Google Gemini provider (opt-in) ---------------------------------------
+# Set AI_PROVIDER=gemini and GEMINI_API_KEY in the environment to activate.
+# The key is read ONLY from the environment and is NEVER written to source or
+# committed. With no key configured the provider fails honestly (503) instead
+# of pretending to answer.
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_API_BASE = os.environ.get(
+    "GEMINI_API_BASE", "https://generativelanguage.googleapis.com/v1beta"
+)
+GEMINI_TIMEOUT_SECONDS = int(os.environ.get("GEMINI_TIMEOUT_SECONDS", "30"))
+GEMINI_TEMPERATURE = float(os.environ.get("GEMINI_TEMPERATURE", "0.30"))
+GEMINI_MAX_OUTPUT_TOKENS = int(os.environ.get("GEMINI_MAX_OUTPUT_TOKENS", "800"))

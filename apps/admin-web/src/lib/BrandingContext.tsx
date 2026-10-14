@@ -11,9 +11,18 @@ import type { BrandingInfo } from './api/types';
 /// showing the *old* artwork after a replacement. Every uploaded logo carries a
 /// `logo_version` (the row's updated-at stamp) — we append it as a query param
 /// so a new upload becomes a brand-new URL the browser must fetch.
-export function resolveLogoUrl(hasLogo: boolean | undefined, version?: string, defaultAsset = '/sicklers_warriors_logo.png'): string {
+export function resolveLogoUrl(
+  hasLogo: boolean | undefined,
+  version?: string,
+  defaultAsset = '/sicklers_warriors_logo.png',
+  ts?: number,
+): string {
   if (!hasLogo) return defaultAsset;
-  return version ? `/api/branding/logo/?v=${encodeURIComponent(version)}` : '/api/branding/logo/';
+  const params = new URLSearchParams();
+  if (version) params.set('v', version);
+  if (ts) params.set('ts', ts.toString());
+  const qs = params.toString();
+  return qs ? `/api/branding/logo/?${qs}` : '/api/branding/logo/';
 }
 
 /// Keeps the browser tab's favicon in sync with the live brand mark.
@@ -42,11 +51,13 @@ const BrandingContext = createContext<BrandingContextValue>({
 
 export function BrandingProvider({ children }: { children: ReactNode }) {
   const [info, setInfo] = useState<BrandingInfo | null>(null);
+  const [bust, setBust] = useState<number>(0);
 
   const refresh = async () => {
     try {
       const next = await fetchBrandingInfo();
       setInfo(next);
+      setBust(Date.now());
     } catch {
       setInfo(null);
     }
@@ -56,10 +67,8 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, []);
 
-  const logoUrl = resolveLogoUrl(info?.has_logo, info?.logo_version);
+  const logoUrl = resolveLogoUrl(info?.has_logo, info?.logo_version, '/sicklers_warriors_logo.png', bust || Date.now());
 
-  // Keep the favicon on the current brand artwork so a changed logo is obvious
-  // on the browser tab, not just inside the panel.
   useEffect(() => {
     syncFavicon(logoUrl);
   }, [logoUrl]);

@@ -146,7 +146,7 @@ export function BrandingPage() {
             <img
               src={logoUrl}
               alt={info?.logo_alt || 'Platform logo'}
-              style={{ maxWidth: 220, maxHeight: 120, objectFit: 'contain' }}
+              style={{ maxWidth: 220, maxHeight: 120, objectFit: 'cover' }}
             />
           </div>
           {info?.has_logo ? (
@@ -181,7 +181,7 @@ export function BrandingPage() {
                 placeItems: 'center',
               }}
             >
-              <img src={preview} alt="New logo preview" style={{ maxWidth: 220, maxHeight: 120, objectFit: 'contain' }} />
+              <img src={preview} alt="New logo preview" style={{ maxWidth: 220, maxHeight: 120, objectFit: 'cover' }} />
             </div>
           ) : null}
 

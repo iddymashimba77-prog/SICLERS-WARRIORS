@@ -111,7 +111,7 @@ class _EducationDetailViewState extends State<EducationDetailView> {
               content.coverUrl,
               height: 180,
               width: double.infinity,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
               webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),

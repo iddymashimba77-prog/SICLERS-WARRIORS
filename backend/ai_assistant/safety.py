@@ -186,7 +186,6 @@ _OUTPUT_FORBIDDEN = [
     )),
 ]
 
-
 def validate_output(text) -> tuple[bool, str]:
     """Return (is_safe, reason). False → the caller must fall back."""
     for key, pattern in _OUTPUT_FORBIDDEN:
@@ -201,3 +200,63 @@ SAFE_FALLBACK = (
     "prepare for conversations with your healthcare professional. For anything "
     "clinical, please ask a qualified doctor, pharmacist, or nurse."
 )
+
+#: Polite scope-limitation reply for anything outside sickle cell disease and
+#: the Sickler's Warriors platform (FR-AI-001 scope). Bilingual so a Swahili
+#: speaker is never left without a clear answer.
+OFF_TOPIC_REFUSAL = (
+    "Samahani, niko hapa kukujibu kuhusu seli mundu (sickle cell disease) na "
+    "mambo yanayohusiana na app yetu ya Sickler's Warriors pekee. Naweza "
+    "kukusaidia na elimu, ushauri wa jumla kuhusu seli mundu, dawa "
+    "zinazohusiana na seli mundu, au maswala ya afya yanayohusiana na seli "
+    "mundu. Tafadhali uliza swali linalohusiana na seli mundu. "
+    "(Sorry — I can only help with sickle cell disease and the Sickler's "
+    "Warriors app. Please ask a sickle-cell related question.)"
+)
+
+#: Explicit sickle-cell vocabulary (the core in-scope domain).
+_SICKLE_CELL_TERMS = re.compile(
+    r"\b(sickle[ -]?cell|sickle|sickling|vaso[ -]?occlusive|vasoocclusive|"
+    r"cris(e|es|is)|hbs|hb ?s|hemoglobin ?s|hbf|drepanocyt\w*|"
+    r"hydroxyurea|hydroxycarbamide|hydroxyurea|folic acid|folate|"
+    r"exchange transfusion|blood transfusion|transfusion|"
+    r"thalass?emia|sickle trait|sickle cell trait|splenic|painful crisis|"
+    r"pain cris\w+|acute chest syndrome|acute chest|"
+    r"osteomyelitis|leg ulcer|retinopath\w*|avascular necrosis|"
+    r"priapism|dactylitis|sequestration|aplastic crisis|"
+    r"hydrea|endari|voxelotor|oxbryta|adkveo|crizanlizumab|"
+    r"sickle disease|red (blood )?cell|blood disorder|haemoglobinopathy|"
+    r"hemoglobinopathy|genetic blood)\b",
+    re.I,
+)
+
+#: App / general health vocabulary that stays in scope because it describes the
+#: platform or sickle-cell-adjacent care (education, meds, symptoms, records).
+_GENERAL_HEALTH_TERMS = re.compile(
+    r"\b(health|medical|medicine|medication|meds|drug|pill|tablet|dose|dosage|"
+    r"prescription|pharmac\w*|symptom|pain|fever|ana?emia|jaundice|"
+    r"infection|dehydration|hydration|appointment|doctor|nurse|clinic|"
+    r"hospital|treatment|therapy|care|diagnos\w*|test|screening|blood|"
+    r"vaccin\w*|fluids?|oxygen|headache|swelling|fatigue|tiredness|"
+    r"app|account|profile|sign ?up|login|record|reminder|emergency|sos|"
+    r"donor|donation|campaign|education|academy|patient|caregiver|"
+    r"hello|hi|hey|habari|mambo|salaam|salam|thank\w*|asante|help)\b",
+    re.I,
+)
+
+
+def is_topic_allowed(text: str) -> tuple[bool, str]:
+    """Return ``(is_allowed, reason)`` for the assistant's scope.
+
+    The Sickler's Warriors assistant is deliberately scoped to sickle cell
+    disease and the platform. Anything else is answered with the polite
+    :data:`OFF_TOPIC_REFUSAL` instead of an unrelated (and unapproved) answer.
+
+    Empty/greeting messages are allowed through so the provider can greet the
+    user; the provider's own system instruction still refuses off-topic detail.
+    """
+    if not text or not text.strip():
+        return True, ""
+    if _SICKLE_CELL_TERMS.search(text) or _GENERAL_HEALTH_TERMS.search(text):
+        return True, ""
+    return False, "off_topic"

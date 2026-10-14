@@ -67,9 +67,12 @@ class BrandingController extends ChangeNotifier {
   String get resolvedLogoUrl {
     final raw = _info.logoUrl;
     if (raw.isEmpty) return '';
-    final versioned = _info.logoVersion.isNotEmpty
-        ? '${raw.contains('?') ? '&' : '?'}v=${Uri.encodeQueryComponent(_info.logoVersion)}'
-        : '';
+    final params = <String>[];
+    if (_info.logoVersion.isNotEmpty) {
+      params.add('v=${Uri.encodeQueryComponent(_info.logoVersion)}');
+    }
+    final qs = params.join('&');
+    final versioned = qs.isNotEmpty ? (raw.contains('?') ? '&$qs' : '?$qs') : '';
     if (raw.startsWith('http://') || raw.startsWith('https://')) {
       return '$raw$versioned';
     }

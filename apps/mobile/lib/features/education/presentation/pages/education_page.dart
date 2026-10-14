@@ -306,7 +306,7 @@ class _ArticleCard extends StatelessWidget {
                     item.coverUrl,
                     height: 140,
                     width: double.infinity,
-                    fit: BoxFit.cover,
+                    fit: BoxFit.contain,
                     webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
                     errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),

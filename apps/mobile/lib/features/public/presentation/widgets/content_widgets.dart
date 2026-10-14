@@ -33,7 +33,7 @@ class PublicNewsCover extends StatelessWidget {
             url,
             height: height,
             width: double.infinity,
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
             // Covers may be admin-supplied external URLs (e.g. pinned stock
             // photos) whose hosts do not send CORS headers. On Flutter web the
             // default byte-fetch is blocked by the browser, so fall back to an

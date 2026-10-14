@@ -117,6 +117,24 @@ class AiAssistantService:
                 model_id=providers.RuleBasedProvider.model_id,
                 use_case=use_case, limitation=ctx["limitation"],
             )
+        
+        # -- topic restriction (sickle cell + app only) -------------------
+        # Free-form Q&A is scoped to sickle cell / health. Personal-data use
+        # cases (health_summary, symptom_assistance, insight_explanation,
+        # appointment_preparation) are app features and stay in scope by design.
+        if use_case in ("education", "health_questions", "medication_education"):
+            topic_ok, topic_reason = safety.is_topic_allowed(message)
+            if not topic_ok:
+                return self._finish(
+                    user, request, request_id,
+                    message=safety.OFF_TOPIC_REFUSAL,
+                    sources=[], metrics=None, personalized=can_personalize,
+                    context_categories=ctx["categories"],
+                    emergency_action=False, emergency_categories=[],
+                    safety_blocked=True, safety_reason="off_topic",
+                    model_id=getattr(settings, "AI_PROVIDER", "rule_based"),
+                    use_case=use_case, limitation=ctx["limitation"],
+                )
 
         # -- approved-knowledge grounding (FR-AI-001) ---------------------
         sources = []
@@ -269,7 +287,9 @@ class AiAssistantService:
                     "emergency_categories": emergency_categories,
                 },
             )
-        elif safety_blocked and safety_reason in safety.REFUSAL_TEMPLATES:
+        elif safety_blocked and (
+            safety_reason in safety.REFUSAL_TEMPLATES or safety_reason == "off_topic"
+        ):
             record_audit(
                 actor=user, action_code="ai.safety_block",
                 resource_type="ai.assistant", resource_id=None,
@@ -282,7 +302,9 @@ class AiAssistantService:
 
         if emergency_action:
             outcome = "emergency"
-        elif safety_blocked and safety_reason in safety.REFUSAL_TEMPLATES:
+        elif safety_blocked and (
+            safety_reason in safety.REFUSAL_TEMPLATES or safety_reason == "off_topic"
+        ):
             outcome = "refused"
         else:
             outcome = "completed"

@@ -160,7 +160,7 @@ class AiChatAuthorizationTests(TestCase):
     def test_message_trimmed_and_stored_nowhere(self):
         patient = self.clients["PATIENT"]
         secret = f"needlephrase-{_uuid.uuid4().hex}"
-        resp = _chat(patient, f"   {secret}   ", use_case="education")
+        resp = _chat(patient, f"   sickle cell {secret}   ", use_case="education")
         self.assertEqual(resp.status_code, 200)
         # padding was trimmed by the serializer before the pipeline saw it…
         self.assertIn(secret, resp.data["message"])
@@ -499,3 +499,125 @@ class AiAuditHygieneTests(TestCase):
             blob = json.dumps(row.details or {})
             self.assertNotIn(phrase, blob)
             self.assertNotIn("UniquelySafeWording", blob)
+
+
+class AiTopicScopeTests(TestCase):
+    """The assistant is scoped to sickle cell + the app; off-topic is refused."""
+
+    def setUp(self):
+        cache.clear()
+        self.patient = _orm_user("PATIENT", email=f"p-{_uuid.uuid4().hex[:8]}@x.com")
+        self.c = _client(self.patient)
+
+    def test_sickle_cell_question_is_answered(self):
+        resp = _chat(self.c, "What is sickle cell disease?")
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotIn("Samahani", resp.data["message"])
+
+    def test_general_health_question_stays_in_scope(self):
+        resp = _chat(self.c, "What is anaemia?")
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotIn("Samahani", resp.data["message"])
+
+    def test_off_topic_question_is_politely_refused(self):
+        from . import safety
+
+        resp = _chat(self.c, "Tell me a joke about football")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["message"], safety.OFF_TOPIC_REFUSAL)
+        self.assertEqual(resp.data["sources"], [])
+        blocked = AuditLog.objects.filter(
+            actor=self.patient, action_code="ai.safety_block"
+        ).latest("id")
+        self.assertEqual(blocked.details.get("reason"), "off_topic")
+
+    def test_off_topic_not_applied_to_personal_use_cases(self):
+        # health_summary is an app feature; a data-less request must still be
+        # handled by the pipeline (not blocked as "off topic").
+        resp = _chat(self.c, "Summarize my health", use_case="health_summary")
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotIn("Samahani", resp.data["message"])
+
+
+class GeminiProviderTests(TestCase):
+    """Google Gemini provider wiring (opt-in, key from env, honest failure)."""
+
+    def test_factory_returns_gemini_provider(self):
+        from . import providers
+
+        with override_settings(AI_PROVIDER="gemini", GEMINI_MODEL="gemini-2.0-flash"):
+            provider = providers.get_ai_provider()
+        self.assertEqual(provider.model_id, "gemini:gemini-2.0-flash")
+
+    def test_missing_key_fails_honestly(self):
+        from . import providers
+
+        with override_settings(AI_PROVIDER="gemini", GEMINI_API_KEY=""):
+            with self.assertRaises(providers.ProviderUnavailable):
+                providers.GeminiProvider().generate(
+                    providers.ChatPayload(
+                        request_id="r", use_case="education",
+                        message="What is sickle cell?", context={}, sources=[],
+                    )
+                )
+
+    def test_generate_parses_response_and_sends_key_and_scope(self):
+        from . import providers
+
+        captured = {}
+
+        class _FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self):
+                return json.dumps({
+                    "candidates": [{
+                        "content": {"parts": [{"text": "Sickle cell is genetic."}]}
+                    }]
+                }).encode("utf-8")
+
+        def _fake_urlopen(req, timeout=None):
+            captured["url"] = req.full_url
+            captured["headers"] = {k.lower(): v for k, v in req.header_items()}
+            captured["body"] = json.loads(req.data.decode("utf-8"))
+            return _FakeResponse()
+
+        with override_settings(
+            AI_PROVIDER="gemini", GEMINI_API_KEY="test-key-123",
+            GEMINI_MODEL="gemini-2.0-flash",
+        ):
+            with patch("ai_assistant.providers.urllib.request.urlopen", _fake_urlopen):
+                result = providers.GeminiProvider().generate(
+                    providers.ChatPayload(
+                        request_id="r", use_case="education",
+                        message="What is sickle cell?", context={}, sources=[],
+                    )
+                )
+
+        self.assertEqual(result.text, "Sickle cell is genetic.")
+        self.assertIn("test-key-123", captured["headers"].get("x-goog-api-key", ""))
+        self.assertIn(":generateContent", captured["url"])
+        system_text = captured["body"]["system_instruction"]["parts"][0]["text"]
+        self.assertIn("sickle cell", system_text.lower())
+        self.assertIn("Samahani", system_text)
+
+    def test_transport_error_fails_honestly(self):
+        from . import providers
+        import urllib.error
+
+        def _boom(req, timeout=None):
+            raise urllib.error.URLError("no network")
+
+        with override_settings(AI_PROVIDER="gemini", GEMINI_API_KEY="k"):
+            with patch("ai_assistant.providers.urllib.request.urlopen", _boom):
+                with self.assertRaises(providers.ProviderUnavailable):
+                    providers.GeminiProvider().generate(
+                        providers.ChatPayload(
+                            request_id="r", use_case="education",
+                            message="What is sickle cell?", context={}, sources=[],
+                        )
+                    )
