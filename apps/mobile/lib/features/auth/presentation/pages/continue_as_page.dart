@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../widgets/session_router.dart';
 import '../widgets/session_scope.dart';
 import '../../../../core/theme/app_shapes.dart';
@@ -18,6 +19,7 @@ class ContinueAsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
     final controller = SessionScope.controllerOf(context);
     final contexts = SessionRouter.contextsFor(
       roles: controller.roles,
@@ -25,7 +27,7 @@ class ContinueAsPage extends StatelessWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Continue as')),
+      appBar: AppBar(title: Text(s.tr('auth.continueAs'))),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -38,14 +40,13 @@ class ContinueAsPage extends StatelessWidget {
                     size: 64, color: AppColors.primary),
                 const SizedBox(height: 16),
                 Text(
-                  'Which experience do you want to open?',
+                  s.tr('auth.continueAsQuestion'),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Your account has access to several roles. '
-                  'Switching roles is available any time in your profile.',
+                  s.tr('auth.continueAsBody'),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -79,6 +80,7 @@ class _ContextOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = AppLocalizations.of(context);
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -90,8 +92,8 @@ class _ContextOption extends StatelessWidget {
           backgroundColor: AppColors.primary.withValues(alpha: 0.12),
           child: Icon(context_.icon, color: AppColors.primary),
         ),
-        title: Text(context_.title),
-        subtitle: Text(context_.subtitle),
+        title: Text(s.tr(context_.titleKey)),
+        subtitle: Text(s.tr(context_.subtitleKey)),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
       ),

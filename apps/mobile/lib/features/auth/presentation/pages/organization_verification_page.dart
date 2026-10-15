@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../public/presentation/pages/public_home_page.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/session_scope.dart';
@@ -22,15 +23,17 @@ class OrganizationVerificationPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = AppLocalizations.of(context);
     final auth = controller ?? SessionScope.controllerOf(context);
     final facility = auth.facility;
-    final name = facility?['name'] as String? ?? 'Your organization';
+    final name = facility?['name'] as String? ?? s.tr('org.yourOrganization');
     final isVerified = facility?['is_verified'] == true;
     final facilityType =
-        (facility?['facility_type'] as String? ?? 'Facility').toLowerCase();
+        (facility?['facility_type'] as String? ?? s.tr('org.facilityFallback'))
+            .toLowerCase();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Organization')),
+      appBar: AppBar(title: Text(s.tr('auth.organization'))),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -45,18 +48,20 @@ class OrganizationVerificationPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  isVerified ? '$name verified' : 'Verification pending',
+                  isVerified
+                      ? '$name ${s.tr('org.verifiedSuffix')}'
+                      : s.tr('role.verificationPending'),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 12),
                 Text(
                   isVerified
-                      ? '$name ($facilityType) is a verified organization '
-                          'identity on Sickler\'s Warriors.'
-                      : 'Your $facilityType identity is registered but has not '
-                          'been verified yet. Organization tools open after '
-                          'verification.',
+                      ? s
+                          .tr('org.verifiedBody')
+                          .replaceAll('{name}', name)
+                          .replaceAll('{type}', facilityType)
+                      : s.tr('org.pendingBody').replaceAll('{type}', facilityType),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -72,7 +77,7 @@ class OrganizationVerificationPage extends StatelessWidget {
                     );
                   },
                   icon: const Icon(Icons.home_outlined),
-                  label: const Text('Go to Home'),
+                  label: Text(s.tr('common.goHome')),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(

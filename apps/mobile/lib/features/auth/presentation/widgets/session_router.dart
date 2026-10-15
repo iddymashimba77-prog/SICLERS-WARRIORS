@@ -14,15 +14,15 @@ class AppContext {
   const AppContext({
     required this.id,
     required this.route,
-    required this.title,
-    required this.subtitle,
+    required this.titleKey,
+    required this.subtitleKey,
     required this.icon,
   });
 
   final String id;
   final String route;
-  final String title;
-  final String subtitle;
+  final String titleKey;
+  final String subtitleKey;
   final IconData icon;
 }
 
@@ -46,96 +46,96 @@ class SessionRouter {
   static const AppContext admin = AppContext(
     id: 'admin',
     route: '/admin',
-    title: 'Administrator',
-    subtitle: 'Platform administration',
+    titleKey: 'role.admin',
+    subtitleKey: 'role.admin.subtitle',
     icon: Icons.admin_panel_settings_outlined,
   );
 
   static const AppContext doctorVerified = AppContext(
     id: 'doctor',
     route: '/doctor-shell',
-    title: 'Doctor',
-    subtitle: 'Clinical dashboard',
+    titleKey: 'role.doctor',
+    subtitleKey: 'role.doctor.subtitle',
     icon: Icons.medical_services_outlined,
   );
 
   static const AppContext doctorPending = AppContext(
     id: 'doctor-pending',
     route: '/doctor-status',
-    title: 'Doctor',
-    subtitle: 'Verification pending',
+    titleKey: 'role.doctor',
+    subtitleKey: 'role.verificationPending',
     icon: Icons.hourglass_top_outlined,
   );
 
   static const AppContext bloodDonor = AppContext(
     id: 'blood-donor',
     route: '/donor-shell',
-    title: 'Blood Donor',
-    subtitle: 'Donation centre',
+    titleKey: 'role.bloodDonor',
+    subtitleKey: 'role.bloodDonor.subtitle',
     icon: Icons.bloodtype_outlined,
   );
 
   static const AppContext caregiver = AppContext(
     id: 'caregiver',
     route: '/caregiver-shell',
-    title: 'Caregiver',
-    subtitle: 'Care coordination',
+    titleKey: 'role.caregiver',
+    subtitleKey: 'role.caregiver.subtitle',
     icon: Icons.family_restroom_outlined,
   );
 
   static const AppContext patient = AppContext(
     id: 'patient',
     route: '/shell',
-    title: 'Patient',
-    subtitle: 'Health & community',
+    titleKey: 'role.patient',
+    subtitleKey: 'role.patient.subtitle',
     icon: Icons.favorite_outline,
   );
 
   static const AppContext organization = AppContext(
     id: 'organization',
     route: '/org-status',
-    title: 'Organization',
-    subtitle: 'Facility identity',
+    titleKey: 'role.organization',
+    subtitleKey: 'role.organization.subtitle',
     icon: Icons.account_balance_outlined,
   );
 
   static const AppContext workspace = AppContext(
     id: 'workspace',
     route: '/role-workspace',
-    title: 'Role',
-    subtitle: 'Custom workspace',
+    titleKey: 'role.workspace',
+    subtitleKey: 'role.workspace.subtitle',
     icon: Icons.workspaces_outlined,
   );
 
   static const AppContext psychologistVerified = AppContext(
     id: 'psychologist',
     route: '/doctor-shell',
-    title: 'Psychologist',
-    subtitle: 'Mental health support',
+    titleKey: 'role.psychologist',
+    subtitleKey: 'role.psychologist.subtitle',
     icon: Icons.psychology_outlined,
   );
 
   static const AppContext psychologistPending = AppContext(
     id: 'psychologist-pending',
     route: '/doctor-status',
-    title: 'Psychologist',
-    subtitle: 'Verification pending',
+    titleKey: 'role.psychologist',
+    subtitleKey: 'role.verificationPending',
     icon: Icons.psychology_outlined,
   );
 
   static const AppContext socialSupportVerified = AppContext(
     id: 'social-support',
     route: '/doctor-shell',
-    title: 'Social Support',
-    subtitle: 'Care coordination',
+    titleKey: 'role.socialSupport',
+    subtitleKey: 'role.socialSupport.subtitle',
     icon: Icons.support_agent_outlined,
   );
 
   static const AppContext socialSupportPending = AppContext(
     id: 'social-support-pending',
     route: '/doctor-status',
-    title: 'Social Support',
-    subtitle: 'Verification pending',
+    titleKey: 'role.socialSupport',
+    subtitleKey: 'role.verificationPending',
     icon: Icons.support_agent_outlined,
   );
 

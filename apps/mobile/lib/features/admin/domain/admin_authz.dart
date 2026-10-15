@@ -35,13 +35,17 @@ abstract final class AdminPermissions {
 class AdminSection {
   const AdminSection({
     required this.label,
+    required this.labelKey,
     required this.icon,
     required this.selectedIcon,
     required this.permissions,
   });
 
-  /// Labels for the sidebar and top bar.
+  /// Stable English identifier, also used as the routing switch key.
   final String label;
+
+  /// Localization key for the sidebar and top bar display text.
+  final String labelKey;
   final IconData icon;
   final IconData selectedIcon;
 
@@ -61,6 +65,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.analyticsView))
       const AdminSection(
         label: 'Dashboard',
+        labelKey: 'admin.nav.dashboard',
         icon: Icons.dashboard_outlined,
         selectedIcon: Icons.dashboard,
         permissions: {AdminPermissions.analyticsView},
@@ -68,6 +73,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.usersManage))
       const AdminSection(
         label: 'Users',
+        labelKey: 'admin.nav.users',
         icon: Icons.groups_outlined,
         selectedIcon: Icons.groups,
         permissions: {AdminPermissions.usersManage},
@@ -75,6 +81,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.doctorsVerify))
       const AdminSection(
         label: 'Doctors',
+        labelKey: 'admin.nav.doctors',
         icon: Icons.medical_services_outlined,
         selectedIcon: Icons.medical_services,
         permissions: {AdminPermissions.doctorsVerify},
@@ -82,6 +89,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.facilitiesVerify))
       const AdminSection(
         label: 'Organizations',
+        labelKey: 'admin.nav.organizations',
         icon: Icons.business_outlined,
         selectedIcon: Icons.business,
         permissions: {AdminPermissions.facilitiesVerify},
@@ -89,6 +97,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.bloodVerify))
       const AdminSection(
         label: 'Blood Verification',
+        labelKey: 'admin.nav.bloodVerification',
         icon: Icons.bloodtype_outlined,
         selectedIcon: Icons.bloodtype,
         permissions: {AdminPermissions.bloodVerify},
@@ -96,6 +105,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.campaignsVerify))
       const AdminSection(
         label: 'Campaigns',
+        labelKey: 'admin.nav.campaigns',
         icon: Icons.campaign_outlined,
         selectedIcon: Icons.campaign,
         permissions: {AdminPermissions.campaignsVerify},
@@ -103,6 +113,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.rolesView))
       const AdminSection(
         label: 'Roles & Permissions',
+        labelKey: 'admin.nav.rolesPermissions',
         icon: Icons.security_outlined,
         selectedIcon: Icons.security,
         permissions: {AdminPermissions.rolesView},
@@ -110,6 +121,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.educationReview))
       const AdminSection(
         label: 'Content Review',
+        labelKey: 'admin.nav.contentReview',
         icon: Icons.article_outlined,
         selectedIcon: Icons.article,
         permissions: {AdminPermissions.educationReview},
@@ -117,6 +129,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.contentNewsManage))
       const AdminSection(
         label: 'News',
+        labelKey: 'admin.nav.news',
         icon: Icons.newspaper_outlined,
         selectedIcon: Icons.newspaper,
         permissions: {AdminPermissions.contentNewsManage},
@@ -124,6 +137,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.contentTickerManage))
       const AdminSection(
         label: 'Announcements',
+        labelKey: 'admin.nav.announcements',
         icon: Icons.campaign_outlined,
         selectedIcon: Icons.campaign,
         permissions: {AdminPermissions.contentTickerManage},
@@ -131,6 +145,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.communityModerate))
       const AdminSection(
         label: 'Moderation',
+        labelKey: 'admin.nav.moderation',
         icon: Icons.admin_panel_settings_outlined,
         selectedIcon: Icons.admin_panel_settings,
         permissions: {AdminPermissions.communityModerate},
@@ -138,6 +153,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.donationsView))
       const AdminSection(
         label: 'Finance',
+        labelKey: 'admin.nav.finance',
         icon: Icons.account_balance_outlined,
         selectedIcon: Icons.account_balance,
         permissions: {AdminPermissions.donationsView},
@@ -145,6 +161,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.broadcast))
       const AdminSection(
         label: 'Broadcast',
+        labelKey: 'admin.nav.broadcast',
         icon: Icons.campaign_outlined,
         selectedIcon: Icons.campaign,
         permissions: {AdminPermissions.broadcast},
@@ -152,6 +169,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.auditView))
       const AdminSection(
         label: 'Audit Logs',
+        labelKey: 'admin.nav.auditLogs',
         icon: Icons.history_outlined,
         selectedIcon: Icons.history,
         permissions: {AdminPermissions.auditView},
@@ -159,6 +177,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.auditAdminRead))
       const AdminSection(
         label: 'Security Events',
+        labelKey: 'admin.nav.securityEvents',
         icon: Icons.shield_outlined,
         selectedIcon: Icons.shield,
         permissions: {AdminPermissions.auditAdminRead},
@@ -166,6 +185,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.analyticsView))
       const AdminSection(
         label: 'Analytics',
+        labelKey: 'admin.nav.analytics',
         icon: Icons.insert_chart_outlined,
         selectedIcon: Icons.insert_chart,
         permissions: {AdminPermissions.analyticsView},
@@ -173,6 +193,7 @@ List<AdminSection> adminSectionsFor({
     if (has(AdminPermissions.auditAdminRead))
       const AdminSection(
         label: 'AI Monitoring',
+        labelKey: 'admin.nav.aiMonitoring',
         icon: Icons.psychology_outlined,
         selectedIcon: Icons.psychology,
         permissions: {AdminPermissions.auditAdminRead},

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../public/presentation/pages/public_home_page.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/session_scope.dart';
@@ -31,41 +32,39 @@ class _DoctorVerificationPageState extends State<DoctorVerificationPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = AppLocalizations.of(context);
     final controller = _controller;
     final status = controller.doctorVerificationStatus ?? 'PENDING';
 
-    final (title, message, icon, color) = switch (status) {
+    final (titleKey, messageKey, icon, color) = switch (status) {
       'APPROVED' => (
-          'Professional verification approved',
-          'Your clinical dashboard is ready.',
+          'auth.doctorStatus.approvedTitle',
+          'auth.doctorStatus.approvedBody',
           Icons.verified_outlined,
           Colors.green,
         ),
       'REJECTED' => (
-          'Verification not approved',
-          'Your professional verification was not approved. You can re-apply '
-              'or contact support for details.',
+          'auth.doctorStatus.rejectedTitle',
+          'auth.doctorStatus.rejectedBody',
           Icons.cancel_outlined,
           AppColors.emergency,
         ),
       'SUSPENDED' => (
-          'Verification suspended',
-          'Your professional verification is temporarily suspended. '
-              'Contact support for details.',
+          'auth.doctorStatus.suspendedTitle',
+          'auth.doctorStatus.suspendedBody',
           Icons.pause_circle_outline,
           AppColors.emergency,
         ),
       _ => (
-          'Verification pending',
-          'Your professional verification is being reviewed. You can use the '
-              'community, but clinical tools open once it is approved.',
+          'auth.doctorStatus.pendingTitle',
+          'auth.doctorStatus.pendingBody',
           Icons.hourglass_top_outlined,
           AppColors.primary,
         ),
     };
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Doctor Account')),
+      appBar: AppBar(title: Text(s.tr('auth.doctorAccount'))),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -76,13 +75,13 @@ class _DoctorVerificationPageState extends State<DoctorVerificationPage> {
                 Icon(icon, size: 72, color: color),
                 const SizedBox(height: 16),
                 Text(
-                  title,
+                  s.tr(titleKey),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  message,
+                  s.tr(messageKey),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,

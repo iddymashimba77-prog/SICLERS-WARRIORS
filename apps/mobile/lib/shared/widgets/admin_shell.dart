@@ -68,6 +68,7 @@ class _AdminShellState extends State<AdminShell> {
       );
     }
 
+    final s = AppLocalizations.of(context);
     final safeIndex = _index < sections.length ? _index : 0;
     final section = sections[safeIndex];
     return LayoutBuilder(
@@ -75,7 +76,7 @@ class _AdminShellState extends State<AdminShell> {
         final width = constraints.maxWidth;
         final bool useDrawer = width < 840;
         final adminName = session?.displayName ?? 'Admin';
-        final adminSub = session?.roles.join(', ') ?? 'Administrator';
+        final adminSub = session?.roles.join(', ') ?? s.tr('role.admin');
         return Scaffold(
           drawer: useDrawer ? _buildDrawer(sections) : null,
           body: Row(
@@ -85,7 +86,7 @@ class _AdminShellState extends State<AdminShell> {
                 child: Column(
                   children: [
                     AppTopBar(
-                      title: section.label,
+                      title: s.tr(section.labelKey),
                       leading: useDrawer ? Builder(builder: _drawerButton) : null,
                       onNotificationsTap: () {},
                       avatarName: adminName,
@@ -149,7 +150,7 @@ class _AdminShellState extends State<AdminShell> {
 
   Widget _drawerButton(BuildContext context) {
     return IconButton(
-      tooltip: 'Menu',
+      tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
       icon: const Icon(Icons.menu),
       onPressed: () => Scaffold.of(context).openDrawer(),
     );
@@ -246,10 +247,10 @@ class _AdminSidebar extends StatelessWidget {
                   ),
                   if (!collapsed) ...[
                     const SizedBox(width: AppSpacing.md),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Warriors Admin',
-                        style: TextStyle(
+                        AppLocalizations.of(context).tr('admin.warriorsAdmin'),
+                        style: const TextStyle(
                           color: AppColors.textOnDark,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -287,7 +288,11 @@ class _AdminSidebar extends StatelessWidget {
                         ? Alignment.center
                         : Alignment.centerRight,
                     child: IconButton(
-                      tooltip: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+                      tooltip: AppLocalizations.of(context).tr(
+                        collapsed
+                            ? 'admin.expandSidebar'
+                            : 'admin.collapseSidebar',
+                      ),
                       icon: Icon(
                         collapsed
                             ? Icons.chevron_right
@@ -370,6 +375,7 @@ class _SidebarTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
     final Color contentColor =
         selected ? Colors.white : AppColors.textOnDark.withValues(alpha: 0.72);
     return Padding(
@@ -396,7 +402,7 @@ class _SidebarTile extends StatelessWidget {
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Text(
-                      section.label,
+                      s.tr(section.labelKey),
                       style: TextStyle(
                         color: contentColor,
                         fontSize: 14,

@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../../core/theme/app_shapes.dart';
@@ -15,19 +16,19 @@ class AdminAsyncList<T> extends StatefulWidget {
     super.key,
     required this.load,
     required this.itemBuilder,
-    this.emptyTitle = 'Nothing to show',
-    this.emptyMessage = 'There is nothing here yet.',
+    this.emptyTitle,
+    this.emptyMessage,
     this.emptyIcon = Icons.inbox_outlined,
-    this.loadingLabel = 'Loading',
+    this.loadingLabel,
     this.separator = true,
   });
 
   final Future<List<T>> Function() load;
   final Widget Function(BuildContext context, T item) itemBuilder;
-  final String emptyTitle;
-  final String emptyMessage;
+  final String? emptyTitle;
+  final String? emptyMessage;
   final IconData emptyIcon;
-  final String loadingLabel;
+  final String? loadingLabel;
   final bool separator;
 
   @override
@@ -71,21 +72,22 @@ class AdminAsyncListState<T> extends State<AdminAsyncList<T>> {
     if (_loading) {
       return const SkeletonListView(rows: 5);
     }
+    final s = AppLocalizations.of(context);
     if (_error != null) {
       final message = _error is Exception
-          ? _userMessage(_error as Exception)
-          : 'Could not load this section.';
+          ? _userMessage(_error as Exception, s)
+          : s.tr('admin.couldNotLoadSection');
       return ErrorRetryView(
         message: message,
         onRetry: reload,
-        title: 'Could not load',
+        title: s.tr('admin.couldNotLoad'),
       );
     }
     if (_items.isEmpty) {
       return EmptyStateView(
         icon: widget.emptyIcon,
-        title: widget.emptyTitle,
-        message: widget.emptyMessage,
+        title: widget.emptyTitle ?? s.tr('admin.nothingToShow'),
+        message: widget.emptyMessage ?? s.tr('admin.nothingHere'),
       );
     }
     return RefreshIndicator(
@@ -101,13 +103,13 @@ class AdminAsyncListState<T> extends State<AdminAsyncList<T>> {
     );
   }
 
-  String _userMessage(Exception e) {
+  String _userMessage(Exception e, AppLocalizations s) {
     final text = e.toString();
-    if (text.isEmpty) return 'Could not reach the server. Try again shortly.';
+    if (text.isEmpty) return s.tr('admin.serverUnreachable');
     if (text.contains('Server error') || text.contains('Request failed')) {
       return text;
     }
-    return 'Could not reach the server. Try again shortly.';
+    return s.tr('admin.serverUnreachable');
   }
 }
 
@@ -212,10 +214,11 @@ Future<bool> confirmAction({
   required BuildContext context,
   required String title,
   required String message,
-  String confirmLabel = 'Confirm',
+  String? confirmLabel,
   bool destructive = false,
 }) async {
   final theme = Theme.of(context);
+  final s = AppLocalizations.of(context);
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
@@ -224,7 +227,7 @@ Future<bool> confirmAction({
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+          child: Text(s.tr('admin.cancel')),
         ),
         FilledButton(
           style: destructive
@@ -234,7 +237,7 @@ Future<bool> confirmAction({
                 )
               : null,
           onPressed: () => Navigator.of(context).pop(true),
-          child: Text(confirmLabel),
+          child: Text(confirmLabel ?? s.tr('admin.confirm')),
         ),
       ],
     ),
@@ -246,8 +249,9 @@ Future<bool> confirmAction({
 Future<String?> promptReason({
   required BuildContext context,
   required String title,
-  String hint = 'Reason (min 5 characters)',
+  String? hint,
 }) async {
+  final s = AppLocalizations.of(context);
   final controller = TextEditingController();
   final submitted = await showDialog<String>(
     context: context,
@@ -258,16 +262,17 @@ Future<String?> promptReason({
           controller: controller,
           autofocus: true,
           maxLines: 3,
-          decoration: InputDecoration(hintText: hint),
+          decoration:
+              InputDecoration(hintText: hint ?? s.tr('admin.reasonHint')),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(s.tr('admin.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Submit'),
+            child: Text(s.tr('admin.submit')),
           ),
         ],
       );

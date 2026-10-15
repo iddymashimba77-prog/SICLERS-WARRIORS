@@ -69,8 +69,8 @@ void main() {
       expect(find.byType(NavigationBar), findsNothing);
       expect(find.byType(NavigationRail), findsOneWidget);
       // The rail renders the shared localized nav labels (the same source the
-      // app uses); the test scope resolves to the Swahili fallback locale.
-      final l = AppLocalizations(const Locale('sw'));
+      // app uses); the test scope resolves to the English fallback locale.
+      final l = AppLocalizations(const Locale('en'));
       for (final key in [
         'nav.home',
         'nav.doctor',
