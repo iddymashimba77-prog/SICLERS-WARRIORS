@@ -74,7 +74,7 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
     final type = _selectedType;
     if (type == null || type.code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.symptomType)),
+        SnackBar(content: Text(AppStrings.symptomType)),
       );
       return;
     }
@@ -95,7 +95,7 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.symptomSaved)),
+        SnackBar(content: Text(AppStrings.symptomSaved)),
       );
       Navigator.pop(context, true);
     } on AuthException catch (e) {
@@ -107,7 +107,7 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.symptomSaveFailed)),
+        SnackBar(content: Text(AppStrings.symptomSaveFailed)),
       );
     }
   }
@@ -122,7 +122,7 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.recordSymptom)),
+      appBar: AppBar(title: Text(AppStrings.recordSymptom)),
       body: _buildBody(),
       bottomNavigationBar: SafeArea(
         child: Padding(
@@ -135,7 +135,7 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text(AppStrings.save),
+                : Text(AppStrings.save),
           ),
         ),
       ),
@@ -151,13 +151,13 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(24),
               child: Text(AppStrings.symptomSaveFailed),
             ),
             OutlinedButton(
               onPressed: _loadTypes,
-              child: const Text(AppStrings.retry),
+              child: Text(AppStrings.retry),
             ),
           ],
         ),
@@ -230,7 +230,7 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
                   const Icon(Icons.warning_amber_rounded,
                       color: AppColors.emergency),
                   const SizedBox(width: 12),
-                  const Expanded(child: Text(AppStrings.crisisHelp)),
+                  Expanded(child: Text(AppStrings.crisisHelp)),
                 ],
               ),
             ),
@@ -261,7 +261,7 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
         TextField(
           controller: _duration,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: AppStrings.durationMinutes,
             border: OutlineInputBorder(),
           ),
@@ -270,7 +270,7 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
         TextField(
           controller: _notes,
           maxLines: 3,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: AppStrings.notes,
             border: OutlineInputBorder(),
           ),

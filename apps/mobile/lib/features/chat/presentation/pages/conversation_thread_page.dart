@@ -105,7 +105,7 @@ class _ConversationThreadViewState extends State<ConversationThreadView> {
       if (!mounted) return;
       setState(() => _sending = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.messageSendFailed)),
+        SnackBar(content: Text(AppStrings.messageSendFailed)),
       );
     }
   }
@@ -139,7 +139,7 @@ class _ConversationThreadViewState extends State<ConversationThreadView> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.deleteFailed)),
+        SnackBar(content: Text(AppStrings.deleteFailed)),
       );
     }
   }
@@ -147,7 +147,7 @@ class _ConversationThreadViewState extends State<ConversationThreadView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.privateDoctorChat)),
+      appBar: AppBar(title: Text(AppStrings.privateDoctorChat)),
       body: Column(
         children: [
           Expanded(child: _buildBody()),
@@ -164,7 +164,7 @@ class _ConversationThreadViewState extends State<ConversationThreadView> {
     }
     final messages = _messages ?? const <ChatMessage>[];
     if (messages.isEmpty) {
-      return const EmptyStateView(message: AppStrings.noConversations);
+      return EmptyStateView(message: AppStrings.noConversations);
     }
     return ListView.builder(
       controller: _scrollController,
@@ -189,7 +189,7 @@ class _ConversationThreadViewState extends State<ConversationThreadView> {
             Expanded(
               child: TextField(
                 controller: _controller,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: AppStrings.sendMessageHint,
                   border: OutlineInputBorder(),
                   isDense: true,

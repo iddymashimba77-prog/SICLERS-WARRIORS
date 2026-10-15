@@ -126,7 +126,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.communityLoadFailed)),
+        SnackBar(content: Text(AppStrings.communityLoadFailed)),
       );
     }
   }
@@ -162,7 +162,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.communityFeed),
+        title: Text(AppStrings.communityFeed),
         actions: [
           IconButton(
             tooltip: AppStrings.myPosts,
@@ -212,7 +212,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
     }
     final posts = _posts ?? const <CommunityPost>[];
     if (posts.isEmpty) {
-      return const EmptyStateView(
+      return EmptyStateView(
         message: AppStrings.noPosts,
         icon: Icons.forum_outlined,
       );
@@ -249,7 +249,7 @@ class _CategoryBar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
-              label: const Text(AppStrings.allPosts),
+              label: Text(AppStrings.allPosts),
               selected: selected == null,
               onSelected: (_) => onSelected(null),
             ),
@@ -303,7 +303,7 @@ class _PostCard extends StatelessWidget {
                   ),
                   if (!post.isPublished)
                     Chip(
-                      label: const Text(AppStrings.underReview),
+                      label: Text(AppStrings.underReview),
                       visualDensity: VisualDensity.compact,
                     ),
                 ],

@@ -182,17 +182,17 @@ class _DoctorDirectoryViewState extends State<DoctorDirectoryView> {
             const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.shield_outlined,
                   size: 20,
-                  color: AppColors.textSecondary,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     s.tr('recordsPrivacy'),
                     style: theme.textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ),
               ],

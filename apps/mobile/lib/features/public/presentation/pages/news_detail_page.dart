@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../data/content_repository.dart';
@@ -59,18 +60,17 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text('Article'),
+        title: Text(s.tr('news.title')),
       ),
       body: _loading
           ? const SkeletonListView(rows: 4)
           : _error
               ? ErrorRetryView(
-                  message: 'We couldn\'t open this article. Check your connection.',
+                  message: s.tr('news.loadFailed'),
                   onRetry: _load,
                 )
               : _body(context),
@@ -81,9 +81,10 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
     final detail = _detail;
     final summary = detail ?? widget.intro;
     final theme = Theme.of(context);
+    final s = AppLocalizations.of(context);
     if (summary == null) {
       return ErrorRetryView(
-        message: 'This article is no longer available.',
+        message: s.tr('news.unavailable'),
         onRetry: _loadOrPop,
       );
     }
@@ -108,7 +109,7 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
         Text(
           summary.title,
           style: theme.textTheme.headlineSmall?.copyWith(
-            color: AppColors.textPrimary,
+            color: theme.colorScheme.onSurface,
             fontWeight: FontWeight.w800,
             height: 1.2,
           ),
@@ -123,7 +124,7 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
           Text(
             summary.excerpt,
             style: theme.textTheme.titleMedium?.copyWith(
-              color: AppColors.textPrimary,
+              color: theme.colorScheme.onSurface,
               fontStyle: FontStyle.italic,
               height: 1.45,
             ),
@@ -135,7 +136,7 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
         Text(
           hasBody ? detail.body : summary.excerpt,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: AppColors.textPrimary,
+            color: theme.colorScheme.onSurface,
             height: 1.65,
           ),
         ),
@@ -150,9 +151,9 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  'Thank you for reading. Every warrior\'s story helps raise awareness.',
+                  s.tr('news.thanks'),
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),

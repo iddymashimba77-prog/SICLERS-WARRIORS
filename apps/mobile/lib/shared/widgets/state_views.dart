@@ -54,14 +54,14 @@ class ErrorRetryView extends StatelessWidget {
     required this.onRetry,
     this.icon = Icons.cloud_off_outlined,
     this.title = 'Something went wrong',
-    this.retryLabel = AppStrings.retry,
+    this.retryLabel,
   });
 
   final String message;
   final VoidCallback onRetry;
   final IconData icon;
   final String title;
-  final String retryLabel;
+  final String? retryLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +101,7 @@ class ErrorRetryView extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: Text(retryLabel),
+              label: Text(retryLabel ?? AppStrings.retry),
             ),
           ],
         ),

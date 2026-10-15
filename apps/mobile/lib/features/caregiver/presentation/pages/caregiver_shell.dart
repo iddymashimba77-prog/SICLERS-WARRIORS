@@ -17,7 +17,7 @@ class CaregiverShell extends StatelessWidget {
 
   static const String routeName = '/caregiver-shell';
 
-  static const List<RoleDestination> _destinations = [
+  static List<RoleDestination> get _destinations => [
     RoleDestination(
       icon: Icons.home_outlined,
       selectedIcon: Icons.home,

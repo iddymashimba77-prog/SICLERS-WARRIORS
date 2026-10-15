@@ -91,7 +91,7 @@ class _EducationBookmarksViewState extends State<EducationBookmarksView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.bookmarks)),
+      appBar: AppBar(title: Text(AppStrings.bookmarks)),
       body: _buildBody(),
     );
   }
@@ -106,7 +106,7 @@ class _EducationBookmarksViewState extends State<EducationBookmarksView> {
     }
     final items = _items ?? const <EducationalContent>[];
     if (items.isEmpty) {
-      return const EmptyStateView(
+      return EmptyStateView(
         message: '${AppStrings.noBookmarks}\n${AppStrings.noBookmarksHint}',
         icon: Icons.bookmark_border,
       );

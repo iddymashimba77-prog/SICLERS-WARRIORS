@@ -130,7 +130,7 @@ class _DonationsHomeViewState extends State<DonationsHomeView> {
     if (donation == null || !mounted) return;
     if (donation.isInitiated) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.donationInitiated)),
+        SnackBar(content: Text(AppStrings.donationInitiated)),
       );
       await _openStatus(donation);
     }
@@ -171,7 +171,7 @@ class _DonationsHomeViewState extends State<DonationsHomeView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.financialDonations),
+        title: Text(AppStrings.financialDonations),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -201,7 +201,7 @@ class _DonationsHomeViewState extends State<DonationsHomeView> {
                 onRetry: _load,
               )
             else if ((_campaigns ?? const []).isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(24),
                 child: EmptyStateView(
                   message: AppStrings.noCampaigns,
@@ -222,7 +222,7 @@ class _DonationsHomeViewState extends State<DonationsHomeView> {
             ),
             const SizedBox(height: 8),
             if (_donations.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(24),
                 child: EmptyStateView(
                   message: AppStrings.noDonations,
@@ -294,7 +294,7 @@ class _CampaignCard extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: FilledButton(
                   onPressed: onDonate,
-                  child: const Text(AppStrings.donateNow),
+                  child: Text(AppStrings.donateNow),
                 ),
               ),
             ],
@@ -420,7 +420,7 @@ class _CampaignDetailSheet extends StatelessWidget {
     Navigator.of(context).pop(campaign);
     if (donation.isInitiated) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.donationInitiated)),
+        SnackBar(content: Text(AppStrings.donationInitiated)),
       );
       await showModalBottomSheet<void>(
         context: context,
@@ -481,7 +481,7 @@ class _CampaignDetailSheet extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: () => _donate(context),
                   icon: const Icon(Icons.favorite_outline),
-                  label: const Text(AppStrings.donateNow),
+                  label: Text(AppStrings.donateNow),
                 ),
               ),
             ],
@@ -531,7 +531,7 @@ class _DonateSheetState extends State<_DonateSheet> {
   Future<void> _submit() async {
     if (_amount <= 0) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text(AppStrings.donationAmountError)));
+          .showSnackBar(SnackBar(content: Text(AppStrings.donationAmountError)));
       return;
     }
     setState(() => _submitting = true);
@@ -602,7 +602,7 @@ class _DonateSheetState extends State<_DonateSheet> {
             TextField(
               controller: _custom,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.donationAmount,
                 prefixText: 'TZS ',
               ),
@@ -612,7 +612,7 @@ class _DonateSheetState extends State<_DonateSheet> {
             DropdownButtonFormField<String>(
               initialValue: _provider,
               decoration:
-                  const InputDecoration(labelText: AppStrings.paymentMethod),
+                  InputDecoration(labelText: AppStrings.paymentMethod),
               items: [
                 for (final provider in donationProviders)
                   DropdownMenuItem(
@@ -630,7 +630,7 @@ class _DonateSheetState extends State<_DonateSheet> {
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
               onChanged: (v) => setState(() => _consent = v ?? false),
-              title: const Text(AppStrings.shareDonationRef),
+              title: Text(AppStrings.shareDonationRef),
             ),
             const SizedBox(height: 8),
             SizedBox(
@@ -800,7 +800,7 @@ class _DonationStatusSheetState extends State<_DonationStatusSheet> {
                               }
                             },
                       icon: const Icon(Icons.refresh),
-                      label: const Text(AppStrings.checkStatus),
+                      label: Text(AppStrings.checkStatus),
                     ),
                   ),
                   if (_donation.canRetry) ...[
@@ -832,7 +832,7 @@ class _DonationStatusSheetState extends State<_DonationStatusSheet> {
                                 }
                               },
                         icon: const Icon(Icons.replay),
-                        label: const Text(AppStrings.retryDonation),
+                        label: Text(AppStrings.retryDonation),
                       ),
                     ),
                   ],
@@ -888,10 +888,10 @@ class _ReceiptDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = receipt;
     return AlertDialog(
-      title: const Text(AppStrings.receiptTitle),
+      title: Text(AppStrings.receiptTitle),
       icon: const Icon(Icons.receipt_long, color: AppColors.success),
       content: r == null
-          ? const Text(AppStrings.receiptNotAvailable)
+          ? Text(AppStrings.receiptNotAvailable)
           : SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -916,7 +916,7 @@ class _ReceiptDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).maybePop(),
-          child: const Text(AppStrings.close),
+          child: Text(AppStrings.close),
         ),
       ],
     );

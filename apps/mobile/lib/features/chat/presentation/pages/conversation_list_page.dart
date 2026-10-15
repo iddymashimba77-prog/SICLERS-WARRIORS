@@ -87,7 +87,7 @@ class _ConversationListViewState extends State<ConversationListView> {
     final uid = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(AppStrings.privateDoctorChat),
+        title: Text(AppStrings.privateDoctorChat),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
@@ -96,10 +96,10 @@ class _ConversationListViewState extends State<ConversationListView> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(AppStrings.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppStrings.cancel)),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text(AppStrings.messages),
+            child: Text(AppStrings.messages),
           ),
         ],
       ),
@@ -125,7 +125,7 @@ class _ConversationListViewState extends State<ConversationListView> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.conversationsLoadFailed)),
+        SnackBar(content: Text(AppStrings.conversationsLoadFailed)),
       );
     }
   }
@@ -134,7 +134,7 @@ class _ConversationListViewState extends State<ConversationListView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.messages),
+        title: Text(AppStrings.messages),
         actions: [
           IconButton(
             tooltip: AppStrings.messages,
@@ -154,7 +154,7 @@ class _ConversationListViewState extends State<ConversationListView> {
     }
     final conversations = _conversations ?? const <Conversation>[];
     if (conversations.isEmpty) {
-      return const EmptyStateView(
+      return EmptyStateView(
         message: AppStrings.noConversations,
         icon: Icons.chat_bubble_outline,
       );
@@ -169,7 +169,7 @@ class _ConversationListViewState extends State<ConversationListView> {
           return ListTile(
             leading: const CircleAvatar(child: Icon(Icons.medical_services_outlined)),
             title: Text(conversation.displayTitle),
-            subtitle: const Text(AppStrings.privateDoctorChat),
+            subtitle: Text(AppStrings.privateDoctorChat),
             trailing: conversation.unreadCount > 0
                 ? Badge(label: Text('${conversation.unreadCount}'))
                 : null,

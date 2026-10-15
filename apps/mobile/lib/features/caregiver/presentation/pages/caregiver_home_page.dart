@@ -103,7 +103,7 @@ class _CaregiverHomeBodyState extends State<_CaregiverHomeBody> {
             child: Text(
               AppStrings.caregiverOnlyAuthorized,
               style: theme.textTheme.bodySmall
-                  ?.copyWith(color: AppColors.textSecondary),
+                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ),
         ),
@@ -113,7 +113,7 @@ class _CaregiverHomeBodyState extends State<_CaregiverHomeBody> {
           style: theme.textTheme.labelSmall,
         ),
         const SizedBox(height: AppSpacing.sm),
-        const EmptyStateView(
+        EmptyStateView(
           message: AppStrings.noLinkedPatients,
           icon: Icons.people_outline,
         ),
@@ -123,7 +123,7 @@ class _CaregiverHomeBodyState extends State<_CaregiverHomeBody> {
           style: theme.textTheme.labelSmall,
         ),
         const SizedBox(height: AppSpacing.sm),
-        const EmptyStateView(
+        EmptyStateView(
           message: AppStrings.noHealthUpdates,
           icon: Icons.health_and_safety_outlined,
         ),

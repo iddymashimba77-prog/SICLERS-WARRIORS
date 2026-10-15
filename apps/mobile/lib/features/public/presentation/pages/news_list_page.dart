@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../data/content_repository.dart';
@@ -97,22 +98,20 @@ class _NewsListPageState extends State<NewsListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: const Text(
+        title: Text(
           AppStrings.appName,
-          style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.navy),
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
       body: _loading
           ? const SkeletonListView(rows: 4)
           : _error
               ? ErrorRetryView(
-                  message: 'We couldn\'t load the news. Check your connection.',
+                  message: s.tr('news.loadFailedList'),
                   onRetry: _load,
                 )
               : _body(context),
@@ -120,6 +119,8 @@ class _NewsListPageState extends State<NewsListPage> {
   }
 
   Widget _body(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -128,9 +129,9 @@ class _NewsListPageState extends State<NewsListPage> {
             AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0,
           ),
           child: Text(
-            'Latest News & Updates',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColors.textPrimary,
+            s.tr('news.listTitle'),
+            style: theme.textTheme.headlineSmall?.copyWith(
+                  color: theme.colorScheme.onSurface,
                   fontWeight: FontWeight.w800,
                 ),
           ),
@@ -147,7 +148,8 @@ class _NewsListPageState extends State<NewsListPage> {
               separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
               itemBuilder: (context, index) {
                 final selected = index == 0 && _category.isEmpty;
-                final label = index == 0 ? 'All' : _categories[index - 1].label;
+                final label =
+                    index == 0 ? s.tr('news.all') : _categories[index - 1].label;
                 return ChoiceChip(
                   label: Text(label),
                   selected: index == 0
@@ -166,10 +168,10 @@ class _NewsListPageState extends State<NewsListPage> {
           ),
         Expanded(
           child: _items.isEmpty
-              ? const EmptyStateView(
+              ? EmptyStateView(
                   icon: Icons.article_outlined,
-                  title: 'Nothing here yet',
-                  message: 'New announcements will appear here.',
+                  title: s.tr('news.emptyTitle'),
+                  message: s.tr('news.emptyBody'),
                 )
               : ListView.separated(
                   padding: const EdgeInsets.all(AppSpacing.lg),
@@ -182,7 +184,7 @@ class _NewsListPageState extends State<NewsListPage> {
                         child: OutlinedButton.icon(
                           onPressed: _loadMore,
                           icon: const Icon(Icons.expand_more),
-                          label: const Text('Load more updates'),
+                          label: Text(s.tr('news.loadMore')),
                         ),
                       );
                     }
@@ -206,8 +208,9 @@ class _NewsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Material(
-      color: Colors.white,
+      color: theme.colorScheme.surface,
       borderRadius: AppShapes.large,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -240,9 +243,9 @@ class _NewsCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     article.title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: theme.colorScheme.onSurface,
                         ),
                   ),
                   if (article.excerpt.isNotEmpty) ...[
@@ -251,8 +254,8 @@ class _NewsCard extends StatelessWidget {
                       article.excerpt,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                     ),
                   ],

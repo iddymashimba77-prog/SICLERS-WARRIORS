@@ -303,7 +303,7 @@ class _AiAssistantViewState extends State<AiAssistantView> {
             Text(
               s.tr('ai.sources'),
               style: theme.textTheme.labelLarge
-                  ?.copyWith(color: AppColors.textSecondary),
+                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.sm),
             for (final src in turn.sources)
@@ -327,7 +327,7 @@ class _AiAssistantViewState extends State<AiAssistantView> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: AppColors.textSecondary),
+                                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                             ),
                         ],
                       ),
@@ -341,7 +341,7 @@ class _AiAssistantViewState extends State<AiAssistantView> {
             Text(
               s.tr('ai.limitationNote'),
               style: theme.textTheme.bodySmall
-                  ?.copyWith(color: AppColors.textMuted, fontStyle: FontStyle.italic),
+                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic),
             ),
           ],
         ],
@@ -431,7 +431,7 @@ class _AiAssistantViewState extends State<AiAssistantView> {
         style: Theme.of(context)
             .textTheme
             .bodySmall
-            ?.copyWith(color: AppColors.textMuted, height: 1.4),
+            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.4),
       ),
     );
   }

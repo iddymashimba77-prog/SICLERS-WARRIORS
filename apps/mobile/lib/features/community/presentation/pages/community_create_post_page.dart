@@ -38,7 +38,7 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
   Future<void> _submit() async {
     if (_contentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.postSaveFailed)),
+        SnackBar(content: Text(AppStrings.postSaveFailed)),
       );
       return;
     }
@@ -52,14 +52,14 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.postPublished)),
+        SnackBar(content: Text(AppStrings.postPublished)),
       );
       Navigator.pop(context, true);
     } catch (_) {
       if (!mounted) return;
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.postSaveFailed)),
+        SnackBar(content: Text(AppStrings.postSaveFailed)),
       );
     }
   }
@@ -67,14 +67,14 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.createPost)),
+      appBar: AppBar(title: Text(AppStrings.createPost)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             Card(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.all(12),
                 child: Text(AppStrings.postShareConsent),
               ),
@@ -83,7 +83,7 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
             TextField(
               controller: _titleController,
               maxLength: 200,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.postTitle,
                 border: OutlineInputBorder(),
               ),
@@ -93,7 +93,7 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
               controller: _contentController,
               maxLines: 6,
               maxLength: 20000,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.postContent,
                 border: OutlineInputBorder(),
                 alignLabelWithHint: true,
@@ -102,7 +102,7 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _category,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.postCategory,
                 border: OutlineInputBorder(),
               ),
@@ -121,7 +121,7 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
                       width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text(AppStrings.publishPost),
+                  : Text(AppStrings.publishPost),
             ),
           ],
         ),

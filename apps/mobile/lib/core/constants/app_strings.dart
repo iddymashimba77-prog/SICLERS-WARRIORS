@@ -1,624 +1,860 @@
+import 'package:flutter/widgets.dart';
+
+/// Localized UI copy for the whole app (English + Kiswahili).
+///
+/// Historically these were `static const` English strings, which meant they
+/// could not react to the in-app language switch and produced mixed-language
+/// screens (some `tr(...)` copy in the chosen language, some hardcoded English
+/// or hardcoded Swahili). They are now runtime getters resolved against the
+/// [bind] locale, so a single language choice renders a single language
+/// everywhere.
+///
+/// The active language is bound from [AppLocalizationsDelegate] (see
+/// `core/l10n/app_localizations.dart`) which is what Flutter reloads whenever
+/// the user changes language, guaranteeing [AppStrings] is set before widgets
+/// rebuild. Defaults to English when nothing is bound (tests, cold start).
 class AppStrings {
   AppStrings._();
 
-  static const String appName = 'Sickler\'s Warriors';
-  static const String appTagline = 'Strength Together, Fight Together';
+  static Locale _locale = const Locale('en');
 
-  // Auth
-  static const String login = 'Login';
-  static const String register = 'Register';
-  static const String logout = 'Logout';
-  static const String email = 'Email';
-  static const String password = 'Password';
-  static const String phoneNumber = 'Phone Number';
-  static const String forgottenPassword = 'Forgot password?';
-  static const String loginFailed = 'Unable to sign in. Check your details.';
-  static const String dontHaveAccount = 'Don\'t have an account? ';
-  static const String alreadyHaveAccount = 'Already have an account? ';
+  /// Bind the active language. Called by the localizations delegate whenever
+  /// Flutter (re)loads localizations, i.e. on every language change.
+  static void bind(Locale locale) {
+    _locale = Locale(locale.languageCode);
+  }
 
-  // Profile / Medical identity (Stage 4.5)
-  static const String profile = 'Profile';
-  static const String save = 'Save';
-  static const String cancel = 'Cancel';
-  static const String saved = 'Saved';
-  static const String saving = 'Saving…';
-  static const String loadingProfile = 'Loading profile…';
-  static const String profileLoadFailed = 'Unable to load your profile.';
-  static const String editProfile = 'Edit Profile';
-  static const String dateOfBirth = 'Date of birth';
-  static const String gender = 'Gender';
-  static const String genotype = 'Genotype';
-  static const String diagnosisDate = 'Diagnosis date';
-  static const String primaryDiagnosis = 'Primary diagnosis';
-  static const String emergencyContactName = 'Emergency contact name';
-  static const String emergencyContactPhone = 'Emergency contact phone';
-  static const String emergencyContactRelation = 'Emergency contact relation';
-  static const String addressRegion = 'Address region';
-  static const String addressCity = 'Address city';
-  static const String treatingFacility = 'Treating facility';
-  static const String facilityRequired =
-      'Choose the clinic or hospital where you receive treatment.';
-  static const String facilityNotSet = 'Not set yet';
-  static const String facilityDirectoryUnavailable =
-      'Facility directory unavailable — check your connection and retry.';
-  static const String notes = 'Notes';
-  static const String privateNote =
-      'Private — visible only to you and authorised care providers.';
-  static const String medicalIdentity =
+  static bool get _sw => _locale.languageCode == 'sw';
+
+  static String _t(String en, String sw) => _sw ? sw : en;
+
+  // ------------------------------------------------------------------- brand
+  static String get appName => "Sickler's Warriors";
+  static String get appTagline =>
+      _t('Strength Together, Fight Together', 'Nguvu Pamoja, Kupambana Pamoja');
+
+  // -------------------------------------------------------------------- auth
+  static String get login => _t('Login', 'Ingia');
+  static String get register => _t('Register', 'Jiandikishe');
+  static String get logout => _t('Logout', 'Toka');
+  static String get email => _t('Email', 'Barua pepe');
+  static String get password => _t('Password', 'Nenosiri');
+  static String get phoneNumber => _t('Phone Number', 'Namba ya simu');
+  static String get forgottenPassword =>
+      _t('Forgot password?', 'Umesahau nenosiri?');
+  static String get loginFailed =>
+      _t('Unable to sign in. Check your details.',
+          'Imeshindikana kuingia. Angalia taarifa zako.');
+  static String get dontHaveAccount =>
+      _t("Don't have an account? ", 'Hauna akaunti? ');
+  static String get alreadyHaveAccount =>
+      _t('Already have an account? ', 'Tayari una akaunti? ');
+
+  // ------------------------------------------------- profile / medical id
+  static String get profile => _t('Profile', 'Wasifu');
+  static String get save => _t('Save', 'Hifadhi');
+  static String get cancel => _t('Cancel', 'Ghairi');
+  static String get saved => _t('Saved', 'Imehifadhiwa');
+  static String get saving => _t('Saving…', 'Inahifadhi…');
+  static String get loadingProfile => _t('Loading profile…', 'Inapakia wasifu…');
+  static String get profileLoadFailed =>
+      _t('Unable to load your profile.', 'Imeshindikana kupakia wasifu wako.');
+  static String get editProfile => _t('Edit Profile', 'Hariri Wasifu');
+  static String get dateOfBirth => _t('Date of birth', 'Tarehe ya kuzaliwa');
+  static String get gender => _t('Gender', 'Jinsia');
+  static String get genotype => _t('Genotype', 'Jenotaipu');
+  static String get diagnosisDate => _t('Diagnosis date', 'Tarehe ya utambuzi');
+  static String get primaryDiagnosis =>
+      _t('Primary diagnosis', 'Utambuzi mkuu');
+  static String get emergencyContactName =>
+      _t('Emergency contact name', 'Jina la mtu wa dharura');
+  static String get emergencyContactPhone =>
+      _t('Emergency contact phone', 'Simu ya mtu wa dharura');
+  static String get emergencyContactRelation =>
+      _t('Emergency contact relation', 'Uhusiano wa mtu wa dharura');
+  static String get addressRegion => _t('Address region', 'Mkoa wa anwani');
+  static String get addressCity => _t('Address city', 'Jiji la anwani');
+  static String get treatingFacility =>
+      _t('Treating facility', 'Kituo cha matibabu');
+  static String get facilityRequired => _t(
+      'Choose the clinic or hospital where you receive treatment.',
+      'Chagua kliniki au hospitali unapopata matibabu.');
+  static String get facilityNotSet => _t('Not set yet', 'Haijawekwa bado');
+  static String get facilityDirectoryUnavailable => _t(
+      'Facility directory unavailable — check your connection and retry.',
+      'Orodha ya vituo haipatikani — angalia mtandao wako na ujaribu tena.');
+  static String get notes => _t('Notes', 'Maelezo');
+  static String get privateNote => _t(
+      'Private — visible only to you and authorised care providers.',
+      'Ya faragha — inaonekana kwako na kwa wahudumu wa afya walioruhusiwa.');
+  static String get medicalIdentity => _t(
       'Medical identity and emergency contact details. Private and consent '
-      'protected.';
-  static const String identity = 'Identity';
+          'protected.',
+      'Taarifa za utambulisho wa matibabu na mtu wa dharura. Ni za faragha na '
+          'zinalindwa kwa ridhaa.');
+  static String get identity => _t('Identity', 'Utambulisho');
 
-  // Home / Navigation
-  static const String home = 'Home';
-  static const String emergency = 'Emergency';
-  static const String community = 'Community';
-  static const String notifications = 'Notifications';
-  static const String settings = 'Settings';
+  // ------------------------------------------------------ home / navigation
+  static String get home => _t('Home', 'Nyumbani');
+  static String get emergency => _t('Emergency', 'Dharura');
+  static String get community => _t('Community', 'Jamii');
+  static String get notifications => _t('Notifications', 'Taarifa');
+  static String get settings => _t('Settings', 'Mipangilio');
 
-  // Primary patient navigation (FRONTEND-1) — approved Swahili labels.
-  static const String navHome = 'Nyumbani';
-  static const String navDoctor = 'Daktari';
-  static const String navTreatment = 'Tiba';
-  static const String navDonate = 'Changia';
-  static const String navProfile = 'Wasifu';
+  // Primary patient navigation — approved labels.
+  static String get navHome => _t('Home', 'Nyumbani');
+  static String get navDoctor => _t('Doctor', 'Daktari');
+  static String get navTreatment => _t('Treatment', 'Tiba');
+  static String get navDonate => _t('Donate', 'Changia');
+  static String get navProfile => _t('Profile', 'Wasifu');
 
-  // Shell / hubs
-  static const String doctor = 'Doctor';
-  static const String treatment = 'Treatment';
-  static const String donate = 'Donate';
-  static const String contributions = 'Contributions';
-  static const String greeting = 'Habari';
-  static const String explore = 'Explore';
-  static const String quickActions = 'Quick Actions';
-  static const String comingSoon = 'Coming soon';
-  static const String viewAll = 'View all';
+  // ------------------------------------------------------- shell / hubs
+  static String get doctor => _t('Doctor', 'Daktari');
+  static String get treatment => _t('Treatment', 'Tiba');
+  static String get donate => _t('Donate', 'Changia');
+  static String get contributions => _t('Contributions', 'Michango');
+  static String get greeting => _t('Hello', 'Habari');
+  static String get explore => _t('Explore', 'Chunguza');
+  static String get quickActions => _t('Quick Actions', 'Vitendo vya Haraka');
+  static String get comingSoon => _t('Coming soon', 'Inakuja hivi karibuni');
+  static String get viewAll => _t('View all', 'Ona zote');
 
-  // Navigation destinations (post-auth shell)
-  static const String health = 'Health';
-  static const String blood = 'Blood';
-  static const String more = 'More';
-  static const String sos = 'SOS';
-  static const String medicalProfile = 'Medical Profile';
-  static const String medicalRecords = 'Health Records';
-  static const String medicationReminders = 'Medication Reminders';
-  static const String clinicCalendar = 'Clinic Calendar';
+  // ------------------------------------ navigation destinations (post-auth)
+  static String get health => _t('Health', 'Afya');
+  static String get blood => _t('Blood', 'Damu');
+  static String get more => _t('More', 'Zaidi');
+  static String get sos => _t('SOS', 'SOS');
+  static String get medicalProfile => _t('Medical Profile', 'Wasifu wa Matibabu');
+  static String get medicalRecords => _t('Health Records', 'Kumbukumbu za Afya');
+  static String get medicationReminders =>
+      _t('Medication Reminders', 'Vikumbusho vya Dawa');
+  static String get clinicCalendar => _t('Clinic Calendar', 'Kalenda ya Kliniki');
 
-  // Blood & Donations
-  static const String bloodDonation = 'Blood Donation';
-  static const String financialDonations = 'Financial Donations';
-
-  // Financial Donations (Stage 4.12)
-  static const String donations = 'Donations';
-  static const String campaigns = 'Campaigns';
-  static const String verifiedCampaigns = 'Verified Campaigns';
-  static const String donateNow = 'Donate now';
-  static const String donates = 'donated';
-  static const String goalOf = 'of';
-  static const String raisedSoFar = 'Raised so far';
-  static const String campaignOwner = 'Campaign owner';
-  static const String noCampaigns =
-      'No verified campaigns yet. Check back soon.';
-  static const String campaignsLoadFailed =
-      'Unable to load campaigns. Check your connection and try again.';
-  static const String donationsLoadFailed =
-      'Unable to load your donation history.';
-  static const String donationInitiated = 'Donation initiated';
-  static const String donationInitiatedBody =
+  // ---------------------------------------------------- blood & donations
+  static String get bloodDonation => _t('Blood Donation', 'Uchangiaji Damu');
+  static String get financialDonations =>
+      _t('Financial Donations', 'Michango ya Fedha');
+  static String get donations => _t('Donations', 'Michango');
+  static String get campaigns => _t('Campaigns', 'Kampeni');
+  static String get verifiedCampaigns =>
+      _t('Verified Campaigns', 'Kampeni Zilizothibitishwa');
+  static String get donateNow => _t('Donate now', 'Changia sasa');
+  static String get donates => _t('donated', 'amechangia');
+  static String get goalOf => _t('of', 'kati ya');
+  static String get raisedSoFar => _t('Raised so far', 'Iliyokusanywa hadi sasa');
+  static String get campaignOwner => _t('Campaign owner', 'Mmiliki wa kampeni');
+  static String get noCampaigns => _t(
+      'No verified campaigns yet. Check back soon.',
+      'Hakuna kampeni zilizothibitishwa bado. Angalia tena hivi karibuni.');
+  static String get campaignsLoadFailed => _t(
+      'Unable to load campaigns. Check your connection and try again.',
+      'Imeshindikana kupakia kampeni. Angalia mtandao na ujaribu tena.');
+  static String get donationsLoadFailed => _t(
+      'Unable to load your donation history.',
+      'Imeshindikana kupakia historia ya michango yako.');
+  static String get donationInitiated => _t('Donation initiated', 'Mchango umeanzishwa');
+  static String get donationInitiatedBody => _t(
       'Your payment is pending provider confirmation. The donation will be '
-      'recorded as confirmed only after the payment provider verifies it.';
-  static const String paymentConfirmed = 'Payment confirmed';
-  static const String paymentFailed = 'Payment failed';
-  static const String retryingDonation = 'Checking payment status…';
-  static const String donationUpdated = 'Donation status updated.';
-  static const String donationActionFailed = 'Unable to update the donation.';
-  static const String retryDonation = 'Retry payment';
-  static const String donationAmount = 'Donation amount (TZS)';
-  static const String donationAmountError = 'Enter an amount to donate.';
-  static const String paymentMethod = 'Payment method';
-  static const String shareDonationRef = 'I consent to share my donation reference.';
-  static const String confirmDonation = 'Confirm donation';
-  static const String donationsHistory = 'Donation history';
-  static const String noDonations = 'No donations yet. Support a campaign above.';
-  static const String receiptTitle = 'Donation receipt';
-  static const String receiptNumber = 'Receipt number';
-  static const String receiptFor = 'Campaign';
-  static const String receiptAmount = 'Amount';
-  static const String receiptDate = 'Donated on';
-  static const String transactionRef = 'Transaction';
-  static const String receiptNotAvailable =
-      'Receipts are available once the payment is confirmed.';
-  static const String checkStatus = 'Check status';
-  static const String payoutPending = 'Pending';
-  static const String donationConfirmed = 'Confirmed';
-  static const String donationRefused = 'Failed';
-  static const String providerRefLabel = 'Reference';
-  static const String retryOnlyPendingOrFailed =
-      'Payments can only be retried while pending or failed.';
+          'recorded as confirmed only after the payment provider verifies it.',
+      'Malipo yako yanasubiri uthibitisho wa mtoa huduma. Mchango utarekodiwa '
+          'kama umethibitishwa tu baada ya mtoa huduma wa malipo kuthibitisha.');
+  static String get paymentConfirmed => _t('Payment confirmed', 'Malipo yamethibitishwa');
+  static String get paymentFailed => _t('Payment failed', 'Malipo yameshindikana');
+  static String get retryingDonation =>
+      _t('Checking payment status…', 'Inaangalia hali ya malipo…');
+  static String get donationUpdated =>
+      _t('Donation status updated.', 'Hali ya mchango imesasishwa.');
+  static String get donationActionFailed =>
+      _t('Unable to update the donation.', 'Imeshindikana kusasisha mchango.');
+  static String get retryDonation => _t('Retry payment', 'Jaribu malipo tena');
+  static String get donationAmount => _t('Donation amount (TZS)', 'Kiasi cha mchango (TZS)');
+  static String get donationAmountError =>
+      _t('Enter an amount to donate.', 'Weka kiasi cha kuchangia.');
+  static String get paymentMethod => _t('Payment method', 'Njia ya malipo');
+  static String get shareDonationRef => _t(
+      'I consent to share my donation reference.',
+      'Nakubali kushiriki kumbukumbu ya mchango wangu.');
+  static String get confirmDonation => _t('Confirm donation', 'Thibitisha mchango');
+  static String get donationsHistory => _t('Donation history', 'Historia ya michango');
+  static String get noDonations =>
+      _t('No donations yet. Support a campaign above.', 'Hakuna michango bado. Saidia kampeni hapo juu.');
+  static String get receiptTitle => _t('Donation receipt', 'Risiti ya mchango');
+  static String get receiptNumber => _t('Receipt number', 'Namba ya risiti');
+  static String get receiptFor => _t('Campaign', 'Kampeni');
+  static String get receiptAmount => _t('Amount', 'Kiasi');
+  static String get receiptDate => _t('Donated on', 'Ilichangiwa tarehe');
+  static String get transactionRef => _t('Transaction', 'Muamala');
+  static String get receiptNotAvailable => _t(
+      'Receipts are available once the payment is confirmed.',
+      'Risiti zinapatikana mara baada ya malipo kuthibitishwa.');
+  static String get checkStatus => _t('Check status', 'Angalia hali');
+  static String get payoutPending => _t('Pending', 'Inasubiri');
+  static String get donationConfirmed => _t('Confirmed', 'Imethibitishwa');
+  static String get donationRefused => _t('Failed', 'Imeshindikana');
+  static String get providerRefLabel => _t('Reference', 'Kumbukumbu');
+  static String get retryOnlyPendingOrFailed => _t(
+      'Payments can only be retried while pending or failed.',
+      'Malipo yanaweza kujaribiwa tena yakiwa yanasubiri au yameshindikana.');
 
-  // Doctor Network
-  static const String doctorNetwork = 'Doctor Network';
-  static const String verifiedDoctors = 'Verified Doctors';
+  // --------------------------------------------------------- doctor network
+  static String get doctorNetwork => _t('Doctor Network', 'Mtandao wa Madaktari');
+  static String get verifiedDoctors => _t('Verified Doctors', 'Madaktari Waliothibitishwa');
 
-  // Emergency
-  static const String emergencySupport = 'Emergency Support';
+  // -------------------------------------------------------------- emergency
+  static String get emergencySupport => _t('Emergency Support', 'Msaada wa Dharura');
 
-  // AI
-  static const String aiAssistant = 'AI Assistant';
+  // -------------------------------------------------------------------- ai
+  static String get aiAssistant => _t('AI Assistant', 'Msaidizi wa AI');
 
-  // Admin
-  static const String adminPanel = 'Admin Panel';
+  // ----------------------------------------------------------------- admin
+  static String get adminPanel => _t('Admin Panel', 'Paneli ya Msimamizi');
 
-  // Shared async state
-  static const String retry = 'Retry';
-  static const String close = 'Close';
+  // ------------------------------------------------------ shared async state
+  static String get retry => _t('Retry', 'Jaribu tena');
+  static String get close => _t('Close', 'Funga');
 
-  /// Generic signed-out prompt shared by every guarded surface (emergency,
-  /// community, donations, notifications, records, donor home, …). It used to
-  /// be medication copy, so a visitor tapping "Emergency" or "Donate blood"
-  /// was told to sign in "to manage your medications".
-  static const String notSignedIn = 'Sign in to use this feature.';
+  static String get notSignedIn =>
+      _t('Sign in to use this feature.', 'Ingia ili kutumia kipengele hiki.');
 
-  // Medication (Stage 4.6)
-  static const String medications = 'Medications';
-  static const String noMedications = 'No medications yet.';
-  static const String addMedication = 'Add Medication';
-  static const String editMedication = 'Edit Medication';
-  static const String medicationName = 'Medication name';
-  static const String medicationNameHint = 'e.g. Hydroxyurea';
-  static const String genericName = 'Generic name';
-  static const String strength = 'Strength';
-  static const String strengthHint = 'e.g. 500 mg';
-  static const String dosage = 'Dosage';
-  static const String dosageHint = 'e.g. 1 tablet twice daily';
-  static const String route = 'Route';
-  static const String frequency = 'Frequency';
-  static const String frequencyHint = 'e.g. daily, twice a day';
-  static const String startDate = 'Start date';
-  static const String endDate = 'End date (optional)';
-  static const String stopMedication = 'Stop medication';
-  static const String stopMedicationConfirm =
-      'Stop this medication? It will be hidden from your active list.';
-  static const String active = 'Active';
-  static const String stopped = 'Stopped';
-  static const String startDateAfterEnd = 'Start date must be on or before end date.';
-  static const String medicationSaveFailed = 'Unable to save the medication.';
-  static const String medicationLoadFailed = 'Unable to load your medications.';
+  // ------------------------------------------------------------- medication
+  static String get medications => _t('Medications', 'Dawa');
+  static String get noMedications => _t('No medications yet.', 'Hakuna dawa bado.');
+  static String get addMedication => _t('Add Medication', 'Ongeza Dawa');
+  static String get editMedication => _t('Edit Medication', 'Hariri Dawa');
+  static String get medicationName => _t('Medication name', 'Jina la dawa');
+  static String get medicationNameHint => _t('e.g. Hydroxyurea', 'mf. Hydroxyurea');
+  static String get genericName => _t('Generic name', 'Jina la jumla');
+  static String get strength => _t('Strength', 'Nguvu');
+  static String get strengthHint => _t('e.g. 500 mg', 'mf. 500 mg');
+  static String get dosage => _t('Dosage', 'Kipimo');
+  static String get dosageHint =>
+      _t('e.g. 1 tablet twice daily', 'mf. kibonge kimoja mara mbili kwa siku');
+  static String get route => _t('Route', 'Njia');
+  static String get frequency => _t('Frequency', 'Mara ngapi');
+  static String get frequencyHint =>
+      _t('e.g. daily, twice a day', 'mf. kila siku, mara mbili kwa siku');
+  static String get startDate => _t('Start date', 'Tarehe ya kuanza');
+  static String get endDate => _t('End date (optional)', 'Tarehe ya kuisha (si lazima)');
+  static String get stopMedication => _t('Stop medication', 'Sitisha dawa');
+  static String get stopMedicationConfirm => _t(
+      'Stop this medication? It will be hidden from your active list.',
+      'Sitisha dawa hii? Itafichwa kwenye orodha yako ya dawa zinazotumika.');
+  static String get active => _t('Active', 'Inatumika');
+  static String get stopped => _t('Stopped', 'Imesitishwa');
+  static String get startDateAfterEnd => _t(
+      'Start date must be on or before end date.',
+      'Tarehe ya kuanza lazima iwe kabla au sawa na tarehe ya kuisha.');
+  static String get medicationSaveFailed =>
+      _t('Unable to save the medication.', 'Imeshindikana kuhifadhi dawa.');
+  static String get medicationLoadFailed =>
+      _t('Unable to load your medications.', 'Imeshindikana kupakia dawa zako.');
 
-  // Schedules
-  static const String schedules = 'Schedule';
-  static const String addSchedule = 'Add schedule';
-  static const String removeSchedule = 'Remove schedule';
-  static const String scheduleTime = 'Dose time';
-  static const String scheduleDays = 'Days of week';
-  static const String scheduleNotes = 'Schedule notes';
-  static const String noSchedules = 'No schedules yet. Add one to track dose times.';
-  static const String scheduleSaved = 'Schedule saved.';
-  static const String scheduleRemoved = 'Schedule removed.';
-  static const String scheduleTimeHint = 'Select time';
-  static const String today = 'Today';
+  // -------------------------------------------------------------- schedules
+  static String get schedules => _t('Schedule', 'Ratiba');
+  static String get addSchedule => _t('Add schedule', 'Ongeza ratiba');
+  static String get removeSchedule => _t('Remove schedule', 'Ondoa ratiba');
+  static String get scheduleTime => _t('Dose time', 'Muda wa kipimo');
+  static String get scheduleDays => _t('Days of week', 'Siku za wiki');
+  static String get scheduleNotes => _t('Schedule notes', 'Maelezo ya ratiba');
+  static String get noSchedules => _t(
+      'No schedules yet. Add one to track dose times.',
+      'Hakuna ratiba bado. Ongeza moja kufuatilia muda wa kipimo.');
+  static String get scheduleSaved => _t('Schedule saved.', 'Ratiba imehifadhiwa.');
+  static String get scheduleRemoved => _t('Schedule removed.', 'Ratiba imeondolewa.');
+  static String get scheduleTimeHint => _t('Select time', 'Chagua muda');
+  static String get today => _t('Today', 'Leo');
 
-  // Dose logging
-  static const String logDose = 'Log dose';
-  static const String doseTaken = 'Taken';
-  static const String doseMissed = 'Missed';
-  static const String doseSkipped = 'Skipped';
-  static const String doseSnoozed = 'Snoozed';
-  static const String doseLogged = 'Dose recorded.';
-  static const String doseLogFailed = 'Unable to record the dose.';
-  static const String doseHistory = 'Dose history';
-  static const String noDoseHistory = 'No doses recorded yet.';
-  static const String recordDose = 'Record dose';
+  // ----------------------------------------------------------- dose logging
+  static String get logDose => _t('Log dose', 'Rekodi kipimo');
+  static String get doseTaken => _t('Taken', 'Imetumika');
+  static String get doseMissed => _t('Missed', 'Imekosekana');
+  static String get doseSkipped => _t('Skipped', 'Imerukwa');
+  static String get doseSnoozed => _t('Snoozed', 'Imeahirishwa');
+  static String get doseLogged => _t('Dose recorded.', 'Kipimo kimerekodiwa.');
+  static String get doseLogFailed =>
+      _t('Unable to record the dose.', 'Imeshindikana kurekodi kipimo.');
+  static String get doseHistory => _t('Dose history', 'Historia ya vipimo');
+  static String get noDoseHistory =>
+      _t('No doses recorded yet.', 'Hakuna vipimo vilivyorekodiwa bado.');
+  static String get recordDose => _t('Record dose', 'Rekodi kipimo');
 
-  // Stats / adherence
-  static const String adherence = 'Adherence';
-  static const String adherenceHelp =
-      'Adherence is a monitoring aid — always follow your care plan.';
-  static const String adherenceLastSeven = 'Adherence (last 7 days)';
-  static const String expectedDoses = 'Expected doses';
-  static const String takenDoses = 'Taken';
-  static const String pendingDoses = 'Pending';
-  static const String statsLoadFailed = 'Unable to load your adherence stats.';
+  // ------------------------------------------------------- stats / adherence
+  static String get adherence => _t('Adherence', 'Ufuataji');
+  static String get adherenceHelp => _t(
+      'Adherence is a monitoring aid — always follow your care plan.',
+      'Ufuataji ni msaada wa ufuatiliaji — fuata mpango wako wa matibabu kila '
+          'wakati.');
+  static String get adherenceLastSeven =>
+      _t('Adherence (last 7 days)', 'Ufuataji (siku 7 zilizopita)');
+  static String get expectedDoses =>
+      _t('Expected doses', 'Vipimo vinavyotarajiwa');
+  static String get takenDoses => _t('Taken', 'Zilizotumika');
+  static String get pendingDoses => _t('Pending', 'Zinasubiri');
+  static String get statsLoadFailed => _t(
+      'Unable to load your adherence stats.',
+      'Imeshindikana kupakia takwimu za ufuataji.');
 
-  // Health tracking (Stage 4.6)
-  static const String healthTracking = 'Health Tracking';
-  static const String dashboardLoadFailed = 'Unable to load your health dashboard.';
-  static const String symptoms = 'Symptoms';
-  static const String recordSymptom = 'Record Symptom';
-  static const String logSymptom = 'Log Symptom';
-  static const String noSymptoms = 'No symptoms recorded yet.';
-  static const String symptomType = 'Symptom';
-  static const String painLevel = 'Pain level';
-  static const String painScale = 'Pain level (0 = none, 10 = worst)';
-  static const String triggers = 'Triggers';
-  static const String durationMinutes = 'Duration (minutes)';
-  static const String recordedAt = 'Recorded at';
-  static const String symptomSaveFailed = 'Unable to record the symptom.';
-  static const String symptomSaved = 'Symptom recorded.';
-  static const String painCrisisTitle = 'Painful crisis';
-  static const String crisisHelp =
-      'If this is a painful crisis, follow the care plan set with your doctor.';
-  static const String timeline = 'Timeline';
-  static const String timelineLoadFailed = 'Unable to load your health timeline.';
-  static const String viewTimeline = 'View Timeline';
-  static const String noTimelineEdits = 'No health activity yet.';
+  // ------------------------------------------------------- health tracking
+  static String get healthTracking => _t('Health Tracking', 'Ufuatiliaji wa Afya');
+  static String get dashboardLoadFailed => _t(
+      'Unable to load your health dashboard.',
+      'Imeshindikana kupakia dashibodi yako ya afya.');
+  static String get symptoms => _t('Symptoms', 'Dalili');
+  static String get recordSymptom => _t('Record Symptom', 'Rekodi Dalili');
+  static String get logSymptom => _t('Log Symptom', 'Rekodi Dalili');
+  static String get noSymptoms =>
+      _t('No symptoms recorded yet.', 'Hakuna dalili zilizorekodiwa bado.');
+  static String get symptomType => _t('Symptom', 'Dalili');
+  static String get painLevel => _t('Pain level', 'Kiwango cha maumivu');
+  static String get painScale => _t(
+      'Pain level (0 = none, 10 = worst)',
+      'Kiwango cha maumivu (0 = hakuna, 10 = vibaya zaidi)');
+  static String get triggers => _t('Triggers', 'Visababishi');
+  static String get durationMinutes => _t('Duration (minutes)', 'Muda (dakika)');
+  static String get recordedAt => _t('Recorded at', 'Ilirekodiwa saa');
+  static String get symptomSaveFailed =>
+      _t('Unable to record the symptom.', 'Imeshindikana kurekodi dalili.');
+  static String get symptomSaved => _t('Symptom recorded.', 'Dalili zimerekodiwa.');
+  static String get painCrisisTitle => _t('Painful crisis', 'Mgogoro wa maumivu');
+  static String get crisisHelp => _t(
+      'If this is a painful crisis, follow the care plan set with your doctor.',
+      'Kama huu ni mgogoro wa maumivu, fuata mpango wa matibabu uliowekwa na '
+          'daktari wako.');
+  static String get timeline => _t('Timeline', 'Mstari wa matukio');
+  static String get timelineLoadFailed => _t(
+      'Unable to load your health timeline.',
+      'Imeshindikana kupakia mstari wa matukio ya afya yako.');
+  static String get viewTimeline => _t('View Timeline', 'Ona Mstari wa Matukio');
+  static String get noTimelineEdits =>
+      _t('No health activity yet.', 'Hakuna shughuli za afya bado.');
 
-  // Blood network (Stage 4.8)
-  static const String bloodRequests = 'Blood Requests';
-  static const String newBloodRequest = 'New Blood Request';
-  static const String requestBlood = 'Request Blood';
-  static const String bloodGroupNeeded = 'Blood group needed';
-  static const String unitsNeeded = 'Units needed';
-  static const String urgency = 'Urgency';
-  static const String reasonForRequest = 'Reason (optional)';
-  static const String requestLocation = 'Location (optional)';
-  static const String facilityUidHint = 'Verified facility UID (optional)';
-  static const String noBloodRequests =
-      'No blood requests yet. Create one if you or a warrior needs blood.';
-  static const String bloodLoadFailed = 'Unable to load blood requests.';
-  static const String bloodSaveFailed = 'Unable to submit the blood request.';
-  static const String bloodRequestCreated = 'Blood request submitted for verification.';
-  static const String cancelRequest = 'Cancel request';
-  static const String cancelRequestConfirm =
-      'Cancel this blood request? This cannot be undone.';
-  static const String requestCancelled = 'Blood request cancelled.';
-  static const String matches = 'Matches';
-  static const String noMatches = 'No donor matches yet.';
-  static const String matchScore = 'Match score';
-  static const String accept = 'Accept';
-  static const String decline = 'Decline';
-  static const String matchResponded = 'Match response recorded.';
-  static const String matchRespondFailed = 'Unable to respond to the match.';
-  static const String donorProfile = 'Donor Profile';
-  static const String becomeDonor = 'Become a donor';
-  static const String donorProfileHelp =
+  // ------------------------------------------------------------ blood network
+  static String get bloodRequests => _t('Blood Requests', 'Maombi ya Damu');
+  static String get newBloodRequest => _t('New Blood Request', 'Ombi Jipya la Damu');
+  static String get requestBlood => _t('Request Blood', 'Omba Damu');
+  static String get bloodGroupNeeded =>
+      _t('Blood group needed', 'Kundi la damu linalohitajika');
+  static String get unitsNeeded => _t('Units needed', 'Vipimo vinavyohitajika');
+  static String get urgency => _t('Urgency', 'Uharaka');
+  static String get reasonForRequest => _t('Reason (optional)', 'Sababu (si lazima)');
+  static String get requestLocation => _t('Location (optional)', 'Mahali (si lazima)');
+  static String get facilityUidHint =>
+      _t('Verified facility UID (optional)', 'UID ya kituo kilichothibitishwa (si lazima)');
+  static String get noBloodRequests => _t(
+      'No blood requests yet. Create one if you or a warrior needs blood.',
+      'Hakuna maombi ya damu bado. Tengeneza moja kama wewe au shujaa anahitaji '
+          'damu.');
+  static String get bloodLoadFailed =>
+      _t('Unable to load blood requests.', 'Imeshindikana kupakia maombi ya damu.');
+  static String get bloodSaveFailed => _t(
+      'Unable to submit the blood request.',
+      'Imeshindikana kuwasilisha ombi la damu.');
+  static String get bloodRequestCreated => _t(
+      'Blood request submitted for verification.',
+      'Ombi la damu limewasilishwa kwa uthibitisho.');
+  static String get cancelRequest => _t('Cancel request', 'Ghairi ombi');
+  static String get cancelRequestConfirm => _t(
+      'Cancel this blood request? This cannot be undone.',
+      'Ghairi ombi hili la damu? Hili haliwezi kutenduliwa.');
+  static String get requestCancelled =>
+      _t('Blood request cancelled.', 'Ombi la damu limeghairiwa.');
+  static String get matches => _t('Matches', 'Wiana');
+  static String get noMatches => _t('No donor matches yet.', 'Hakuna wiana wa watoa damu bado.');
+  static String get matchScore => _t('Match score', 'Alama ya uwiano');
+  static String get accept => _t('Accept', 'Kubali');
+  static String get decline => _t('Decline', 'Kataa');
+  static String get matchResponded =>
+      _t('Match response recorded.', 'Majibu ya uwiano yamerekodiwa.');
+  static String get matchRespondFailed =>
+      _t('Unable to respond to the match.', 'Imeshindikana kujibu uwiano.');
+  static String get donorProfile => _t('Donor Profile', 'Wasifu wa Mtoa Damu');
+  static String get becomeDonor => _t('Become a donor', 'Kuwa mtoa damu');
+  static String get donorProfileHelp => _t(
       'Your contact details stay private. Only blood group, region, city, '
-      'availability and donation history are shared (BR-006).';
-  static const String bloodGroup = 'Blood group';
-  static const String region = 'Region';
-  static const String city = 'City';
-  static const String availableToDonate = 'Available to donate';
-  static const String donorVerified = 'Verified donor';
-  static const String donorSaved = 'Donor profile saved.';
-  static const String donorSaveFailed = 'Unable to save your donor profile.';
-  static const String donationHistory = 'Donations';
+          'availability and donation history are shared (BR-006).',
+      'Taarifa zako za mawasiliano zinabaki za faragha. Ni kundi la damu, mkoa, '
+          'jiji, upatikanaji na historia ya uchangiaji tu vinashirikiwa (BR-006).');
+  static String get bloodGroup => _t('Blood group', 'Kundi la damu');
+  static String get region => _t('Region', 'Mkoa');
+  static String get city => _t('City', 'Jiji');
+  static String get availableToDonate =>
+      _t('Available to donate', 'Napatikana kuchangia');
+  static String get donorVerified => _t('Verified donor', 'Mtoa damu aliyethibitishwa');
+  static String get donorSaved =>
+      _t('Donor profile saved.', 'Wasifu wa mtoa damu umehifadhiwa.');
+  static String get donorSaveFailed => _t(
+      'Unable to save your donor profile.',
+      'Imeshindikana kuhifadhi wasifu wako wa mtoa damu.');
+  static String get donationHistory => _t('Donations', 'Michango');
 
-  // Emergency (Stage 4.8)
-  static const String emergencyHome = 'Emergency';
-  static const String triggerEmergency = 'Trigger Emergency';
-  static const String emergencyType = 'Emergency type';
-  static const String emergencySeverity = 'Severity';
-  static const String describeEmergency = 'Describe what is happening (optional)';
-  static const String submitEmergency = 'Send Emergency Alert';
-  static const String emergencyCreated = 'Emergency alert sent. Help is on the way.';
-  static const String emergencyCreateFailed = 'Unable to send the emergency alert.';
-  static const String activeEmergencies = 'Active emergencies';
-  static const String noEmergencies = 'No emergency requests.';
-  static const String emergencyLoadFailed = 'Unable to load emergency requests.';
-  static const String respondEmergency = 'Respond';
-  static const String validateEmergency = 'Validate';
-  static const String escalateEmergency = 'Escalate';
-  static const String resolveEmergency = 'Resolve';
-  static const String cancelEmergency = 'Cancel';
-  static const String emergencyUpdated = 'Emergency request updated.';
-  static const String emergencyActionFailed = 'Unable to update the emergency request.';
-  static const String emergencyCallNote =
-      'For immediate danger, also call your local emergency number.';
+  // --------------------------------------------------------- emergency (4.8)
+  static String get emergencyHome => _t('Emergency', 'Dharura');
+  static String get triggerEmergency => _t('Trigger Emergency', 'Anzisha Dharura');
+  static String get emergencyType => _t('Emergency type', 'Aina ya dharura');
+  static String get emergencySeverity => _t('Severity', 'Ukali');
+  static String get describeEmergency => _t(
+      'Describe what is happening (optional)',
+      'Eleza kinachotokea (si lazima)');
+  static String get submitEmergency =>
+      _t('Send Emergency Alert', 'Tuma Tahadhari ya Dharura');
+  static String get emergencyCreated => _t(
+      'Emergency alert sent. Help is on the way.',
+      'Tahadhari ya dharura imetumwa. Msaada unakuja.');
+  static String get emergencyCreateFailed => _t(
+      'Unable to send the emergency alert.',
+      'Imeshindikana kutuma tahadhari ya dharura.');
+  static String get activeEmergencies =>
+      _t('Active emergencies', 'Dharura zinazoendelea');
+  static String get noEmergencies => _t('No emergency requests.', 'Hakuna maombi ya dharura.');
+  static String get emergencyLoadFailed => _t(
+      'Unable to load emergency requests.',
+      'Imeshindikana kupakia maombi ya dharura.');
+  static String get respondEmergency => _t('Respond', 'Jibu');
+  static String get validateEmergency => _t('Validate', 'Thibitisha');
+  static String get escalateEmergency => _t('Escalate', 'Pandisha');
+  static String get resolveEmergency => _t('Resolve', 'Maliza');
+  static String get cancelEmergency => _t('Cancel', 'Ghairi');
+  static String get emergencyUpdated =>
+      _t('Emergency request updated.', 'Ombi la dharura limesasishwa.');
+  static String get emergencyActionFailed => _t(
+      'Unable to update the emergency request.',
+      'Imeshindikana kusasisha ombi la dharura.');
+  static String get emergencyCallNote => _t(
+      'For immediate danger, also call your local emergency number.',
+      'Kwa hatari ya haraka, piga pia namba yako ya dharura ya eneo lako.');
 
-  // Emergency SOS flow (Stage 4.9)
-  static const String sosHoldToArm = 'Press and hold to arm SOS';
-  static const String sosArmed = 'SOS armed';
-  static const String sosConfirmTitle = 'Confirm emergency';
-  static const String sosConfirmBody =
+  // ------------------------------------------------------- emergency SOS (4.9)
+  static String get sosHoldToArm =>
+      _t('Press and hold to arm SOS', 'Bonyeza na ushikilie kuandaa SOS');
+  static String get sosArmed => _t('SOS armed', 'SOS imeandaliwa');
+  static String get sosConfirmTitle => _t('Confirm emergency', 'Thibitisha dharura');
+  static String get sosConfirmBody => _t(
       'This raises an emergency alert to responders. It is NOT a replacement '
-      'for emergency services.';
-  static const String sosCallInstruction =
+          'for emergency services.',
+      'Hii inatuma tahadhari ya dharura kwa watoa msaada. HAIYAELEKEZI badala '
+          'ya huduma za dharura.');
+  static String get sosCallInstruction => _t(
       'If you are in immediate danger, call your local emergency number (112) '
-      'or the nearest facility now.';
-  static const String sosShareConsent =
-      'Share my emergency profile (contact, location, notes) with responders.';
-  static const String sosConsentRequired = 'Consent is required to send an alert.';
-  static const String sosLocationLabel = 'Where are you? (optional)';
-  static const String sosNotSentCallNow =
-      'Alert not sent. Call emergency services or the nearest facility now.';
-  static const String sosRateLimited =
-      'You have raised several alerts recently. Call emergency services now.';
-  static const String emergencyPrefill = 'Using your emergency contact';
-  static const String trackingTitle = 'Emergency status';
-  static const String trackingTimeline = 'Status progress';
-  static const String trackingResponders = 'Responders';
-  static const String trackingNoResponders = 'No responder has acknowledged yet.';
-  static const String trackingLocation = 'Location';
-  static const String trackingResolvedTitle = 'Emergency resolved';
-  static const String trackingResolvedBody =
+          'or the nearest facility now.',
+      'Kama uko hatarini mara moja, piga namba ya dharura ya eneo lako (112) au '
+          'kituo cha karibu sasa.');
+  static String get sosShareConsent => _t(
+      'Share my emergency profile (contact, location, notes) with responders.',
+      'Shiriki wasifu wangu wa dharura (mawasiliano, mahali, maelezo) na watoa '
+          'msaada.');
+  static String get sosConsentRequired =>
+      _t('Consent is required to send an alert.', 'Ridhaa inahitajika kutuma tahadhari.');
+  static String get sosLocationLabel => _t('Where are you? (optional)', 'Uko wapi? (si lazima)');
+  static String get sosNotSentCallNow => _t(
+      'Alert not sent. Call emergency services or the nearest facility now.',
+      'Tahadhari haijatumwa. Piga huduma za dharura au kituo cha karibu sasa.');
+  static String get sosRateLimited => _t(
+      'You have raised several alerts recently. Call emergency services now.',
+      'Umetuma tahadhari kadhaa hivi karibuni. Piga huduma za dharura sasa.');
+  static String get emergencyPrefill =>
+      _t('Using your emergency contact', 'Inatumia mtu wako wa dharura');
+  static String get trackingTitle => _t('Emergency status', 'Hali ya dharura');
+  static String get trackingTimeline => _t('Status progress', 'Maendeleo ya hali');
+  static String get trackingResponders => _t('Responders', 'Watoa msaada');
+  static String get trackingNoResponders =>
+      _t('No responder has acknowledged yet.', 'Hakuna mtoa msaada aliyethibitisha bado.');
+  static String get trackingLocation => _t('Location', 'Mahali');
+  static String get trackingResolvedTitle => _t('Emergency resolved', 'Dharura imemalizika');
+  static String get trackingResolvedBody => _t(
       'Your emergency request is resolved. If symptoms return, raise a new '
-      'alert or call emergency services.';
-  static const String accessStatus = 'Emergency access';
-  static const String accessGrantedUntil = 'Professional access granted until';
-  static const String accessNone = 'No professional has emergency access.';
-  static const String callEmergencyServices = 'Call emergency services';
+          'alert or call emergency services.',
+      'Ombi lako la dharura limemalizika. Kama dalili zinarudi, anzisha '
+          'tahadhari mpya au piga huduma za dharura.');
+  static String get accessStatus => _t('Emergency access', 'Ufikiaji wa dharura');
+  static String get accessGrantedUntil =>
+      _t('Professional access granted until', 'Ufikiaji wa mtaalamu umetolewa hadi');
+  static String get accessNone =>
+      _t('No professional has emergency access.', 'Hakuna mtaalamu mwenye ufikiaji wa dharura.');
+  static String get callEmergencyServices =>
+      _t('Call emergency services', 'Piga huduma za dharura');
 
-  // Notifications (Stage 4.8)
-  static const String inbox = 'Inbox';
-  static const String preferences = 'Preferences';
-  static const String markAllRead = 'Mark all read';
-  static const String notificationsAllRead = 'All notifications marked read.';
-  static const String noNotifications = 'No notifications yet.';
-  static const String notificationsLoadFailed = 'Unable to load your notifications.';
-  static const String notificationsReadFailed = 'Unable to update notifications.';
-  static const String categoriesLoadFailed = 'Unable to load notification preferences.';
-  static const String categorySaveFailed = 'Unable to update the preference.';
-  static const String read = 'Read';
+  // ------------------------------------------------------------ notifications
+  static String get inbox => _t('Inbox', 'Kikasha');
+  static String get preferences => _t('Preferences', 'Mapendeleo');
+  static String get markAllRead => _t('Mark all read', 'Weka zote kama zimesomwa');
+  static String get notificationsAllRead =>
+      _t('All notifications marked read.', 'Taarifa zote zimewekwa kama zimesomwa.');
+  static String get noNotifications => _t('No notifications yet.', 'Hakuna taarifa bado.');
+  static String get notificationsLoadFailed => _t(
+      'Unable to load your notifications.', 'Imeshindikana kupakia taarifa zako.');
+  static String get notificationsReadFailed =>
+      _t('Unable to update notifications.', 'Imeshindikana kusasisha taarifa.');
+  static String get categoriesLoadFailed => _t(
+      'Unable to load notification preferences.',
+      'Imeshindikana kupakia mapendeleo ya taarifa.');
+  static String get categorySaveFailed =>
+      _t('Unable to update the preference.', 'Imeshindikana kusasisha pendeleo.');
+  static String get read => _t('Read', 'Imesomwa');
+  static String get unread => _t('Unread', 'Haijasomwa');
+  static String get all => _t('All', 'Zote');
+  static String get medicalAndSafety => _t('Medical & Safety', 'Matibabu na Usalama');
+  static String get bloodAndDonations => _t('Blood & Donations', 'Damu na Michango');
+  static String get communityAndAcademy => _t('Community & Academy', 'Jamii na Chuo');
+  static String get accountAndPlatform => _t('Account & Platform', 'Akaunti na Jukwaa');
+  static String get notificationGroupHelp => _t(
+      'Notifications are grouped by category. Open one to see related screens.',
+      'Taarifa zimepangwa kwa kundi. Fungua moja kuona skrini zinazohusiana.');
+  static String get emergencyAlwaysOn => _t('Always on', 'Imewashwa kila wakati');
+  static String get emergencyLockedHelp => _t(
+      'Emergency alerts can never be turned off.',
+      'Tahadhari za dharura haziwezi kuzimwa.');
+  static String get notificationsUnavailable => _t(
+      'Notifications are unavailable right now.', 'Taarifa hazipatikani kwa sasa.');
 
-  // Notification center (Stage 4.13)
-  static const String unread = 'Unread';
-  static const String all = 'All';
-  static const String medicalAndSafety = 'Medical & Safety';
-  static const String bloodAndDonations = 'Blood & Donations';
-  static const String communityAndAcademy = 'Community & Academy';
-  static const String accountAndPlatform = 'Account & Platform';
-  static const String notificationGroupHelp =
-      'Notifications are grouped by category. Open one to see related screens.';
-  static const String emergencyAlwaysOn = 'Always on';
-  static const String emergencyLockedHelp =
-      'Emergency alerts can never be turned off.';
-  static const String notificationsUnavailable =
-      'Notifications are unavailable right now.';
-
-  // Community (Stage 4.10)
-  static const String communityFeed = 'Community';
-  static const String createPost = 'Create Post';
-  static const String postTitle = 'Title (optional)';
-  static const String postContent = 'Share something with the community';
-  static const String postCategory = 'Category';
-  static const String postShareConsent =
+  // ---------------------------------------------------------------- community
+  static String get communityFeed => _t('Community', 'Jamii');
+  static String get createPost => _t('Create Post', 'Tengeneza Chapisho');
+  static String get postTitle => _t('Title (optional)', 'Kichwa (si lazima)');
+  static String get postContent =>
+      _t('Share something with the community', 'Shiriki kitu na jamii');
+  static String get postCategory => _t('Category', 'Kundi');
+  static String get postShareConsent => _t(
       'Do not share private medical details here. Community posts are visible '
-      'to members and may be moderated.';
-  static const String publishPost = 'Publish';
-  static const String postPublished = 'Post published.';
-  static const String postSaveFailed = 'Unable to publish the post.';
-  static const String noPosts = 'No posts yet. Start the conversation.';
-  static const String communityLoadFailed = 'Unable to load community posts.';
-  static const String allPosts = 'All';
-  static const String myPosts = 'My Posts';
-  static const String comments = 'Comments';
-  static const String addComment = 'Add a comment';
-  static const String commentHint = 'Write a supportive comment';
-  static const String commentPosted = 'Comment added.';
-  static const String commentFailed = 'Unable to add the comment.';
-  static const String noComments = 'No comments yet.';
-  static const String likePost = 'Support';
-  static const String reportContent = 'Report';
-  static const String reportReason = 'Reason for reporting';
-  static const String reportReasonHint = 'Tell us why this content is a problem';
-  static const String reportSubmitted = 'Report submitted for review.';
-  static const String reportFailed = 'Unable to submit the report.';
-  static const String reportDuplicate = 'You have already reported this content.';
-  static const String deletePost = 'Delete post';
-  static const String deletePostConfirm = 'Delete this post? This cannot be undone.';
-  static const String postDeleted = 'Post deleted.';
-  static const String deleteFailed = 'Unable to delete.';
-  static const String underReview = 'Under review';
-  static const String authoredBy = 'by';
+          'to members and may be moderated.',
+      'Usishiriki maelezo ya matibabu ya faragha hapa. Machapisho ya jamii '
+          'yanaonekana kwa wanachama na yanaweza kusimamiwa.');
+  static String get publishPost => _t('Publish', 'Chapisha');
+  static String get postPublished => _t('Post published.', 'Chapisho limechapishwa.');
+  static String get postSaveFailed =>
+      _t('Unable to publish the post.', 'Imeshindikana kuchapisha chapisho.');
+  static String get noPosts =>
+      _t('No posts yet. Start the conversation.', 'Hakuna machapisho bado. Anzisha mazungumzo.');
+  static String get communityLoadFailed =>
+      _t('Unable to load community posts.', 'Imeshindikana kupakia machapisho ya jamii.');
+  static String get allPosts => _t('All', 'Zote');
+  static String get myPosts => _t('My Posts', 'Machapisho Yangu');
+  static String get comments => _t('Comments', 'Maoni');
+  static String get addComment => _t('Add a comment', 'Ongeza maoni');
+  static String get commentHint =>
+      _t('Write a supportive comment', 'Andika maoni ya kutia moyo');
+  static String get commentPosted => _t('Comment added.', 'Maoni yameongezwa.');
+  static String get commentFailed =>
+      _t('Unable to add the comment.', 'Imeshindikana kuongeza maoni.');
+  static String get noComments => _t('No comments yet.', 'Hakuna maoni bado.');
+  static String get likePost => _t('Support', 'Saidia');
+  static String get reportContent => _t('Report', 'Ripoti');
+  static String get reportReason => _t('Reason for reporting', 'Sababu ya kuripoti');
+  static String get reportReasonHint =>
+      _t('Tell us why this content is a problem', 'Tuambie kwa nini maudhui haya yana tatizo');
+  static String get reportSubmitted =>
+      _t('Report submitted for review.', 'Ripoti imewasilishwa kwa ukaguzi.');
+  static String get reportFailed =>
+      _t('Unable to submit the report.', 'Imeshindikana kuwasilisha ripoti.');
+  static String get reportDuplicate =>
+      _t('You have already reported this content.', 'Umesharipoti maudhui haya.');
+  static String get deletePost => _t('Delete post', 'Futa chapisho');
+  static String get deletePostConfirm => _t(
+      'Delete this post? This cannot be undone.',
+      'Futa chapisho hili? Hili haliwezi kutenduliwa.');
+  static String get postDeleted => _t('Post deleted.', 'Chapisho limefutwa.');
+  static String get deleteFailed => _t('Unable to delete.', 'Imeshindikana kufuta.');
+  static String get underReview => _t('Under review', 'Inakaguliwa');
+  static String get authoredBy => _t('by', 'na');
 
-  // Chat (Stage 4.10)
-  static const String messages = 'Messages';
-  static const String noConversations = 'No conversations yet.';
-  static const String conversationsLoadFailed = 'Unable to load conversations.';
-  static const String threadLoadFailed = 'Unable to load messages.';
-  static const String privateDoctorChat = 'Private · verified professional';
-  static const String sendMessageHint = 'Type a message';
-  static const String messageSendFailed = 'Unable to send the message.';
-  static const String messageDeletedSelf = 'You deleted this message';
-  static const String messageDeleted = 'This message was deleted';
-  static const String leaveConversation = 'Leave conversation';
-  static const String leaveConversationConfirm =
-      'Leave this conversation? You will no longer see its messages.';
-  static const String conversationLeft = 'You left the conversation.';
-  static const String leaveFailed = 'Unable to leave the conversation.';
+  // -------------------------------------------------------------------- chat
+  static String get messages => _t('Messages', 'Ujumbe');
+  static String get noConversations => _t('No conversations yet.', 'Hakuna mazungumzo bado.');
+  static String get conversationsLoadFailed =>
+      _t('Unable to load conversations.', 'Imeshindikana kupakia mazungumzo.');
+  static String get threadLoadFailed =>
+      _t('Unable to load messages.', 'Imeshindikana kupakia ujumbe.');
+  static String get privateDoctorChat =>
+      _t('Private · verified professional', 'Faragha · mtaalamu aliyethibitishwa');
+  static String get sendMessageHint => _t('Type a message', 'Andika ujumbe');
+  static String get messageSendFailed =>
+      _t('Unable to send the message.', 'Imeshindikana kutuma ujumbe.');
+  static String get messageDeletedSelf =>
+      _t('You deleted this message', 'Ulifuta ujumbe huu');
+  static String get messageDeleted => _t('This message was deleted', 'Ujumbe huu ulifutwa');
+  static String get leaveConversation => _t('Leave conversation', 'Ondoka kwenye mazungumzo');
+  static String get leaveConversationConfirm => _t(
+      'Leave this conversation? You will no longer see its messages.',
+      'Ondoka kwenye mazungumzo haya? Hutaona ujumbe wake tena.');
+  static String get conversationLeft =>
+      _t('You left the conversation.', 'Umeondoka kwenye mazungumzo.');
+  static String get leaveFailed =>
+      _t('Unable to leave the conversation.', 'Imeshindikana kuondoka kwenye mazungumzo.');
 
-  // Education / Warrior Academy (Stage 4.11)
-  static const String education = 'Education';
-  static const String bookmarks = 'Bookmarks';
-  static const String searchEducation = 'Search topics…';
-  static const String allCategories = 'All';
-  static const String noEducationContent = 'No articles here yet. Check back soon.';
-  static const String educationLoadFailed = 'Unable to load the education library.';
-  static const String educationNotMedicalAdvice =
+  // ----------------------------------------------------- education / academy
+  static String get education => _t('Education', 'Elimu');
+  static String get bookmarks => _t('Bookmarks', 'Vialamisho');
+  static String get searchEducation => _t('Search topics…', 'Tafuta mada…');
+  static String get allCategories => _t('All', 'Zote');
+  static String get noEducationContent =>
+      _t('No articles here yet. Check back soon.', 'Hakuna makala hapa bado. Angalia tena hivi karibuni.');
+  static String get educationLoadFailed => _t(
+      'Unable to load the education library.',
+      'Imeshindikana kupakia maktaba ya elimu.');
+  static String get educationNotMedicalAdvice => _t(
       'Educational articles are general information, not a substitute for '
-      'professional medical advice from your care team.';
-  static const String bookmarkedSaved = 'Saved';
-  static const String publishedOn = 'By';
-  static const String noBookmarks = 'No bookmarks yet.';
-  static const String noBookmarksHint =
-      'Saved articles stay on this device for this session only.';
+          'professional medical advice from your care team.',
+      'Makala za elimu ni taarifa za jumla, si mbadala wa ushauri wa kitaalamu '
+          'wa matibabu kutoka kwa timu yako ya afya.');
+  static String get bookmarkedSaved => _t('Saved', 'Imehifadhiwa');
+  static String get publishedOn => _t('By', 'Na');
+  static String get noBookmarks => _t('No bookmarks yet.', 'Hakuna vialamisho bado.');
+  static String get noBookmarksHint => _t(
+      'Saved articles stay on this device for this session only.',
+      'Makala zilizohifadhiwa zinabaki kwenye kifaa hiki kwa kipindi hiki pekee.');
 
-  // Health constants
-  static const List<String> triggerOptions = [
-    'Cold',
-    'Stress',
-    'Fatigue',
-    'Infection',
-    'Dehydration',
-    'Exercise',
-    'Menstruation',
-    'None',
-  ];
+  // --------------------------------------------------------- health constants
+  static List<String> get triggerOptions => _sw
+      ? const ['Baridi', 'Msongo wa mawazo', 'Uchovu', 'Maambukizi',
+          'Upungufu wa maji', 'Mazoezi', 'Hedhi', 'Hakuna']
+      : const ['Cold', 'Stress', 'Fatigue', 'Infection', 'Dehydration',
+          'Exercise', 'Menstruation', 'None'];
 
-  // Patient Home dashboard (FRONTEND-2)
-  static const String homeSubtitle = 'Stay strong, warrior';
-  static const String dailyCheckin = 'Daily Check-in';
-  static const String checkinIntro =
+  // ------------------------------------------------- patient home (FRONTEND-2)
+  static String get homeSubtitle => _t('Stay strong, warrior', 'Kaa imara, shujaa');
+  static String get dailyCheckin => _t('Daily Check-in', 'Ukaguzi wa Kila Siku');
+  static String get checkinIntro => _t(
       'How are you feeling today? Logging symptoms helps you and your care '
-      'team spot patterns early.';
-  static const String checkinAction = 'Log how I\'m feeling';
-  static const String lastRecorded = 'Last recorded';
-  static const String healthSnapshot = 'Health Snapshot';
-  static const String activeMedications = 'Active medications';
-  static const String dosesTodayTitle = 'Doses today';
-  static const String adherenceLast7Short = 'Adherence (7 days)';
-  static const String symptomsRecorded = 'Symptoms recorded';
-  static const String viewMedications = 'Manage medications';
-  static const String addFirstMedication = 'Add medication';
-  static const String noDataRecorded = 'No data recorded yet.';
-  static const String upcomingAppointments = 'Upcoming appointments';
-  static const String noAppointments =
-      'No upcoming appointments yet. Ask your care team to schedule a visit.';
-  static const String healthTrendTitle = 'Health trend';
-  static const String viewHealthInsights = 'View health insights';
-  static const String recentActivityTitle = 'Recent activity';
-  static const String noRecentActivity =
-      'No health activity yet. Record a symptom to start your timeline.';
-  static const String learnAndGrow = 'Learn & grow';
-  static const String viewEducationLibrary = 'View library';
-  static const String alertsAndAttention = 'Alerts';
-  static const String noActiveAlerts = 'No active alerts right now.';
-  static const String openBloodRequestTitle = 'Blood request in progress';
-  static const String activeBloodRequestBody =
-      'You have an open blood request awaiting donors. Review its status.';
-  static const String activeEmergencyTitle = 'Active emergency alert';
-  static const String activeEmergencyBody =
-      'An emergency request is still active. Follow the tracking status.';
-  static const String youAreOffline =
+          'team spot patterns early.',
+      'Unajisikiaje leo? Kurekodi dalili kunakusaidia wewe na timu yako ya afya '
+          'kubaini mifumo mapema.');
+  static String get checkinAction =>
+      _t("Log how I'm feeling", 'Rekodi ninavyojisikia');
+  static String get lastRecorded => _t('Last recorded', 'Ilirekodiwa mwisho');
+  static String get healthSnapshot => _t('Health Snapshot', 'Muhtasari wa Afya');
+  static String get activeMedications =>
+      _t('Active medications', 'Dawa zinazotumika');
+  static String get dosesTodayTitle => _t('Doses today', 'Vipimo leo');
+  static String get adherenceLast7Short => _t('Adherence (7 days)', 'Ufuataji (siku 7)');
+  static String get symptomsRecorded =>
+      _t('Symptoms recorded', 'Dalili zilizorekodiwa');
+  static String get viewMedications => _t('Manage medications', 'Simamia dawa');
+  static String get addFirstMedication => _t('Add medication', 'Ongeza dawa');
+  static String get noDataRecorded =>
+      _t('No data recorded yet.', 'Hakuna data iliyorekodiwa bado.');
+  static String get upcomingAppointments =>
+      _t('Upcoming appointments', 'Miadi inayokuja');
+  static String get noAppointments => _t(
+      'No upcoming appointments yet. Ask your care team to schedule a visit.',
+      'Hakuna miadi inayokuja bado. Omba timu yako ya afya kupanga ziara.');
+  static String get healthTrendTitle => _t('Health trend', 'Mwelekeo wa afya');
+  static String get viewHealthInsights =>
+      _t('View health insights', 'Ona ufahamu wa afya');
+  static String get recentActivityTitle =>
+      _t('Recent activity', 'Shughuli za hivi karibuni');
+  static String get noRecentActivity => _t(
+      'No health activity yet. Record a symptom to start your timeline.',
+      'Hakuna shughuli za afya bado. Rekodi dalili kuanza mstari wako wa '
+          'matukio.');
+  static String get learnAndGrow => _t('Learn & grow', 'Jifunze na kua');
+  static String get viewEducationLibrary => _t('View library', 'Ona maktaba');
+  static String get alertsAndAttention => _t('Alerts', 'Tahadhari');
+  static String get noActiveAlerts =>
+      _t('No active alerts right now.', 'Hakuna tahadhari zinazoendelea kwa sasa.');
+  static String get openBloodRequestTitle =>
+      _t('Blood request in progress', 'Ombi la damu linaendelea');
+  static String get activeBloodRequestBody => _t(
+      'You have an open blood request awaiting donors. Review its status.',
+      'Una ombi la damu lililo wazi linalosubiri watoa damu. Angalia hali yake.');
+  static String get activeEmergencyTitle =>
+      _t('Active emergency alert', 'Tahadhari ya dharura inayoendelea');
+  static String get activeEmergencyBody => _t(
+      'An emergency request is still active. Follow the tracking status.',
+      'Ombi la dharura bado linaendelea. Fuata hali ya ufuatiliaji.');
+  static String get youAreOffline => _t(
       'You appear to be offline. Showing the most recent information '
-      'available.';
-  static const String inboxWithUnread = 'Unread notifications';
+          'available.',
+      'Inaonekana hauko mtandaoni. Inaonyesha taarifa za hivi karibuni '
+          'zilizopo.');
+  static String get inboxWithUnread =>
+      _t('Unread notifications', 'Taarifa ambazo hazijasomwa');
 
-  // FRONTEND-3 — Tiba landing, records, security, roles.
-
-  // Tiba landing
-  static const String tibaSubtitle =
-      'Your health at a glance — medications, tracking, timeline and records.';
-  static const String tibaQuickActions = 'Take action';
-  static const String manageMedications = 'Manage medications';
-  static const String logSymptomShort = 'Log symptom';
-  static const String reviewTimeline = 'View timeline';
-  static const String doctorMedications = 'Medications';
-  static const String patient = 'Patient';
-  static const String noPatientsFound =
-      'No registered patients yet. Verify a prescriber profile to reach this surface.';
-  static const String healthRecords = 'Health Records';
-  static const String noHealthRecords = 'No health records yet.';
-  static const String carePlan = 'Care plan';
-  static const String carePlanUnavailable =
+  // ------------------------------------------- FRONTEND-3 — Tiba / records
+  static String get tibaSubtitle => _t(
+      'Your health at a glance — medications, tracking, timeline and records.',
+      'Afya yako kwa muhtasari — dawa, ufuatiliaji, mstari wa matukio na '
+          'kumbukumbu.');
+  static String get tibaQuickActions => _t('Take action', 'Chukua hatua');
+  static String get manageMedications => _t('Manage medications', 'Simamia dawa');
+  static String get logSymptomShort => _t('Log symptom', 'Rekodi dalili');
+  static String get reviewTimeline => _t('View timeline', 'Ona mstari wa matukio');
+  static String get doctorMedications => _t('Medications', 'Dawa');
+  static String get patient => _t('Patient', 'Mgonjwa');
+  static String get noPatientsFound => _t(
+      'No registered patients yet. Verify a prescriber profile to reach this '
+          'surface.',
+      'Hakuna wagonjwa waliosajiliwa bado. Thibitisha wasifu wa mtoa dawa '
+          'kufikia eneo hili.');
+  static String get healthRecords => _t('Health Records', 'Kumbukumbu za Afya');
+  static String get noHealthRecords => _t('No health records yet.', 'Hakuna kumbukumbu za afya bado.');
+  static String get carePlan => _t('Care plan', 'Mpango wa matibabu');
+  static String get carePlanUnavailable => _t(
       'Care plans are set by your care team and shared under consent. '
-      'Nothing has been shared yet.';
-  static const String healthHistory = 'Health History';
-  static const String viewTimelineShort = 'Timeline';
-  static const String recordIssue = 'Record issue';
-  static const String upcomingVisits = 'Upcoming visits';
+          'Nothing has been shared yet.',
+      'Mipango ya matibabu huwekwa na timu yako ya afya na kushirikiwa kwa '
+          'ridhaa. Hakuna kilichoshirikiwa bado.');
+  static String get healthHistory => _t('Health History', 'Historia ya Afya');
+  static String get viewTimelineShort => _t('Timeline', 'Mstari wa matukio');
+  static String get recordIssue => _t('Record issue', 'Rekodi tatizo');
+  static String get upcomingVisits => _t('Upcoming visits', 'Ziara zinazokuja');
 
-  // Medical Records (honest state — records arrive from the care team)
-  static const String recordsSharedWithYou =
+  // ------------------------------------------------------------ medical records
+  static String get recordsSharedWithYou => _t(
       'Records shared with you by your care team appear here, protected by '
-      'consent and access control.';
-  static const String recordsEmptyTitle = 'No records shared yet';
-  static const String recordsEmptyBody =
+          'consent and access control.',
+      'Kumbukumbu zilizoshirikiwa na timu yako ya afya zinaonekana hapa, '
+          'zikilindwa kwa ridhaa na udhibiti wa ufikiaji.');
+  static String get recordsEmptyTitle => _t('No records shared yet', 'Hakuna kumbukumbu zilizoshirikiwa bado');
+  static String get recordsEmptyBody => _t(
       'Your care team adds records here when they share them with you. '
-      'Nothing has been shared yet.';
-  static const String recordsPrivacy =
-      'Health records are never exposed without authorization.';
+          'Nothing has been shared yet.',
+      'Timu yako ya afya huongeza kumbukumbu hapa wanapokushirikisha. Hakuna '
+          'kilichoshirikiwa bado.');
+  static String get recordsPrivacy =>
+      _t('Health records are never exposed without authorization.', 'Kumbukumbu za afya hazifichuliwi kamwe bila idhini.');
 
-  // Change password
-  static const String changePassword = 'Change password';
-  static const String currentPassword = 'Current password';
-  static const String newPassword = 'New password';
-  static const String confirmNewPassword = 'Confirm new password';
-  static const String passwordsDoNotMatch = 'Passwords do not match.';
-  static const String newPasswordHint =
-      'At least 8 characters and not too easy to guess.';
-  static const String passwordChanged =
+  // --------------------------------------------------------------- passwords
+  static String get changePassword => _t('Change password', 'Badilisha nenosiri');
+  static String get currentPassword => _t('Current password', 'Nenosiri la sasa');
+  static String get newPassword => _t('New password', 'Nenosiri jipya');
+  static String get confirmNewPassword => _t('Confirm new password', 'Thibitisha nenosiri jipya');
+  static String get passwordsDoNotMatch => _t('Passwords do not match.', 'Manenosiri hayafanani.');
+  static String get newPasswordHint => _t(
+      'At least 8 characters and not too easy to guess.',
+      'Angalau herufi 8 na si rahisi kukisia.');
+  static String get passwordChanged => _t(
       'Password updated. All other sessions were signed out — please sign in '
-      'again.';
-  static const String passwordChangeFailed = 'Unable to change the password.';
-  static const String updatePassword = 'Update password';
+          'again.',
+      'Nenosiri limesasishwa. Vikao vingine vyote vimetolewa — tafadhali ingia '
+          'tena.');
+  static String get passwordChangeFailed =>
+      _t('Unable to change the password.', 'Imeshindikana kubadilisha nenosiri.');
+  static String get updatePassword => _t('Update password', 'Sasisha nenosiri');
 
-  // Security & privacy (Wasifu)
-  static const String securityAndPrivacy = 'Security & privacy';
-  static const String account = 'Account';
-  static const String consentAndPrivacy = 'Consent & privacy';
-  static const String consentBody =
+  // ------------------------------------------------- security & privacy (Wasifu)
+  static String get securityAndPrivacy => _t('Security & privacy', 'Usalama na faragha');
+  static String get account => _t('Account', 'Akaunti');
+  static String get consentAndPrivacy => _t('Consent & privacy', 'Ridhaa na faragha');
+  static String get consentBody => _t(
       'Your health data is shared only when you consent. Access granted to '
-      'professionals is shown in Emergency access and stays revocable.';
-  static const String sharedUnderConsent =
-      'Shared only with your consent';
-  static const String notificationPreferences = 'Notification preferences';
-  static const String signOut = 'Sign out';
-  static const String signOutConfirm =
-      'Sign out of this device? You will need to sign in again.';
-  static const String sessionOnThisDevice = 'Signed in on this device';
-  static const String roleWorkspace = 'Role workspace';
-  static const String roleWorkspaceHeading = 'Your role is active';
-  static const String roleWorkspaceBody =
+          'professionals is shown in Emergency access and stays revocable.',
+      'Data yako ya afya inashirikiwa tu unapokubali. Ufikiaji unaotolewa kwa '
+          'wataalamu unaonekana kwenye Ufikiaji wa dharura na unaweza '
+          'kuondolewa.');
+  static String get sharedUnderConsent =>
+      _t('Shared only with your consent', 'Inashirikiwa tu kwa ridhaa yako');
+  static String get notificationPreferences =>
+      _t('Notification preferences', 'Mapendeleo ya taarifa');
+  static String get signOut => _t('Sign out', 'Toka');
+  static String get signOutConfirm => _t(
+      'Sign out of this device? You will need to sign in again.',
+      'Toka kwenye kifaa hiki? Utahitaji kuingia tena.');
+  static String get sessionOnThisDevice =>
+      _t('Signed in on this device', 'Umeingia kwenye kifaa hiki');
+  static String get roleWorkspace => _t('Role workspace', 'Eneo la jukumu');
+  static String get roleWorkspaceHeading => _t('Your role is active', 'Jukumu lako linaendelea');
+  static String get roleWorkspaceBody => _t(
       'This account has a role that has no dedicated experience in this app '
-      'version yet. Your granted permissions below are enforced by the '
-      'backend; more surfaces will arrive with future updates.';
-  static const String roleGranted = 'Granted by your organization';
-  static const String roleWorkspacePermissions = 'Granted permissions';
-  static const String noPermissionsGranted = 'No permissions granted yet.';
+          'version yet. Your granted permissions below are enforced by the '
+          'backend; more surfaces will arrive with future updates.',
+      'Akaunti hii ina jukumu ambalo halina uzoefu maalum katika toleo hili la '
+          'app bado. Ruhusa zako zilizotolewa hapa chini zinatekelezwa na '
+          'backend; skrini zaidi zitakuja katika masasisho yajayo.');
+  static String get roleGranted =>
+      _t('Granted by your organization', 'Imetolewa na taasisi yako');
+  static String get roleWorkspacePermissions =>
+      _t('Granted permissions', 'Ruhusa zilizotolewa');
+  static String get noPermissionsGranted =>
+      _t('No permissions granted yet.', 'Hakuna ruhusa zilizotolewa bado.');
 
-  // Doctor role (doctor directory unavailable yet — honest state)
-  static const String doctorDirectoryTitle = 'Verified care directory';
-  static const String doctorDirectoryEmpty =
+  // --------------------------------------------------------------- doctor role
+  static String get doctorDirectoryTitle =>
+      _t('Verified care directory', 'Orodha ya huduma zilizothibitishwa');
+  static String get doctorDirectoryEmpty => _t(
       'No verified doctors are discoverable yet. The directory opens as '
-      'facilities verify their care teams.';
-  static const String doctorDirectoryBody =
+          'facilities verify their care teams.',
+      'Hakuna madaktari waliothibitishwa wanaopatikana bado. Orodha inafunguka '
+          'vituo vinapothibitisha timu zao za afya.');
+  static String get doctorDirectoryBody => _t(
       'No doctor profiles are shown to avoid exposing unverified care '
-      'providers. When verified, you can search by specialty and location. '
-      'Use Messages to reach your care team today.';
-  static const String reachCareTeam = 'Message your care team';
+          'providers. When verified, you can search by specialty and location. '
+          'Use Messages to reach your care team today.',
+      'Hakuna wasifu wa madaktari unaoonyeshwa ili kuepuka kuweka hadharani '
+          'watoa huduma ambao hawajathibitishwa. Wanapothibitishwa, unaweza '
+          'kutafuta kwa taaluma na eneo. Tumia Ujumbe kufikia timu yako ya afya '
+          'leo.');
+  static String get reachCareTeam =>
+      _t('Message your care team', 'Tuma ujumbe kwa timu yako ya afya');
 
-  // Doctor Shell
-  static const String doctorHome = 'Doctor Home';
-  static const String todayAppointments = 'Today\'s appointments';
-  static const String noAppointmentsToday = 'No appointments today.';
-  static const String pendingRequests = 'Pending requests';
-  static const String noPendingRequests = 'No pending requests.';
-  static const String patientCommunication = 'Patient communication';
-  static const String recentPatientActivity = 'Recent patient activity';
-  static const String noAuthorizedActivity =
+  // -------------------------------------------------------------- doctor shell
+  static String get doctorHome => _t('Doctor Home', 'Nyumbani kwa Daktari');
+  static String get todayAppointments => _t("Today's appointments", 'Miadi ya leo');
+  static String get noAppointmentsToday => _t('No appointments today.', 'Hakuna miadi leo.');
+  static String get pendingRequests => _t('Pending requests', 'Maombi yanayosubiri');
+  static String get noPendingRequests => _t('No pending requests.', 'Hakuna maombi yanayosubiri.');
+  static String get patientCommunication => _t('Patient communication', 'Mawasiliano na mgonjwa');
+  static String get recentPatientActivity =>
+      _t('Recent patient activity', 'Shughuli za mgonjwa za hivi karibuni');
+  static String get noAuthorizedActivity => _t(
       'Nothing to show. Authorized patient activity appears here when your '
-      'care team shares records with you.';
-  static const String doctorTasks = 'Tasks';
-  static const String noTasks = 'No tasks assigned.';
-  static const String patientsSection = 'Patients';
-  static const String patientsUnavailable =
+          'care team shares records with you.',
+      'Hakuna cha kuonyesha. Shughuli za mgonjwa zilizoruhusiwa zinaonekana '
+          'hapa timu yako ya afya inaposhiriki kumbukumbu nawe.');
+  static String get doctorTasks => _t('Tasks', 'Kazi');
+  static String get noTasks => _t('No tasks assigned.', 'Hakuna kazi zilizopewa.');
+  static String get patientsSection => _t('Patients', 'Wagonjwa');
+  static String get patientsUnavailable => _t(
       'Authorized patient details appear once your facility connects and '
-      'patients consent to share records with you.';
-  static const String doctorOnlyAuthorized =
-      'You can only see what the backend authorizes for your role.';
+          'patients consent to share records with you.',
+      'Maelezo ya wagonjwa yaliyoruhusiwa yanaonekana kituo chako '
+          'kinapounganishwa na wagonjwa wanapokubali kushiriki kumbukumbu nawe.');
+  static String get doctorOnlyAuthorized => _t(
+      'You can only see what the backend authorizes for your role.',
+      'Unaweza kuona tu kile backend inaruhusu kwa jukumu lako.');
 
-  // Blood donor role
-  static const String donorHome = 'Donor Home';
-  static const String myDonorProfile = 'My donor profile';
-  static const String donorEligibilityNote =
-      'Eligibility is confirmed at the donation center on the day.';
-  static const String openBloodRequests = 'Open blood requests';
-  static const String noOpenRequests = 'No open blood requests right now.';
-  static const String availabilityNote =
-      'The network only matches you against requests when you are available.';
-  static const String donationEvents = 'Donations';
-  static const String noDonationEvents = 'No donations recorded yet.';
+  // ------------------------------------------------------------ blood donor role
+  static String get donorHome => _t('Donor Home', 'Nyumbani kwa Mtoa Damu');
+  static String get myDonorProfile => _t('My donor profile', 'Wasifu wangu wa mtoa damu');
+  static String get donorEligibilityNote => _t(
+      'Eligibility is confirmed at the donation center on the day.',
+      'Ustahiki unathibitishwa kwenye kituo cha kuchangia siku hiyo.');
+  static String get openBloodRequests => _t('Open blood requests', 'Maombi ya damu yaliyo wazi');
+  static String get noOpenRequests =>
+      _t('No open blood requests right now.', 'Hakuna maombi ya damu yaliyo wazi kwa sasa.');
+  static String get availabilityNote => _t(
+      'The network only matches you against requests when you are available.',
+      'Mtandao unakulinganisha na maombi tu unapopatikana.');
+  static String get donationEvents => _t('Donations', 'Michango');
+  static String get noDonationEvents =>
+      _t('No donations recorded yet.', 'Hakuna michango iliyorekodiwa bado.');
 
-  // Caregiver role
-  static const String caregiverHome = 'Caregiver Home';
-  static const String linkedPatients = 'Linked patients';
-  static const String noLinkedPatients =
+  // --------------------------------------------------------------- caregiver role
+  static String get caregiverHome => _t('Caregiver Home', 'Nyumbani kwa Mlezi');
+  static String get linkedPatients => _t('Linked patients', 'Wagonjwa waliounganishwa');
+  static String get noLinkedPatients => _t(
       'No linked patients yet. A patient (or their care team) must authorize '
-      'your caregiver access first.';
-  static const String caregiverOnlyAuthorized =
-      'You only ever see what the patient authorized you to see.';
-  static const String caregiverHealthUpdates = 'Health updates';
-  static const String noHealthUpdates =
-      'Authorized health updates will appear here once a patient links you.';
-  static const String caregiverCommunication = 'Communication';
-  static const String medicationReminderAccess =
-      'Medication reminders appear only for authorized linked patients.';
+          'your caregiver access first.',
+      'Hakuna wagonjwa waliounganishwa bado. Mgonjwa (au timu yake ya afya) '
+          'lazima aruhusu ufikiaji wako wa mlezi kwanza.');
+  static String get caregiverOnlyAuthorized => _t(
+      'You only ever see what the patient authorized you to see.',
+      'Unaona tu kile mgonjwa alikuruhusu kuona.');
+  static String get caregiverHealthUpdates => _t('Health updates', 'Masasisho ya afya');
+  static String get noHealthUpdates => _t(
+      'Authorized health updates will appear here once a patient links you.',
+      'Masasisho ya afya yaliyoruhusiwa yataonekana hapa mgonjwa '
+          'anapokuunganisha.');
+  static String get caregiverCommunication => _t('Communication', 'Mawasiliano');
+  static String get medicationReminderAccess => _t(
+      'Medication reminders appear only for authorized linked patients.',
+      'Vikumbusho vya dawa vinaonekana tu kwa wagonjwa waliounganishwa '
+          'walioruhusiwa.');
 
-  // Community post editing (own posts)
-  static const String editPost = 'Edit post';
-  static const String updatePost = 'Save changes';
-  static const String postUpdated = 'Post updated.';
-  static const String postEditFailed = 'Unable to update the post.';
-  static const String editOwnPostsOnly = 'You can edit posts you wrote.';
+  // --------------------------------------------------- community post editing
+  static String get editPost => _t('Edit post', 'Hariri chapisho');
+  static String get updatePost => _t('Save changes', 'Hifadhi mabadiliko');
+  static String get postUpdated => _t('Post updated.', 'Chapisho limesasishwa.');
+  static String get postEditFailed =>
+      _t('Unable to update the post.', 'Imeshindikana kusasisha chapisho.');
+  static String get editOwnPostsOnly =>
+      _t('You can edit posts you wrote.', 'Unaweza kuhariri machapisho uliyoandika.');
 }

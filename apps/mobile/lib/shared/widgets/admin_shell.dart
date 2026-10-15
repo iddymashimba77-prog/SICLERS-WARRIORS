@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../features/admin/domain/admin_authz.dart';
 import '../../features/admin/presentation/pages/admin_ai_monitoring_page.dart';
@@ -57,10 +58,10 @@ class _AdminShellState extends State<AdminShell> {
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.lock_outline, size: 40),
-              SizedBox(height: 16),
-              Text('No admin sections are available for this session.'),
+            children: [
+              const Icon(Icons.lock_outline, size: 40),
+              const SizedBox(height: 16),
+              Text(AppLocalizations.of(context).tr('admin.noSections')),
             ],
           ),
         ),

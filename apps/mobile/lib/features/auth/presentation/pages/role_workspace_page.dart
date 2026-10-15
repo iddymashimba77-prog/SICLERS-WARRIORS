@@ -23,7 +23,7 @@ class RoleWorkspacePage extends StatelessWidget {
     final controller = SessionScope.controllerOf(context);
     final roleCodes = [...controller.roles]..sort();
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.roleWorkspace)),
+      appBar: AppBar(title: Text(AppStrings.roleWorkspace)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
@@ -63,7 +63,7 @@ class RoleWorkspacePage extends StatelessWidget {
                     color: AppColors.primary,
                   ),
                   title: Text(role),
-                  subtitle: const Text(AppStrings.roleGranted),
+                  subtitle: Text(AppStrings.roleGranted),
                   trailing: const Icon(Icons.check_circle_outline),
                 ),
               ),
@@ -74,7 +74,7 @@ class RoleWorkspacePage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             if (controller.permissions.isEmpty)
-              const Text(AppStrings.noPermissionsGranted)
+              Text(AppStrings.noPermissionsGranted)
             else
               Wrap(
                 spacing: 8,
@@ -99,7 +99,7 @@ class RoleWorkspacePage extends StatelessWidget {
                 );
               },
               icon: const Icon(Icons.logout),
-              label: const Text(AppStrings.signOut),
+              label: Text(AppStrings.signOut),
             ),
           ],
         ),

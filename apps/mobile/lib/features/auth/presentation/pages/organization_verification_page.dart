@@ -86,7 +86,7 @@ class OrganizationVerificationPage extends StatelessWidget {
                     }
                   },
                   icon: const Icon(Icons.logout),
-                  label: const Text(AppStrings.signOut),
+                  label: Text(AppStrings.signOut),
                 ),
               ],
             ),

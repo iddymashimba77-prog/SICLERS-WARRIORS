@@ -314,7 +314,7 @@ class _VerificationSubmissionPageState extends State<VerificationSubmissionPage>
     final access = controller.accessToken;
     if (access == null || access.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Session expired — sign in to continue.')),
+        SnackBar(content: Text(s.tr('auth.sessionExpired'))),
       );
       return;
     }

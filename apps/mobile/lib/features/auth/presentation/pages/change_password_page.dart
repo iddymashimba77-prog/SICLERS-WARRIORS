@@ -64,12 +64,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text(AppStrings.changePassword),
-          content: const Text(AppStrings.passwordChanged),
+          title: Text(AppStrings.changePassword),
+          content: Text(AppStrings.passwordChanged),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text(AppStrings.close),
+              child: Text(AppStrings.close),
             ),
           ],
         ),
@@ -93,7 +93,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       if (!mounted) return;
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.passwordChangeFailed)),
+        SnackBar(content: Text(AppStrings.passwordChangeFailed)),
       );
     }
   }
@@ -129,7 +129,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.changePassword)),
+      appBar: AppBar(title: Text(AppStrings.changePassword)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -154,7 +154,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 TextFormField(
                   controller: _currentController,
                   obscureText: _obscure,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: AppStrings.currentPassword,
                     prefixIcon: Icon(Icons.password_outlined),
                   ),
@@ -164,7 +164,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 TextFormField(
                   controller: _newController,
                   obscureText: _obscure,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: AppStrings.newPassword,
                     prefixIcon: Icon(Icons.lock_outline),
                   ),
@@ -174,7 +174,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 TextFormField(
                   controller: _confirmController,
                   obscureText: _obscure,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: AppStrings.confirmNewPassword,
                     prefixIcon: Icon(Icons.lock_outline),
                   ),
@@ -197,7 +197,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text(AppStrings.updatePassword),
+                      : Text(AppStrings.updatePassword),
                 ),
               ],
             ),

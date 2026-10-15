@@ -53,7 +53,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const Divider(height: 32),
             if (token == null)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 32),
                 child: Center(child: Text(AppStrings.profileLoadFailed)),
               )
@@ -148,7 +148,7 @@ class ProfilePage extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(s.tr('common.signOut')),
-        content: const Text(AppStrings.signOutConfirm),
+        content: Text(AppStrings.signOutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),

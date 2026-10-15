@@ -79,7 +79,7 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
     final schedule = _selectedSchedule;
     if (schedule == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.noSchedules)),
+        SnackBar(content: Text(AppStrings.noSchedules)),
       );
       return;
     }
@@ -95,7 +95,7 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
       if (!mounted) return;
       setState(() => _logging = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.doseLogged)),
+        SnackBar(content: Text(AppStrings.doseLogged)),
       );
       _load();
     } on AuthException catch (e) {
@@ -107,7 +107,7 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
       if (!mounted) return;
       setState(() => _logging = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.doseLogFailed)),
+        SnackBar(content: Text(AppStrings.doseLogFailed)),
       );
     }
   }
@@ -128,13 +128,13 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.scheduleSaved)),
+        SnackBar(content: Text(AppStrings.scheduleSaved)),
       );
       _load();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.medicationSaveFailed)),
+        SnackBar(content: Text(AppStrings.medicationSaveFailed)),
       );
     }
   }
@@ -151,13 +151,13 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.scheduleRemoved)),
+        SnackBar(content: Text(AppStrings.scheduleRemoved)),
       );
       _load();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.medicationSaveFailed)),
+        SnackBar(content: Text(AppStrings.medicationSaveFailed)),
       );
     }
   }
@@ -166,16 +166,16 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(AppStrings.stopMedication),
-        content: const Text(AppStrings.stopMedicationConfirm),
+        title: Text(AppStrings.stopMedication),
+        content: Text(AppStrings.stopMedicationConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text(AppStrings.cancel),
+            child: Text(AppStrings.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(AppStrings.stopMedication),
+            child: Text(AppStrings.stopMedication),
           ),
         ],
       ),
@@ -191,7 +191,7 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.medicationSaveFailed)),
+        SnackBar(content: Text(AppStrings.medicationSaveFailed)),
       );
     }
   }
@@ -217,11 +217,11 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
             children: [
               const Icon(Icons.error_outline, size: 48),
               const SizedBox(height: 12),
-              const Text(AppStrings.medicationLoadFailed),
+              Text(AppStrings.medicationLoadFailed),
               const SizedBox(height: 16),
               OutlinedButton(
                 onPressed: _load,
-                child: const Text(AppStrings.retry),
+                child: Text(AppStrings.retry),
               ),
             ],
           ),
@@ -300,7 +300,7 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
         ),
         const SizedBox(height: 8),
         if (_schedules.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(AppStrings.noSchedules),
           )
@@ -327,7 +327,7 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
           child: TextButton.icon(
             onPressed: _addSchedule,
             icon: const Icon(Icons.add_alarm_outlined),
-            label: const Text(AppStrings.addSchedule),
+            label: Text(AppStrings.addSchedule),
           ),
         ),
         const SizedBox(height: 16),
@@ -337,7 +337,7 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
         ),
         const SizedBox(height: 8),
         if (_schedules.isEmpty)
-          const Text(AppStrings.noSchedules)
+          Text(AppStrings.noSchedules)
         else
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,7 +386,7 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
         ),
         const SizedBox(height: 8),
         if (_events.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(AppStrings.noDoseHistory),
           )
@@ -411,7 +411,7 @@ class _MedicationDetailPageState extends State<MedicationDetailPage> {
             child: TextButton.icon(
               onPressed: _stopMedication,
               icon: const Icon(Icons.stop_circle_outlined),
-              label: const Text(AppStrings.stopMedication),
+              label: Text(AppStrings.stopMedication),
               style: TextButton.styleFrom(foregroundColor: AppColors.emergency),
             ),
           ),
@@ -487,7 +487,7 @@ class _InfoRow extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
-                  ?.copyWith(color: AppColors.textSecondary),
+                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ),
           Expanded(child: Text(value)),
@@ -540,7 +540,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text(AppStrings.addSchedule),
+      title: Text(AppStrings.addSchedule),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -552,7 +552,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
               title: Text('${AppStrings.scheduleTime}: ${_time.format(context)}'),
               trailing: TextButton(
                 onPressed: _pickTime,
-                child: const Text(AppStrings.scheduleTimeHint),
+                child: Text(AppStrings.scheduleTimeHint),
               ),
             ),
             const SizedBox(height: 8),
@@ -579,7 +579,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
             const SizedBox(height: 12),
             TextField(
               controller: _notes,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.scheduleNotes,
               ),
               maxLines: 2,
@@ -590,7 +590,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text(AppStrings.cancel),
+          child: Text(AppStrings.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(
@@ -602,7 +602,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
               notes: _notes.text.trim(),
             ),
           ),
-          child: const Text(AppStrings.save),
+          child: Text(AppStrings.save),
         ),
       ],
     );

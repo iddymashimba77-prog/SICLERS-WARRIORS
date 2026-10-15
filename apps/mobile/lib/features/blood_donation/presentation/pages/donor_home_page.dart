@@ -131,13 +131,13 @@ class _DonorHomeViewState extends State<DonorHomeView> {
         _savingAvailability = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.donorSaved)),
+        SnackBar(content: Text(AppStrings.donorSaved)),
       );
     } catch (_) {
       if (!mounted) return;
       setState(() => _savingAvailability = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.donorSaveFailed)),
+        SnackBar(content: Text(AppStrings.donorSaveFailed)),
       );
     }
   }
@@ -146,8 +146,8 @@ class _DonorHomeViewState extends State<DonorHomeView> {
     return SwitchListTile(
       value: profile.isAvailable,
       onChanged: _savingAvailability ? null : _toggleAvailability,
-      title: const Text(AppStrings.availableToDonate),
-      subtitle: const Text(AppStrings.availabilityNote),
+      title: Text(AppStrings.availableToDonate),
+      subtitle: Text(AppStrings.availabilityNote),
     );
   }
 
@@ -197,7 +197,7 @@ class _DonorHomeViewState extends State<DonorHomeView> {
                         ),
                       ),
                       icon: const Icon(Icons.bloodtype_outlined),
-                      label: const Text(AppStrings.donorProfile),
+                      label: Text(AppStrings.donorProfile),
                     ),
                   ],
                 ),
@@ -236,7 +236,7 @@ class _DonorHomeViewState extends State<DonorHomeView> {
                           : Icons.verified_user_outlined,
                       color: profile.isVerified
                           ? AppColors.success
-                          : AppColors.textSecondary,
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     title: Text(
                       profile.isVerified
@@ -262,7 +262,7 @@ class _DonorHomeViewState extends State<DonorHomeView> {
                         ),
                       ),
                       icon: const Icon(Icons.edit_outlined),
-                      label: const Text(AppStrings.editProfile),
+                      label: Text(AppStrings.editProfile),
                     ),
                   ),
                 ],
@@ -279,7 +279,7 @@ class _DonorHomeViewState extends State<DonorHomeView> {
             ),
           ),
           if (data.openRequests.isEmpty)
-            const EmptyStateView(
+            EmptyStateView(
               message: AppStrings.noOpenRequests,
               icon: Icons.bloodtype_outlined,
             )
@@ -319,7 +319,7 @@ class _DonorHomeViewState extends State<DonorHomeView> {
           Text(
             AppStrings.donorProfileHelp,
             style: theme.textTheme.bodySmall
-                ?.copyWith(color: AppColors.textSecondary),
+                ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
       ),

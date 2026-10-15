@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'package:sicklers_warriors/core/constants/app_strings.dart';
+import 'package:sicklers_warriors/core/l10n/app_localizations.dart';
 import 'package:sicklers_warriors/features/auth/data/auth_repository.dart';
 import 'package:sicklers_warriors/features/auth/data/token_store.dart';
 import 'package:sicklers_warriors/features/auth/presentation/controllers/auth_controller.dart';
@@ -67,14 +68,17 @@ void main() {
 
       expect(find.byType(NavigationBar), findsNothing);
       expect(find.byType(NavigationRail), findsOneWidget);
-      for (final label in [
-        AppStrings.navHome,
-        AppStrings.navDoctor,
-        AppStrings.navTreatment,
-        AppStrings.navDonate,
-        AppStrings.navProfile,
+      // The rail renders the shared localized nav labels (the same source the
+      // app uses); the test scope resolves to the Swahili fallback locale.
+      final l = AppLocalizations(const Locale('sw'));
+      for (final key in [
+        'nav.home',
+        'nav.doctor',
+        'nav.treatment',
+        'nav.donate',
+        'nav.profile',
       ]) {
-        expect(find.text(label), findsWidgets);
+        expect(find.text(l.tr(key)), findsWidgets);
       }
       expect(find.byType(FloatingActionButton), findsOneWidget);
     });

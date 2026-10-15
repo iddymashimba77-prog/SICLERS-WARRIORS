@@ -16,7 +16,7 @@ class DoctorShell extends StatelessWidget {
 
   static const String routeName = '/doctor-shell';
 
-  static const List<RoleDestination> _destinations = [
+  static List<RoleDestination> get _destinations => [
     RoleDestination(
       icon: Icons.medical_services_outlined,
       selectedIcon: Icons.medical_services,

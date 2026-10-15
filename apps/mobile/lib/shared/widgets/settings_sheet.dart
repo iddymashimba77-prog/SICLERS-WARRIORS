@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/l10n/app_localizations.dart' show AppLocalizations;
 import '../../core/l10n/locale_controller.dart' show LocaleScope;
@@ -45,21 +44,21 @@ class _SettingsSheet extends StatelessWidget {
               s.tr('profile.appearanceLanguage'),
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
+                color: theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               s.tr('profile.adaptExperience'),
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
             const Divider(height: 32),
             Text(
               s.tr('common.theme').toUpperCase(),
               style: theme.textTheme.labelSmall?.copyWith(
-                color: AppColors.blue,
+                color: theme.colorScheme.primary,
                 letterSpacing: .8,
               ),
             ),
@@ -93,7 +92,7 @@ class _SettingsSheet extends StatelessWidget {
             Text(
               s.tr('common.language').toUpperCase(),
               style: theme.textTheme.labelSmall?.copyWith(
-                color: AppColors.blue,
+                color: theme.colorScheme.primary,
                 letterSpacing: .8,
               ),
             ),
@@ -124,7 +123,7 @@ class _SettingsSheet extends StatelessWidget {
             Text(
               s.tr('settings.themeFollowDevice'),
               style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textMuted,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ],

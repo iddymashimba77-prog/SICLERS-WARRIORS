@@ -124,7 +124,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text(AppStrings.saved)));
+        ..showSnackBar(SnackBar(content: Text(AppStrings.saved)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -155,7 +155,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
     if (readOnly) {
       final name = widget.initial.facilityName ?? _facilityUid;
       return InputDecorator(
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: AppStrings.treatingFacility,
           prefixIcon: Icon(Icons.local_hospital_outlined),
         ),
@@ -203,7 +203,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
           TextFormField(
             controller: _dob,
             readOnly: readOnly,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: AppStrings.dateOfBirth,
               prefixIcon: Icon(Icons.cake_outlined),
             ),
@@ -235,7 +235,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
           TextFormField(
             controller: _diagnosisDate,
             readOnly: readOnly,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: AppStrings.diagnosisDate,
               prefixIcon: Icon(Icons.calendar_today_outlined),
             ),
@@ -253,7 +253,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
           TextFormField(
             controller: _primaryDiagnosis,
             readOnly: readOnly,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: AppStrings.primaryDiagnosis,
               prefixIcon: Icon(Icons.biotech_outlined),
             ),
@@ -266,7 +266,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
             controller: _contactName,
             readOnly: readOnly,
             textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: AppStrings.emergencyContactName,
               prefixIcon: Icon(Icons.person_outline),
             ),
@@ -276,7 +276,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
             controller: _contactPhone,
             readOnly: readOnly,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: AppStrings.emergencyContactPhone,
               prefixIcon: Icon(Icons.phone_outlined),
             ),
@@ -286,7 +286,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
             controller: _contactRelation,
             readOnly: readOnly,
             textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: AppStrings.emergencyContactRelation,
               prefixIcon: Icon(Icons.family_restroom),
             ),
@@ -298,7 +298,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
           TextFormField(
             controller: _region,
             readOnly: readOnly,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: AppStrings.addressRegion,
               prefixIcon: Icon(Icons.place_outlined),
             ),
@@ -307,7 +307,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
           TextFormField(
             controller: _city,
             readOnly: readOnly,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: AppStrings.addressCity,
               prefixIcon: Icon(Icons.location_city_outlined),
             ),
@@ -339,13 +339,13 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text(AppStrings.save),
+                  : Text(AppStrings.save),
             ),
             if (widget.onCancel != null) ...[
               const SizedBox(height: 8),
               TextButton(
                 onPressed: widget.onCancel,
-                child: const Text(AppStrings.cancel),
+                child: Text(AppStrings.cancel),
               ),
             ],
           ],

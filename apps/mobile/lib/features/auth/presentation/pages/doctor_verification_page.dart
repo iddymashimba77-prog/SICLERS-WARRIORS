@@ -112,7 +112,7 @@ class _DoctorVerificationPageState extends State<DoctorVerificationPage> {
                     }
                   },
                   icon: const Icon(Icons.logout),
-                  label: const Text(AppStrings.signOut),
+                  label: Text(AppStrings.signOut),
                 ),
               ],
             ),

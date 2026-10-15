@@ -14,14 +14,14 @@ import '../../features/auth/presentation/pages/signup_page.dart';
 /// the signed-out experience identical across patient, doctor, donor,
 /// caregiver and public-feature screens.
 class SignedOutGate extends StatelessWidget {
-  const SignedOutGate({super.key, this.title, this.message = AppStrings.notSignedIn});
+  const SignedOutGate({super.key, this.title, this.message});
 
   /// Screen name shown in the app bar; defaults to the product name.
   final String? title;
 
   /// Honest explanation of why the screen is closed (defaults to the shared
   /// signed-out copy so existing regression assertions keep holding).
-  final String message;
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +50,7 @@ class SignedOutGate extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Text(
-                  message,
+                  message ?? AppStrings.notSignedIn,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,

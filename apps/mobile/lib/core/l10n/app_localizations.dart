@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../constants/app_strings.dart';
 import '../prefs/app_preferences.dart';
 
 /// Lightweight, dependency-free localizations for English + Kiswahili.
@@ -62,6 +63,9 @@ class AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
     // Use the region-free language code so 'en-US'/'sw-TZ' all map cleanly.
     final normalized =
         Locale(kAppLanguageTags.contains(locale.languageCode) ? locale.languageCode : 'en');
+    // Bind the legacy `AppStrings` constants to the active language so every
+    // existing `AppStrings.*` usage renders a single, consistent language.
+    AppStrings.bind(normalized);
     return AppLocalizations(normalized);
   }
 
@@ -174,6 +178,22 @@ const Map<String, String> _en = {
   'home.newsViewAll': 'View all news',
   'home.newsLatestUpdate': 'Latest Update',
   'home.footerRights': '© 2026 Sickler\'s Warriors. All rights reserved.',
+  // ------------------------------------------------------------ public news
+  'news.title': 'Article',
+  'news.listTitle': 'Latest News & Updates',
+  'news.loadFailed': 'We couldn\'t open this article. Check your connection.',
+  'news.loadFailedList': 'We couldn\'t load the news. Check your connection.',
+  'news.unavailable': 'This article is no longer available.',
+  'news.thanks':
+      'Thank you for reading. Every warrior\'s story helps raise awareness.',
+  'news.emptyTitle': 'Nothing here yet',
+  'news.emptyBody': 'New announcements will appear here.',
+  'news.loadMore': 'Load more updates',
+  'news.all': 'All',
+  // -------------------------------------------------------- theme / menus
+  'common.lightMode': 'Light mode',
+  'common.darkMode': 'Dark mode',
+  'common.menuSuffix': 'menu',
   // ---------------------------------------------------------------- footer
   'footer.privacy': 'Privacy',
   'footer.terms': 'Terms',
@@ -653,6 +673,16 @@ const Map<String, String> _en = {
   'clinic.cancellationReason': 'Cancellation reason',
   'clinic.noDoctor': 'Clinician assigned on arrival',
   'clinic.locked': 'This visit can no longer be changed.',
+  // ------------------------------------------------- shared / auth / profile
+  'admin.noSections': 'No admin sections are available for this session.',
+  'auth.sessionExpired': 'Session expired — sign in to continue.',
+  'auth.organization': 'Organization',
+  'auth.doctorAccount': 'Doctor Account',
+  'auth.continueAs': 'Continue as',
+  'profile.takePhoto': 'Take a photo',
+  'profile.takePhotoSubtitle': 'Use the camera to capture a new picture',
+  'profile.chooseGallery': 'Choose from gallery',
+  'profile.chooseGallerySubtitle': 'Pick an existing image from your device',
 };
 
 const Map<String, String> _sw = {
@@ -756,6 +786,22 @@ const Map<String, String> _sw = {
   'home.newsViewAll': 'Ona habari zote',
   'home.newsLatestUpdate': 'Taarifa ya Hivi Punde',
   'home.footerRights': '© 2026 Sickler\'s Warriors. Haki zote zimehifadhiwa.',
+  // ------------------------------------------------------------ public news
+  'news.title': 'Makala',
+  'news.listTitle': 'Habari na Masasisho ya Hivi Karibuni',
+  'news.loadFailed': 'Imeshindikana kufungua makala hii. Angalia mtandao wako.',
+  'news.loadFailedList': 'Imeshindikana kupakia habari. Angalia mtandao wako.',
+  'news.unavailable': 'Makala hii haipatikani tena.',
+  'news.thanks':
+      'Asante kwa kusoma. Kila kisa cha shujaa kinasaidia kuongeza ufahamu.',
+  'news.emptyTitle': 'Hakuna kitu bado',
+  'news.emptyBody': 'Matangazo mapya yataonekana hapa.',
+  'news.loadMore': 'Pakia masasisho zaidi',
+  'news.all': 'Zote',
+  // -------------------------------------------------------- theme / menus
+  'common.lightMode': 'Hali ya mwanga',
+  'common.darkMode': 'Hali ya giza',
+  'common.menuSuffix': 'menyu',
   // ---------------------------------------------------------------- footer
   'footer.privacy': 'Usiri',
   'footer.terms': 'Masharti',
@@ -1231,6 +1277,16 @@ const Map<String, String> _sw = {
   'clinic.cancellationReason': 'Sababu ya kughairi',
   'clinic.noDoctor': 'Mtaalamu huteuliwa uponufika',
   'clinic.locked': 'Tembeleo hili haliwezi kubadilishwa zaidi.',
+  // ------------------------------------------------- shared / auth / profile
+  'admin.noSections': 'Hakuna sehemu za msimamizi zinazopatikana kwa kipindi hiki.',
+  'auth.sessionExpired': 'Kipindi kimeisha — ingia ili kuendelea.',
+  'auth.organization': 'Taasisi',
+  'auth.doctorAccount': 'Akaunti ya Daktari',
+  'auth.continueAs': 'Endelea kama',
+  'profile.takePhoto': 'Piga picha',
+  'profile.takePhotoSubtitle': 'Tumia kamera kupiga picha mpya',
+  'profile.chooseGallery': 'Chagua kutoka kwenye ghala',
+  'profile.chooseGallerySubtitle': 'Chagua picha iliyopo kwenye kifaa chako',
 };
 
 /// Convenience helper that keeps expressions short: `s.tr('nav.home')`.

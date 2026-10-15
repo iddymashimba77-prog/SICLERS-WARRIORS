@@ -100,7 +100,7 @@ class _BloodHomeViewState extends State<BloodHomeView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.bloodRequests),
+        title: Text(AppStrings.bloodRequests),
         actions: [
           IconButton(
             icon: const Icon(Icons.person_outline),
@@ -113,7 +113,7 @@ class _BloodHomeViewState extends State<BloodHomeView> {
         heroTag: 'new-blood-request',
         onPressed: () => _openRequestForm(context),
         icon: const Icon(Icons.add),
-        label: const Text(AppStrings.requestBlood),
+        label: Text(AppStrings.requestBlood),
       ),
       body: _buildBody(),
     );
@@ -138,7 +138,7 @@ class _BloodHomeViewState extends State<BloodHomeView> {
             onEdit: () => _openDonorProfile(context),
           ),
           if (requests.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(24),
               child: EmptyStateView(
                 message: AppStrings.noBloodRequests,
@@ -229,10 +229,10 @@ class _DonorSummaryCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.volunteer_activism_outlined),
                   const SizedBox(width: 12),
-                  const Expanded(child: Text(AppStrings.donorProfileHelp)),
+                  Expanded(child: Text(AppStrings.donorProfileHelp)),
                   TextButton(
                     onPressed: onEdit,
-                    child: const Text(AppStrings.becomeDonor),
+                    child: Text(AppStrings.becomeDonor),
                   ),
                 ],
               )
@@ -266,7 +266,7 @@ class _DonorSummaryCard extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: onEdit,
-                    child: const Text(AppStrings.editProfile),
+                    child: Text(AppStrings.editProfile),
                   ),
                 ],
               ),
@@ -378,7 +378,7 @@ class _BloodRequestFormPageState extends State<BloodRequestFormPage> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.bloodRequestCreated)),
+        SnackBar(content: Text(AppStrings.bloodRequestCreated)),
       );
       Navigator.pop(context, true);
     } on AuthException catch (e) {
@@ -399,7 +399,7 @@ class _BloodRequestFormPageState extends State<BloodRequestFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.newBloodRequest)),
+      appBar: AppBar(title: Text(AppStrings.newBloodRequest)),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -407,7 +407,7 @@ class _BloodRequestFormPageState extends State<BloodRequestFormPage> {
           children: [
             DropdownButtonFormField<String>(
               initialValue: _bloodGroup,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.bloodGroupNeeded,
               ),
               items: [
@@ -421,7 +421,7 @@ class _BloodRequestFormPageState extends State<BloodRequestFormPage> {
             const SizedBox(height: 16),
             DropdownButtonFormField<int>(
               initialValue: _units,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.unitsNeeded,
               ),
               items: [
@@ -435,7 +435,7 @@ class _BloodRequestFormPageState extends State<BloodRequestFormPage> {
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: _urgency,
-              decoration: const InputDecoration(labelText: AppStrings.urgency),
+              decoration: InputDecoration(labelText: AppStrings.urgency),
               items: [
                 for (final urgency in bloodUrgencies)
                   DropdownMenuItem(value: urgency, child: Text(urgency)),
@@ -447,7 +447,7 @@ class _BloodRequestFormPageState extends State<BloodRequestFormPage> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _reasonController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.reasonForRequest,
               ),
               maxLines: 2,
@@ -455,14 +455,14 @@ class _BloodRequestFormPageState extends State<BloodRequestFormPage> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _locationController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.requestLocation,
               ),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _facilityController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.facilityUidHint,
               ),
             ),
@@ -544,7 +544,7 @@ class _BloodRequestDetailPageState extends State<BloodRequestDetailPage> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.matchResponded)),
+        SnackBar(content: Text(AppStrings.matchResponded)),
       );
       await _loadMatches();
     } on AuthException catch (e) {
@@ -560,16 +560,16 @@ class _BloodRequestDetailPageState extends State<BloodRequestDetailPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(AppStrings.cancelRequest),
-        content: const Text(AppStrings.cancelRequestConfirm),
+        title: Text(AppStrings.cancelRequest),
+        content: Text(AppStrings.cancelRequestConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text(AppStrings.cancel),
+            child: Text(AppStrings.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(AppStrings.cancelRequest),
+            child: Text(AppStrings.cancelRequest),
           ),
         ],
       ),
@@ -583,7 +583,7 @@ class _BloodRequestDetailPageState extends State<BloodRequestDetailPage> {
       if (!mounted) return;
       setState(() => _request = updated);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.requestCancelled)),
+        SnackBar(content: Text(AppStrings.requestCancelled)),
       );
     } on AuthException catch (e) {
       _showError(e.message);
@@ -600,7 +600,7 @@ class _BloodRequestDetailPageState extends State<BloodRequestDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.bloodRequests)),
+      appBar: AppBar(title: Text(AppStrings.bloodRequests)),
       body: RefreshIndicator(
         onRefresh: _loadMatches,
         child: ListView(
@@ -633,7 +633,7 @@ class _BloodRequestDetailPageState extends State<BloodRequestDetailPage> {
                 onRetry: _loadMatches,
               )
             else if ((_matches ?? const []).isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(24),
                 child: EmptyStateView(
                   message: AppStrings.noMatches,
@@ -667,7 +667,7 @@ class _BloodRequestDetailPageState extends State<BloodRequestDetailPage> {
               OutlinedButton.icon(
                 onPressed: _cancel,
                 icon: const Icon(Icons.cancel_outlined),
-                label: const Text(AppStrings.cancelRequest),
+                label: Text(AppStrings.cancelRequest),
               ),
             ],
           ],
@@ -812,12 +812,12 @@ class _MatchCard extends StatelessWidget {
                 children: [
                   TextButton(
                     onPressed: busy ? null : onDecline,
-                    child: const Text(AppStrings.decline),
+                    child: Text(AppStrings.decline),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
                     onPressed: busy ? null : onAccept,
-                    child: const Text(AppStrings.accept),
+                    child: Text(AppStrings.accept),
                   ),
                 ],
               ),
@@ -886,7 +886,7 @@ class _DonorProfilePageState extends State<DonorProfilePage> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.donorSaved)),
+        SnackBar(content: Text(AppStrings.donorSaved)),
       );
       Navigator.pop(context, true);
     } on AuthException catch (e) {
@@ -907,7 +907,7 @@ class _DonorProfilePageState extends State<DonorProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.donorProfile)),
+      appBar: AppBar(title: Text(AppStrings.donorProfile)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -918,7 +918,7 @@ class _DonorProfilePageState extends State<DonorProfilePage> {
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: _bloodGroup,
-            decoration: const InputDecoration(labelText: AppStrings.bloodGroup),
+            decoration: InputDecoration(labelText: AppStrings.bloodGroup),
             items: [
               for (final group in bloodGroups)
                 DropdownMenuItem(value: group, child: Text(group)),
@@ -930,17 +930,17 @@ class _DonorProfilePageState extends State<DonorProfilePage> {
           const SizedBox(height: 16),
           TextField(
             controller: _regionController,
-            decoration: const InputDecoration(labelText: AppStrings.region),
+            decoration: InputDecoration(labelText: AppStrings.region),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _cityController,
-            decoration: const InputDecoration(labelText: AppStrings.city),
+            decoration: InputDecoration(labelText: AppStrings.city),
           ),
           const SizedBox(height: 8),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text(AppStrings.availableToDonate),
+            title: Text(AppStrings.availableToDonate),
             value: _isAvailable,
             onChanged: (value) => setState(() => _isAvailable = value),
           ),

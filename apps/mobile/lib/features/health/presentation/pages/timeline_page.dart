@@ -20,7 +20,7 @@ class TimelinePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.timeline)),
+      appBar: AppBar(title: Text(AppStrings.timeline)),
       body: SafeArea(
         child: _TimelineView(accessToken: accessToken, repository: repository),
       ),
@@ -85,20 +85,20 @@ class _TimelineViewState extends State<_TimelineView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(24),
               child: Text(AppStrings.timelineLoadFailed),
             ),
             OutlinedButton(
               onPressed: _load,
-              child: const Text(AppStrings.retry),
+              child: Text(AppStrings.retry),
             ),
           ],
         ),
       );
     }
     if (_entries.isEmpty) {
-      return const Center(child: Text(AppStrings.noTimelineEdits));
+      return Center(child: Text(AppStrings.noTimelineEdits));
     }
     return RefreshIndicator(
       onRefresh: _load,

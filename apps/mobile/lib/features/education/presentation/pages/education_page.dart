@@ -146,7 +146,7 @@ class _EducationLibraryViewState extends State<EducationLibraryView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.education),
+        title: Text(AppStrings.education),
         actions: [
           IconButton(
             tooltip: AppStrings.bookmarks,
@@ -182,7 +182,7 @@ class _EducationLibraryViewState extends State<EducationLibraryView> {
     }
     final content = _content ?? const <EducationalContent>[];
     if (content.isEmpty) {
-      return const EmptyStateView(
+      return EmptyStateView(
         message: AppStrings.noEducationContent,
         icon: Icons.auto_stories_outlined,
       );
@@ -256,7 +256,7 @@ class _CategoryBar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
-              label: const Text(AppStrings.allCategories),
+              label: Text(AppStrings.allCategories),
               selected: selected == null,
               onSelected: (_) => onSelected(null),
             ),

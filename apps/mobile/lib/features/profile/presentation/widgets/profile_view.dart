@@ -77,7 +77,7 @@ class _ProfileViewState extends State<ProfileView> {
             children: [
               const Icon(Icons.error_outline, size: 48),
               const SizedBox(height: 12),
-              const Text(AppStrings.profileLoadFailed),
+              Text(AppStrings.profileLoadFailed),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _load,

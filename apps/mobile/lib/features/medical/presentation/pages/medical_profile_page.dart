@@ -28,7 +28,7 @@ class MedicalProfilePage extends StatelessWidget {
     final token = controller.accessToken;
 
     if (!isPatient || token == null) {
-      return const ModulePlaceholderPage(
+      return ModulePlaceholderPage(
         title: AppStrings.medicalProfile,
         description: AppStrings.medicalIdentity,
         icon: Icons.medical_services_outlined,
@@ -36,7 +36,7 @@ class MedicalProfilePage extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.medicalProfile)),
+      appBar: AppBar(title: Text(AppStrings.medicalProfile)),
       body: SafeArea(
         child: ProfileView(
           repository: repository ?? ProfileRepository(tokenStore: EphemeralTokenStore()),

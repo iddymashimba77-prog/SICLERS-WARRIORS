@@ -208,7 +208,7 @@ class _PublicHeader extends StatelessWidget {
     final s = AppLocalizations.of(context);
     final menus = _megaMenusFor(s);
     return SliverAppBar(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       elevation: 0,
       scrolledUnderElevation: 2,
       pinned: true,
@@ -268,7 +268,7 @@ class _PublicHeader extends StatelessWidget {
     final entries = _megaMenusFor(s).entries.toList();
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       showDragHandle: true,
       isScrollControlled: true,
       builder: (sheetContext) {
@@ -333,12 +333,14 @@ class _PublicThemeToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = ThemeScope.maybeOf(context);
     if (theme == null) return const SizedBox.shrink();
+    final s = AppLocalizations.of(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
     return IconButton(
       key: const ValueKey('public-theme-toggle'),
-      tooltip: dark ? 'Light mode' : 'Dark mode',
+      tooltip: dark ? s.tr('common.lightMode') : s.tr('common.darkMode'),
       onPressed: () =>
           theme.setMode(dark ? ThemeMode.light : ThemeMode.dark),
+      color: Theme.of(context).colorScheme.onSurface,
       icon: Icon(
         dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
         size: 20,
@@ -360,7 +362,10 @@ class _PublicLanguageToggle extends StatelessWidget {
       onPressed: () => locale.setLanguage(swahili ? 'en' : 'sw'),
       child: Text(
         swahili ? 'EN' : 'SW',
-        style: const TextStyle(fontWeight: FontWeight.w800),
+        style: TextStyle(
+          fontWeight: FontWeight.w800,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     );
   }
@@ -379,9 +384,14 @@ class _HeaderMenuButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final menuLabelStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: Theme.of(context).colorScheme.onSurface,
+          fontWeight: FontWeight.w600,
+        );
     return PopupMenuButton<_MenuLink>(
       key: Key('mega-$label'),
-      tooltip: '$label menu',
+      tooltip: '$label ${s.tr('common.menuSuffix')}',
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       onSelected: onSelected,
       itemBuilder: (context) => [
@@ -391,7 +401,11 @@ class _HeaderMenuButton extends StatelessWidget {
             height: 44,
             child: Row(
               children: [
-                Icon(link.icon, size: 18, color: AppColors.navy),
+                Icon(
+                  link.icon,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 Text(link.label),
               ],
@@ -400,13 +414,7 @@ class _HeaderMenuButton extends StatelessWidget {
       ],
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-        ),
+        child: Text(label, style: menuLabelStyle),
       ),
     );
   }
@@ -425,23 +433,28 @@ class _MobileMenuCategory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w800,
             letterSpacing: .8,
-            color: AppColors.blue,
+            color: theme.colorScheme.primary,
           ),
         ),
         for (final link in links)
           ListTile(
             contentPadding: EdgeInsets.zero,
             dense: true,
-            leading: Icon(link.icon, size: 20, color: AppColors.navy),
+            leading: Icon(
+              link.icon,
+              size: 20,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
             title: Text(link.label),
             onTap: () => onSelected(link),
           ),
@@ -938,7 +951,7 @@ class _NewsSectionsState extends State<NewsSections> {
     final s = AppLocalizations.of(context);
     if (_loading) {
       return _Band(
-        background: Colors.white,
+        background: theme.colorScheme.surface,
         child: _BandHeader(
           title: s.tr('home.newsLatest'),
           theme: theme,
@@ -948,7 +961,7 @@ class _NewsSectionsState extends State<NewsSections> {
     }
     if (_error || (_latest == null && _featured.isEmpty && _recent.isEmpty)) {
       return _Band(
-        background: Colors.white,
+        background: theme.colorScheme.surface,
         child: _BandHeader(
           title: s.tr('home.newsLatest'),
           theme: theme,
@@ -969,7 +982,7 @@ class _NewsSectionsState extends State<NewsSections> {
       if (slides.length >= 5) break;
     }
     return _Band(
-      background: Colors.white,
+      background: theme.colorScheme.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -994,7 +1007,7 @@ class _NewsSectionsState extends State<NewsSections> {
             Text(
               s.tr('home.newsFeatured'),
               style: theme.textTheme.titleLarge?.copyWith(
-                color: AppColors.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -1234,7 +1247,7 @@ class _CarouselCard extends StatelessWidget {
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: AppColors.textSecondary,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 height: 1.4,
                               ),
                             ),
@@ -1264,7 +1277,7 @@ class _CompactNewsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: AppColors.surfaceMuted,
+      color: theme.colorScheme.surfaceContainerLow,
       borderRadius: AppShapes.large,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1286,7 +1299,7 @@ class _CompactNewsCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleSmall?.copyWith(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1339,7 +1352,7 @@ class _CompactNewsRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -1350,7 +1363,7 @@ class _CompactNewsRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -1379,7 +1392,7 @@ class _SectionStrip extends StatelessWidget {
     final s = AppLocalizations.of(context);
     final isDesktop = MediaQuery.of(context).size.width > 1024;
     return Container(
-      color: AppColors.background,
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
       padding: EdgeInsets.symmetric(
         vertical: AppSpacing.xxxl,
         horizontal: isDesktop ? AppSpacing.xxxl : AppSpacing.lg,
@@ -1389,7 +1402,7 @@ class _SectionStrip extends StatelessWidget {
           Text(
             s.tr('home.sectionsTitle'),
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w800,
                 ),
           ),
@@ -1397,7 +1410,7 @@ class _SectionStrip extends StatelessWidget {
           Text(
             s.tr('home.sectionsSubtitle'),
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -1436,9 +1449,9 @@ class _ServiceSection extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: AppShapes.large,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1462,7 +1475,7 @@ class _ServiceSection extends StatelessWidget {
                     Text(
                       title,
                       style: theme.textTheme.titleLarge?.copyWith(
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -1470,7 +1483,7 @@ class _ServiceSection extends StatelessWidget {
                     Text(
                       subtitle,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         height: 1.45,
                       ),
                     ),
@@ -1502,7 +1515,10 @@ class _ServiceSection extends StatelessWidget {
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Text(
                 s.tr('home.signedInOnly'),
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 12,
+                ),
               ),
             ),
         ],
@@ -1613,7 +1629,7 @@ class _FinalCTASection extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppLocalizations.of(context);
     return Container(
-      color: Colors.white,
+      color: theme.colorScheme.surface,
       padding: EdgeInsets.symmetric(
         vertical: AppSpacing.xxxl,
         horizontal: AppSpacing.xl,
@@ -1633,7 +1649,7 @@ class _FinalCTASection extends StatelessWidget {
             s.tr('home.finalCtaBody'),
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: AppColors.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -1666,7 +1682,7 @@ class _Footer extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppLocalizations.of(context);
     return Container(
-      color: AppColors.background,
+      color: theme.colorScheme.surfaceContainerLow,
       padding: EdgeInsets.symmetric(
         vertical: AppSpacing.xl,
         horizontal: AppSpacing.xl,
@@ -1679,7 +1695,7 @@ class _Footer extends StatelessWidget {
             s.tr('home.footerRights'),
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -1707,7 +1723,7 @@ class _Footer extends StatelessWidget {
           Text(
             s.tr('home.sosFooter'),
             style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.textMuted,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -1737,7 +1753,7 @@ class _FooterLink extends StatelessWidget {
       child: Text(
         link.label,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
       ),
     );
@@ -1791,7 +1807,7 @@ class _BandHeader extends StatelessWidget {
               Text(
                 title,
                 style: theme.textTheme.headlineMedium?.copyWith(
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -1800,7 +1816,7 @@ class _BandHeader extends StatelessWidget {
                 Text(
                   subtitle!,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],

@@ -21,7 +21,7 @@ class ChangiaHubPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: const AppTopBar(title: AppStrings.navDonate),
+      appBar: AppTopBar(title: AppStrings.navDonate),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),

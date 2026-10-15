@@ -37,7 +37,7 @@ class DoctorMedicationsPage extends StatelessWidget {
       return const SignedOutGate();
     }
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.manageMedications)),
+      appBar: AppBar(title: Text(AppStrings.manageMedications)),
       body: SafeArea(
         child: DoctorMedicationsView(
           accessToken: token,
@@ -171,11 +171,11 @@ class _DoctorMedicationsViewState extends State<DoctorMedicationsView> {
             children: [
               const Icon(Icons.error_outline, size: 48),
               const SizedBox(height: 12),
-              const Text(AppStrings.medicationLoadFailed),
+              Text(AppStrings.medicationLoadFailed),
               const SizedBox(height: 16),
               OutlinedButton(
                 onPressed: _loadDirectory,
-                child: const Text(AppStrings.retry),
+                child: Text(AppStrings.retry),
               ),
             ],
           ),
@@ -188,14 +188,14 @@ class _DoctorMedicationsViewState extends State<DoctorMedicationsView> {
         padding: const EdgeInsets.all(16),
         children: [
           if (_patients.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Text(AppStrings.noPatientsFound),
             )
           else ...[
             DropdownButtonFormField<PatientDirectoryEntry>(
               initialValue: _selected,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.patient,
                 prefixIcon: Icon(Icons.person_outline),
               ),
@@ -231,7 +231,7 @@ setState(() {
                 TextButton.icon(
                   onPressed: _openForm,
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text(AppStrings.addMedication),
+                  label: Text(AppStrings.addMedication),
                 ),
               ],
             ),
@@ -242,7 +242,7 @@ setState(() {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_medications.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Text(AppStrings.noMedications),
               )
@@ -273,7 +273,7 @@ setState(() {
             if (_loadingMeds)
               const SizedBox.shrink()
             else if (_symptoms.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Text(AppStrings.noSymptoms),
               )

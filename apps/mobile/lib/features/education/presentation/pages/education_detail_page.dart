@@ -73,7 +73,7 @@ class _EducationDetailViewState extends State<EducationDetailView> {
     final bookmarked = widget.repository.isBookmarked(widget.contentUid);
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.education),
+        title: Text(AppStrings.education),
         actions: [
           IconButton(
             tooltip: bookmarked ? AppStrings.bookmarkedSaved : AppStrings.bookmarks,
@@ -98,7 +98,7 @@ class _EducationDetailViewState extends State<EducationDetailView> {
     }
     final content = _content;
     if (content == null) {
-      return const EmptyStateView(message: AppStrings.noEducationContent);
+      return EmptyStateView(message: AppStrings.noEducationContent);
     }
     final plainBody = content.body.replaceAll(RegExp(r'<[^>]+>'), '');
     return ListView(
@@ -126,7 +126,7 @@ class _EducationDetailViewState extends State<EducationDetailView> {
               children: [
                 const Icon(Icons.info_outline, color: AppColors.secondary),
                 const SizedBox(width: 10),
-                const Expanded(child: Text(AppStrings.educationNotMedicalAdvice)),
+                Expanded(child: Text(AppStrings.educationNotMedicalAdvice)),
               ],
             ),
           ),

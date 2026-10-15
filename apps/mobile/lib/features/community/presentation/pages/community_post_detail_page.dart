@@ -131,11 +131,11 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(AppStrings.deletePost),
-        content: const Text(AppStrings.deletePostConfirm),
+        title: Text(AppStrings.deletePost),
+        content: Text(AppStrings.deletePostConfirm),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text(AppStrings.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text(AppStrings.deletePost)),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.deletePost)),
         ],
       ),
     );
@@ -208,7 +208,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.communityFeed),
+        title: Text(AppStrings.communityFeed),
         actions: [
           if (_post != null && _post!.isAuthor) ...[
             IconButton(
@@ -235,7 +235,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     }
     final post = _post;
     if (post == null) {
-      return const EmptyStateView(message: AppStrings.noPosts);
+      return EmptyStateView(message: AppStrings.noPosts);
     }
     return Column(
       children: [
@@ -271,7 +271,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                         targetId: post.id,
                       ),
                       icon: const Icon(Icons.flag_outlined),
-                      label: const Text(AppStrings.reportContent),
+                      label: Text(AppStrings.reportContent),
                     ),
                 ],
               ),
@@ -279,7 +279,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
               Text(AppStrings.comments, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               if (_comments.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Text(AppStrings.noComments),
                 ),
@@ -299,7 +299,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                 Expanded(
                   child: TextField(
                     controller: _commentController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: AppStrings.commentHint,
                       border: OutlineInputBorder(),
                       isDense: true,
@@ -377,7 +377,7 @@ class _EditPostDialogState extends State<_EditPostDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text(AppStrings.editPost),
+      title: Text(AppStrings.editPost),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -385,7 +385,7 @@ class _EditPostDialogState extends State<_EditPostDialog> {
           children: [
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.postTitle,
                 border: OutlineInputBorder(),
               ),
@@ -394,7 +394,7 @@ class _EditPostDialogState extends State<_EditPostDialog> {
             TextField(
               controller: _contentController,
               maxLines: 4,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.postContent,
                 border: OutlineInputBorder(),
               ),
@@ -404,7 +404,7 @@ class _EditPostDialogState extends State<_EditPostDialog> {
               initialValue: communityCategories.contains(_category)
                   ? _category
                   : 'GENERAL',
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.postCategory,
                 border: OutlineInputBorder(),
               ),
@@ -422,7 +422,7 @@ class _EditPostDialogState extends State<_EditPostDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text(AppStrings.cancel),
+          child: Text(AppStrings.cancel),
         ),
         FilledButton(
           onPressed: () {
@@ -437,7 +437,7 @@ class _EditPostDialogState extends State<_EditPostDialog> {
               ),
             );
           },
-          child: const Text(AppStrings.updatePost),
+          child: Text(AppStrings.updatePost),
         ),
       ],
     );
@@ -463,22 +463,22 @@ class _ReportDialogState extends State<_ReportDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text(AppStrings.reportContent),
+      title: Text(AppStrings.reportContent),
       content: TextField(
         controller: _controller,
         maxLines: 3,
         maxLength: 2000,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: AppStrings.reportReason,
           hintText: AppStrings.reportReasonHint,
           border: OutlineInputBorder(),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text(AppStrings.cancel)),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.cancel)),
         FilledButton(
           onPressed: () => Navigator.pop(context, _controller.text),
-          child: const Text(AppStrings.reportContent),
+          child: Text(AppStrings.reportContent),
         ),
       ],
     );

@@ -146,7 +146,7 @@ class _EmergencyHomeViewState extends State<EmergencyHomeView> {
       if (!mounted) return;
       _descriptionController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.emergencyCreated)),
+        SnackBar(content: Text(AppStrings.emergencyCreated)),
       );
       await _load();
       if (mounted) await _openTracking(created);
@@ -193,12 +193,12 @@ class _EmergencyHomeViewState extends State<EmergencyHomeView> {
       context: context,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.warning_amber_rounded, color: AppColors.emergency),
-        title: const Text(AppStrings.sosCallInstruction),
+        title: Text(AppStrings.sosCallInstruction),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).maybePop(),
-            child: const Text(AppStrings.close),
+            child: Text(AppStrings.close),
           ),
         ],
       ),
@@ -224,7 +224,7 @@ class _EmergencyHomeViewState extends State<EmergencyHomeView> {
       await action();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.emergencyUpdated)),
+        SnackBar(content: Text(AppStrings.emergencyUpdated)),
       );
       await _load();
     } on AuthException catch (e) {
@@ -245,7 +245,7 @@ class _EmergencyHomeViewState extends State<EmergencyHomeView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.emergencyHome),
+        title: Text(AppStrings.emergencyHome),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -287,7 +287,7 @@ class _EmergencyHomeViewState extends State<EmergencyHomeView> {
                 onRetry: _load,
               )
             else if ((_requests ?? const []).isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(24),
                 child: EmptyStateView(
                   message: AppStrings.noEmergencies,
@@ -659,7 +659,7 @@ class _EmergencyConfirmSheetState extends State<EmergencyConfirmSheet> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _type,
-              decoration: const InputDecoration(labelText: AppStrings.emergencyType),
+              decoration: InputDecoration(labelText: AppStrings.emergencyType),
               items: [
                 for (final t in emergencyTypes)
                   DropdownMenuItem(value: t, child: Text(t.replaceAll('_', ' '))),
@@ -672,7 +672,7 @@ class _EmergencyConfirmSheetState extends State<EmergencyConfirmSheet> {
             DropdownButtonFormField<String>(
               initialValue: _severity,
               decoration:
-                  const InputDecoration(labelText: AppStrings.emergencySeverity),
+                  InputDecoration(labelText: AppStrings.emergencySeverity),
               items: [
                 for (final s in emergencySeverities)
                   DropdownMenuItem(value: s, child: Text(s)),
@@ -686,12 +686,12 @@ class _EmergencyConfirmSheetState extends State<EmergencyConfirmSheet> {
               controller: _description,
               maxLines: 3,
               decoration:
-                  const InputDecoration(labelText: AppStrings.describeEmergency),
+                  InputDecoration(labelText: AppStrings.describeEmergency),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _location,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.sosLocationLabel,
               ),
             ),
@@ -700,7 +700,7 @@ class _EmergencyConfirmSheetState extends State<EmergencyConfirmSheet> {
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
               onChanged: (v) => setState(() => _consent = v ?? false),
-              title: const Text(AppStrings.sosShareConsent),
+              title: Text(AppStrings.sosShareConsent),
             ),
             SizedBox(
               width: double.infinity,
@@ -711,7 +711,7 @@ class _EmergencyConfirmSheetState extends State<EmergencyConfirmSheet> {
                 ),
                 onPressed: _consent ? _submit : null,
                 icon: const Icon(Icons.send),
-                label: const Text(AppStrings.submitEmergency),
+                label: Text(AppStrings.submitEmergency),
               ),
             ),
           ],
@@ -819,7 +819,7 @@ class _EmergencyTrackingSheetState extends State<EmergencyTrackingSheet> {
                     color: resolved
                         ? AppColors.success
                         : cancelled
-                            ? AppColors.textSecondary
+                            ? Theme.of(context).colorScheme.onSurfaceVariant
                             : AppColors.emergency,
                   ),
                   const SizedBox(width: 8),
@@ -874,7 +874,7 @@ class _EmergencyTrackingSheetState extends State<EmergencyTrackingSheet> {
                 style: Theme.of(context).textTheme.labelSmall,
               ),
               if (_request.responders.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: Text(AppStrings.trackingNoResponders),
                 )
@@ -894,7 +894,7 @@ class _EmergencyTrackingSheetState extends State<EmergencyTrackingSheet> {
                   child: OutlinedButton.icon(
                     onPressed: _busy ? null : _cancel,
                     icon: const Icon(Icons.cancel_outlined),
-                    label: const Text(AppStrings.cancelRequest),
+                    label: Text(AppStrings.cancelRequest),
                   ),
                 ),
               ],
@@ -955,7 +955,7 @@ class _AccessGrantsCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             if (active.isEmpty)
-              const Text(AppStrings.accessNone)
+              Text(AppStrings.accessNone)
             else
               for (final grant in active)
                 Padding(
@@ -1018,7 +1018,7 @@ class _EmergencyTriggerCard extends StatelessWidget {
             DropdownButtonFormField<String>(
               initialValue: type,
               decoration:
-                  const InputDecoration(labelText: AppStrings.emergencyType),
+                  InputDecoration(labelText: AppStrings.emergencyType),
               items: [
                 for (final t in emergencyTypes)
                   DropdownMenuItem(value: t, child: Text(t.replaceAll('_', ' '))),
@@ -1031,7 +1031,7 @@ class _EmergencyTriggerCard extends StatelessWidget {
             DropdownButtonFormField<String>(
               initialValue: severity,
               decoration:
-                  const InputDecoration(labelText: AppStrings.emergencySeverity),
+                  InputDecoration(labelText: AppStrings.emergencySeverity),
               items: [
                 for (final s in emergencySeverities)
                   DropdownMenuItem(value: s, child: Text(s)),
@@ -1044,7 +1044,7 @@ class _EmergencyTriggerCard extends StatelessWidget {
             TextField(
               controller: controller,
               maxLines: 3,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: AppStrings.describeEmergency,
               ),
             ),
@@ -1173,7 +1173,7 @@ class _EmergencyCard extends StatelessWidget {
                           onCancel();
                       }
                     },
-                    itemBuilder: (context) => const [
+                    itemBuilder: (context) => [
                       PopupMenuItem(
                         value: 'validate',
                         child: Text(AppStrings.validateEmergency),

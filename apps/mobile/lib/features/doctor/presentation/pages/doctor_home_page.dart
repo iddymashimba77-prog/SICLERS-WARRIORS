@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_card.dart';
@@ -140,7 +139,7 @@ class _DoctorHomeViewState extends State<DoctorHomeView> {
             'Signed in as a verified healthcare professional on this backend '
             'session.',
             style: theme.textTheme.bodySmall
-                ?.copyWith(color: AppColors.textSecondary),
+                ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.lg),
           StatGrid(
@@ -177,7 +176,7 @@ class _DoctorHomeViewState extends State<DoctorHomeView> {
             ),
           ),
           if (data.conversations.isEmpty)
-            const EmptyStateView(
+            EmptyStateView(
               message: AppStrings.noConversations,
               icon: Icons.chat_bubble_outline,
             )
@@ -201,25 +200,25 @@ class _DoctorHomeViewState extends State<DoctorHomeView> {
               ),
           const SizedBox(height: AppSpacing.lg),
           SectionHeader(title: AppStrings.todayAppointments),
-          const EmptyStateView(
+          EmptyStateView(
             message: AppStrings.noAppointmentsToday,
             icon: Icons.event_busy_outlined,
           ),
           const SizedBox(height: AppSpacing.lg),
           SectionHeader(title: AppStrings.pendingRequests),
-          const EmptyStateView(
+          EmptyStateView(
             message: AppStrings.noPendingRequests,
             icon: Icons.outbox_outlined,
           ),
           const SizedBox(height: AppSpacing.lg),
           SectionHeader(title: AppStrings.recentPatientActivity),
-          const EmptyStateView(
+          EmptyStateView(
             message: AppStrings.noAuthorizedActivity,
             icon: Icons.lock_outline,
           ),
           const SizedBox(height: AppSpacing.lg),
           SectionHeader(title: AppStrings.doctorTasks),
-          const EmptyStateView(
+          EmptyStateView(
             message: AppStrings.noTasks,
             icon: Icons.task_alt_outlined,
           ),
@@ -227,7 +226,7 @@ class _DoctorHomeViewState extends State<DoctorHomeView> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.notifications_outlined),
-              title: const Text(AppStrings.inboxWithUnread),
+              title: Text(AppStrings.inboxWithUnread),
               subtitle: Text('${data.unread} ${AppStrings.unread.toLowerCase()}'),
               trailing: IconButton(
                 icon: const Icon(Icons.chevron_right),

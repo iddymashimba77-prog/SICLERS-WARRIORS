@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../auth/domain/auth_types.dart';
@@ -108,7 +107,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
     final end = _endDate;
     if (start != null && end != null && end.isBefore(start)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.startDateAfterEnd)),
+        SnackBar(content: Text(AppStrings.startDateAfterEnd)),
       );
       return;
     }
@@ -162,7 +161,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.medicationSaveFailed)),
+        SnackBar(content: Text(AppStrings.medicationSaveFailed)),
       );
     }
   }
@@ -181,7 +180,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
             children: [
               TextFormField(
                 controller: _name,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: AppStrings.medicationName,
                   hintText: AppStrings.medicationNameHint,
                   prefixIcon: Icon(Icons.medication_outlined),
@@ -196,7 +195,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
                   Expanded(
                     child: TextFormField(
                       controller: _generic,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: AppStrings.genericName,
                         prefixIcon: Icon(Icons.science_outlined),
                       ),
@@ -207,7 +206,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
                     width: 130,
                     child: TextFormField(
                       controller: _strength,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: AppStrings.strength,
                         hintText: AppStrings.strengthHint,
                       ),
@@ -218,7 +217,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _dosage,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: AppStrings.dosage,
                   hintText: AppStrings.dosageHint,
                   prefixIcon: Icon(Icons.local_pharmacy_outlined),
@@ -227,7 +226,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _frequency,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: AppStrings.frequency,
                   hintText: AppStrings.frequencyHint,
                   prefixIcon: Icon(Icons.repeat),
@@ -239,7 +238,7 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _route,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: AppStrings.route,
                   prefixIcon: Icon(Icons.route_outlined),
                 ),
@@ -298,9 +297,9 @@ class _MedicationFormPageState extends State<MedicationFormPage> {
                 label: Text(_isEdit ? AppStrings.save : AppStrings.addMedication),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 AppStrings.adherenceHelp,
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],
           ),

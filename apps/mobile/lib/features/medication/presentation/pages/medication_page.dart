@@ -109,7 +109,7 @@ class _MedicationHomeViewState extends State<MedicationHomeView> {
     // from the care team; patients read their profile and log doses, they do
     // not author medications from this screen.
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.medications)),
+      appBar: AppBar(title: Text(AppStrings.medications)),
       body: _buildBody(),
     );
   }
@@ -127,11 +127,11 @@ class _MedicationHomeViewState extends State<MedicationHomeView> {
             children: [
               const Icon(Icons.error_outline, size: 48),
               const SizedBox(height: 12),
-              const Text(AppStrings.medicationLoadFailed),
+              Text(AppStrings.medicationLoadFailed),
               const SizedBox(height: 16),
               OutlinedButton(
                 onPressed: _load,
-                child: const Text(AppStrings.retry),
+                child: Text(AppStrings.retry),
               ),
             ],
           ),
@@ -149,7 +149,7 @@ class _MedicationHomeViewState extends State<MedicationHomeView> {
             children: [
               const Icon(Icons.medication_outlined, size: 48),
               const SizedBox(height: 12),
-              const Text(AppStrings.noMedications),
+              Text(AppStrings.noMedications),
             ],
           ),
         ),

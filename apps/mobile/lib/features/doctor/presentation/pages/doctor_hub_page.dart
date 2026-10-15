@@ -89,7 +89,7 @@ class DoctorHubPage extends StatelessWidget {
       ),
     ];
     return Scaffold(
-      appBar: const AppTopBar(title: AppStrings.navDoctor),
+      appBar: AppTopBar(title: AppStrings.navDoctor),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),

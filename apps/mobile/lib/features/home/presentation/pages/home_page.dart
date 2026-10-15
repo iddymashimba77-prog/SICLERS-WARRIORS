@@ -208,11 +208,11 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
                 dashboard: data.dashboard!,
                 onRefresh: _load,
               ),
-              const SectionHeader(title: AppStrings.quickActions),
+              SectionHeader(title: AppStrings.quickActions),
               QuickActionsGrid(actions: _quickActions(context)),
-              const SectionHeader(title: AppStrings.alertsAndAttention),
+              SectionHeader(title: AppStrings.alertsAndAttention),
               _AlertsCard(data: data),
-              const SectionHeader(title: AppStrings.healthSnapshot),
+              SectionHeader(title: AppStrings.healthSnapshot),
               SnapStatGrid(dashboard: data.dashboard!),
               SectionHeader(
                 title: AppStrings.healthTrendTitle,
@@ -469,7 +469,7 @@ class _CheckInCard extends StatelessWidget {
             child: FilledButton.tonalIcon(
               onPressed: () => _openCheckIn(context),
               icon: const Icon(Icons.add_circle_outline),
-              label: const Text(AppStrings.checkinAction),
+              label: Text(AppStrings.checkinAction),
             ),
           ),
         ],
@@ -582,7 +582,7 @@ class _PainSymptomsCard extends StatelessWidget {
         child: Text(AppStrings.logSymptom),
       ),
       child: symptoms.isEmpty
-          ? const _EmptyInline(
+          ? _EmptyInline(
               icon: Icons.healing_outlined,
               message: AppStrings.noSymptoms,
             )
@@ -651,7 +651,7 @@ class _AppointmentCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _EmptyInline(
+          _EmptyInline(
             icon: Icons.event_available_outlined,
             message: AppStrings.noAppointments,
           ),
@@ -659,7 +659,7 @@ class _AppointmentCard extends StatelessWidget {
           TextButton.icon(
             onPressed: onOpenDoctor,
             icon: const Icon(Icons.medical_services_outlined),
-            label: const Text(AppStrings.navDoctor),
+            label: Text(AppStrings.navDoctor),
           ),
         ],
       ),
@@ -682,7 +682,7 @@ class _HealthTrendCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (pct == null)
-            const _EmptyInline(
+            _EmptyInline(
               icon: Icons.show_chart,
               message: AppStrings.noDataRecorded,
             )
@@ -715,7 +715,7 @@ class _ActivityCard extends StatelessWidget {
       icon: Icons.bolt_outlined,
       accent: AppColors.blue,
       child: entries.isEmpty
-          ? const _EmptyInline(
+          ? _EmptyInline(
               icon: Icons.bolt_outlined,
               message: AppStrings.noRecentActivity,
             )
@@ -774,10 +774,10 @@ class _LearnCard extends StatelessWidget {
       trailing: TextButton(
         onPressed: () =>
             Navigator.of(context).pushNamed(EducationPage.routeName),
-        child: const Text(AppStrings.viewEducationLibrary),
+        child: Text(AppStrings.viewEducationLibrary),
       ),
       child: article == null
-          ? const _EmptyInline(
+          ? _EmptyInline(
               icon: Icons.school_outlined,
               message: AppStrings.noEducationContent,
             )
@@ -904,7 +904,7 @@ class _EmptyInline extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: AppColors.textMuted),
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: Text(message, style: theme.textTheme.bodySmall)),
         ],

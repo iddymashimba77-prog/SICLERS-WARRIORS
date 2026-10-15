@@ -115,8 +115,8 @@ class NotificationsHomeView extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(AppStrings.notifications),
-          bottom: const TabBar(
+          title: Text(AppStrings.notifications),
+          bottom: TabBar(
             tabs: [
               Tab(text: AppStrings.inbox),
               Tab(text: AppStrings.preferences),
@@ -212,7 +212,7 @@ class _InboxTabState extends State<_InboxTab> {
       await widget.repository.readAll(access: widget.accessToken);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.notificationsAllRead)),
+        SnackBar(content: Text(AppStrings.notificationsAllRead)),
       );
       await _load();
     } catch (_) {
@@ -262,7 +262,7 @@ class _InboxTabState extends State<_InboxTab> {
                     ),
                   )
                 else
-                  const Expanded(
+                  Expanded(
                     child: Text(AppStrings.notificationGroupHelp,
                         style: TextStyle(fontSize: 12)),
                   ),
@@ -270,14 +270,14 @@ class _InboxTabState extends State<_InboxTab> {
                   TextButton.icon(
                     onPressed: _markingAll ? null : _readAll,
                     icon: const Icon(Icons.done_all, size: 18),
-                    label: const Text(AppStrings.markAllRead),
+                    label: Text(AppStrings.markAllRead),
                   ),
               ],
             ),
           ),
           Expanded(
             child: items.isEmpty
-                ? const EmptyStateView(
+                ? EmptyStateView(
                     message: AppStrings.noNotifications,
                     icon: Icons.notifications_none,
                   )
@@ -320,7 +320,7 @@ class _SectionHeader extends StatelessWidget {
             child: Text(
               label.toUpperCase(),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
                   ),
@@ -328,10 +328,9 @@ class _SectionHeader extends StatelessWidget {
           ),
           Text(
             '$count',
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
         ],
       ),
@@ -417,7 +416,8 @@ class _NotificationTile extends StatelessWidget {
             if (trailing) ...[
               const SizedBox(width: 4),
               Icon(Icons.chevron_right,
-                  size: 20, color: AppColors.textSecondary),
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
             ],
           ],
         ),
@@ -485,7 +485,7 @@ class _PreferencesTabState extends State<_PreferencesTab> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.categorySaveFailed)),
+        SnackBar(content: Text(AppStrings.categorySaveFailed)),
       );
       await _load();
     } finally {
@@ -509,7 +509,7 @@ class _PreferencesTabState extends State<_PreferencesTab> {
     final prefs = _prefs ?? const <String, bool>{};
     return ListView(
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: Text(AppStrings.notificationGroupHelp,
               style: TextStyle(fontSize: 12)),
@@ -520,7 +520,7 @@ class _PreferencesTabState extends State<_PreferencesTab> {
             SwitchListTile(
               title: Text(_label(category)),
               subtitle: category == 'EMERGENCY'
-                  ? const Text(AppStrings.emergencyLockedHelp)
+                  ? Text(AppStrings.emergencyLockedHelp)
                   : null,
               value: category == 'EMERGENCY' ? true : (prefs[category] ?? true),
               secondary: Icon(
@@ -529,7 +529,7 @@ class _PreferencesTabState extends State<_PreferencesTab> {
                     : Icons.notifications_outlined,
                 color: category == 'EMERGENCY'
                     ? AppColors.emergency
-                    : AppColors.textSecondary,
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               onChanged: category == 'EMERGENCY'
                   ? null

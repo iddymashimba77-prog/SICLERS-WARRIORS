@@ -37,7 +37,7 @@ class HealthDashboardPage extends StatelessWidget {
       return const SignedOutGate();
     }
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.healthTracking)),
+      appBar: AppBar(title: Text(AppStrings.healthTracking)),
       body: SafeArea(
         child: HealthDashboardView(
           accessToken: token,
@@ -107,13 +107,13 @@ class _HealthDashboardViewState extends State<HealthDashboardView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(24),
               child: Text(AppStrings.dashboardLoadFailed),
             ),
             OutlinedButton(
               onPressed: _load,
-              child: const Text(AppStrings.retry),
+              child: Text(AppStrings.retry),
             ),
           ],
         ),
@@ -207,12 +207,12 @@ class _HealthDashboardViewState extends State<HealthDashboardView> {
                   context,
                   MedicationPage.routeName,
                 ),
-                child: const Text(AppStrings.medications),
+                child: Text(AppStrings.medications),
               ),
             ],
           ),
           if (dash.activeMedCount == 0)
-            const Text(AppStrings.noMedications)
+            Text(AppStrings.noMedications)
           else
             for (final m in dash.medicalList)
               Card(
@@ -234,12 +234,12 @@ class _HealthDashboardViewState extends State<HealthDashboardView> {
               TextButton.icon(
                 onPressed: () => _openLogSymptom(context),
                 icon: const Icon(Icons.add_circle_outline),
-                label: const Text(AppStrings.logSymptom),
+                label: Text(AppStrings.logSymptom),
               ),
             ],
           ),
           if (dash.recentSymptoms.isEmpty)
-            const Text(AppStrings.noSymptoms)
+            Text(AppStrings.noSymptoms)
           else
             for (final s in dash.recentSymptoms.take(5))
               Card(
@@ -273,12 +273,12 @@ class _HealthDashboardViewState extends State<HealthDashboardView> {
               ),
               TextButton(
                 onPressed: () => _openTimeline(context),
-                child: const Text(AppStrings.viewTimeline),
+                child: Text(AppStrings.viewTimeline),
               ),
             ],
           ),
           if (dash.recentTimeline.isEmpty)
-            const Text(AppStrings.noTimelineEdits)
+            Text(AppStrings.noTimelineEdits)
           else
             for (final t in dash.recentTimeline.take(10))
               Card(
@@ -296,7 +296,7 @@ class _HealthDashboardViewState extends State<HealthDashboardView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(AppStrings.noHealthRecords),
+                Text(AppStrings.noHealthRecords),
                 const SizedBox(height: 8),
                 Text(
                   AppStrings.recordsSharedWithYou,
@@ -309,7 +309,7 @@ class _HealthDashboardViewState extends State<HealthDashboardView> {
                     MedicalRecordsPage.routeName,
                   ),
                   icon: const Icon(Icons.folder_shared_outlined),
-                  label: const Text(AppStrings.recordsEmptyTitle),
+                  label: Text(AppStrings.recordsEmptyTitle),
                 ),
               ],
             ),
@@ -318,13 +318,13 @@ class _HealthDashboardViewState extends State<HealthDashboardView> {
           // Care plan — not fabricated; care-team managed.
           _SectionCard(
             title: AppStrings.carePlan,
-            child: const Text(AppStrings.carePlanUnavailable),
+            child: Text(AppStrings.carePlanUnavailable),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             AppStrings.adherenceHelp,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
       ),
