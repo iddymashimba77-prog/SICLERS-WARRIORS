@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -22,7 +23,7 @@ class AdminBloodRequestsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _BloodView(
       accessToken: token,
       repository: repository ?? AdminRepository(tokenStore: EphemeralTokenStore()),
@@ -50,8 +51,8 @@ class _BloodViewState extends State<_BloodView> {
       key: _listKey,
       load: () => widget.repository.listBloodQueue(access: widget.accessToken),
       emptyIcon: Icons.bloodtype_outlined,
-      emptyTitle: 'Verification queue clear',
-      emptyMessage: 'No blood requests are awaiting verification.',
+      emptyTitle: tr('admin.queueClear'),
+      emptyMessage: tr('admin.noBloodAwaiting'),
       itemBuilder: (context, request) => _BloodCard(
         request: request,
         repository: widget.repository,
@@ -92,7 +93,7 @@ class _BloodCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${request.bloodGroupNeeded} · ${request.units} unit(s)',
+                        '${request.bloodGroupNeeded} · ${request.units} ${tr('admin.units')}',
                         style: theme.textTheme.titleMedium,
                       ),
                       const SizedBox(height: 2),
@@ -115,7 +116,7 @@ class _BloodCard extends StatelessWidget {
             if (request.creatorEmail.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Requested by ${request.creatorEmail}',
+                '${tr('admin.requestedBy')} ${request.creatorEmail}',
                 style: theme.textTheme.bodySmall,
               ),
             ],
@@ -135,12 +136,12 @@ class _BloodCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: () => _decide(context, approve: false),
                   icon: const Icon(Icons.close, size: 18),
-                  label: const Text('Reject'),
+                  label: Text(tr('admin.reject')),
                 ),
                 FilledButton.icon(
                   onPressed: () => _decide(context, approve: true),
                   icon: const Icon(Icons.verified_outlined, size: 18),
-                  label: const Text('Verify'),
+                  label: Text(tr('admin.verify')),
                 ),
               ],
             ),
@@ -155,8 +156,8 @@ class _BloodCard extends StatelessWidget {
     if (!approve) {
       reason = await promptReason(
         context: context,
-        title: 'Reject blood request',
-        hint: 'Reason for rejection (min 5 characters)',
+        title: tr('admin.rejectBloodRequest'),
+        hint: tr('admin.reasonRejection'),
       );
       if (reason == null) return;
     }
@@ -169,10 +170,13 @@ class _BloodCard extends StatelessWidget {
       );
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, approve ? 'Request verified.' : 'Request rejected.');
+      showAdminMessage(
+        context,
+        tr(approve ? 'admin.requestVerified' : 'admin.requestRejected'),
+      );
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not update the request.');
+      showAdminMessage(context, tr('admin.couldNotUpdateRequest'));
     }
   }
 }

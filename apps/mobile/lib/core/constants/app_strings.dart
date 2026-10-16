@@ -24,6 +24,10 @@ class AppStrings {
     _locale = Locale(locale.languageCode);
   }
 
+  /// The currently-bound language. Exposed so the key-based translations in
+  /// `app_localizations.dart` can be resolved without a [BuildContext].
+  static Locale get currentLocale => _locale;
+
   static bool get _sw => _locale.languageCode == 'sw';
 
   static String _t(String en, String sw) => _sw ? sw : en;

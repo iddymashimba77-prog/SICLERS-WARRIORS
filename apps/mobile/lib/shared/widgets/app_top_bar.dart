@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
@@ -48,7 +49,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
       leading: leading ??
           (showBack
               ? IconButton(
-                  tooltip: 'Back',
+                  tooltip: tr('common.back'),
                   icon: const Icon(Icons.arrow_back),
                   onPressed: () => Navigator.maybePop(context),
                 )
@@ -57,7 +58,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         if (onNotificationsTap != null)
           IconButton(
-            tooltip: AppStringsNotif.notifications,
+            tooltip: tr('common.notifications'),
             icon: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -111,7 +112,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
 
 /// Notification label referenced without pulling feature constants in core.
 abstract final class AppStringsNotif {
-  static const String notifications = 'Notifications';
+  static const String notifications = 'Notifications'; // keep for backward compat if used elsewhere; prefer tr() in UI
 }
 
 /// Home screen personalised header — greeting + avatar + notification entry.
@@ -131,7 +132,7 @@ class AppHomeHeader extends StatelessWidget {
     this.unreadCount = 0,
   });
 
-  final String greeting;
+  final String? greeting;
   final String? personName;
   final String? subtitle;
   final VoidCallback? onNotificationsTap;
@@ -160,17 +161,17 @@ class AppHomeHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    personName == null
-                        ? greeting
-                        : '$greeting, $personName',
-                    style: AppTypography.headline.copyWith(
-                      color: AppColors.textOnDark,
-                      fontSize: 22,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+          Text(
+            personName == null
+                ? (greeting ?? tr('common.greeting'))
+                : '${greeting ?? tr('common.greeting')}, $personName',
+            style: AppTypography.headline.copyWith(
+              color: AppColors.textOnDark,
+              fontSize: 22,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
                   if (subtitle != null) ...[
                     const SizedBox(height: AppSpacing.xs),
                     Text(
@@ -185,7 +186,7 @@ class AppHomeHeader extends StatelessWidget {
             ),
             if (onNotificationsTap != null)
               IconButton(
-                tooltip: AppStringsNotif.notifications,
+                tooltip: tr('common.notifications'),
                 icon: Stack(
                   clipBehavior: Clip.none,
                   children: [

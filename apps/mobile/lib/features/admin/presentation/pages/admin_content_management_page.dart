@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -49,17 +50,17 @@ class _AdminNewsPageState extends State<AdminNewsPage> {
     return ListView(
       children: [
         AdminSectionHeader(
-          title: 'News Articles',
-          subtitle: 'Publish, feature and archive platform news (content.news.manage).',
+          title: tr('admin.newsArticles'),
+          subtitle: tr('admin.newsSubtitle'),
           trailing: Wrap(
             spacing: AppSpacing.sm,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               for (final filter in [
-                ('', 'All'),
-                ('DRAFT', 'Draft'),
-                ('PUBLISHED', 'Published'),
-                ('ARCHIVED', 'Archived'),
+                ('', tr('admin.filter.all')),
+                ('DRAFT', tr('admin.draft')),
+                ('PUBLISHED', tr('admin.published')),
+                ('ARCHIVED', tr('admin.archived')),
               ])
                 ChoiceChip(
                   label: Text(filter.$2),
@@ -71,7 +72,7 @@ class _AdminNewsPageState extends State<AdminNewsPage> {
                 ),
               FilledButton.icon(
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('New Article'),
+                label: Text(tr('admin.newArticle')),
                 onPressed: () async {
                   final created = await Navigator.of(context).push<bool>(
                     MaterialPageRoute(
@@ -87,8 +88,8 @@ class _AdminNewsPageState extends State<AdminNewsPage> {
         AdminAsyncList<AdminNewsArticle>(
           key: _listKey,
           load: _load,
-          emptyTitle: 'No articles',
-          emptyMessage: 'Nothing in this state yet.',
+          emptyTitle: tr('admin.noArticles'),
+          emptyMessage: tr('admin.nothingInState'),
           emptyIcon: Icons.newspaper_outlined,
           itemBuilder: (context, article) => _NewsCard(
             article: article,
@@ -161,9 +162,9 @@ class _NewsCard extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 if (article.featured)
-                  const Tooltip(
-                    message: 'Featured on the public home',
-                    child: Icon(Icons.star, color: AppColors.warning, size: 20),
+                  Tooltip(
+                    message: tr('admin.featuredTooltip'),
+                    child: const Icon(Icons.star, color: AppColors.warning, size: 20),
                   ),
                 const SizedBox(width: AppSpacing.sm),
                 AdminStatusChip(status: article.status),
@@ -189,25 +190,25 @@ class _NewsCard extends StatelessWidget {
                   FilledButton.tonalIcon(
                     onPressed: () => _setStatus(context, 'publish'),
                     icon: const Icon(Icons.publish, size: 18),
-                    label: const Text('Publish'),
+                    label: Text(tr('admin.publish')),
                   ),
                 if (published)
                   OutlinedButton.icon(
                     onPressed: () => _setStatus(context, 'unpublish'),
                     icon: const Icon(Icons.unpublished_outlined, size: 18),
-                    label: const Text('Unpublish'),
+                    label: Text(tr('admin.unpublish')),
                   ),
                 if (article.status != 'ARCHIVED')
                   OutlinedButton.icon(
                     onPressed: () => _setStatus(context, 'archive'),
                     icon: const Icon(Icons.archive_outlined, size: 18),
-                    label: const Text('Archive'),
+                    label: Text(tr('admin.archive')),
                   ),
                 if (published)
                   IconButton.outlined(
                     tooltip: article.featured
-                        ? 'Remove from featured'
-                        : 'Feature on home',
+                        ? tr('admin.removeFromFeatured')
+                        : tr('admin.featureOnHome'),
                     icon: Icon(
                       article.featured ? Icons.star : Icons.star_border,
                       color: AppColors.warning,
@@ -218,7 +219,7 @@ class _NewsCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () => _edit(context),
                     icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('Edit'),
+                    label: Text(tr('admin.edit')),
                   ),
                 if (article.status == 'DRAFT')
                   TextButton.icon(
@@ -227,7 +228,7 @@ class _NewsCard extends StatelessWidget {
                       foregroundColor: theme.colorScheme.error,
                     ),
                     icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Delete'),
+                    label: Text(tr('admin.delete')),
                   ),
               ],
             ),
@@ -235,7 +236,7 @@ class _NewsCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xs),
                 child: Text(
-                  'Unpublish to edit this article.',
+                  tr('admin.unpublishToEdit'),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -248,14 +249,19 @@ class _NewsCard extends StatelessWidget {
   }
 
   Future<void> _setStatus(BuildContext context, String action) async {
+    final doneKey = switch (action) {
+      'publish' => 'admin.articlePublished',
+      'unpublish' => 'admin.articleUnpublished',
+      _ => 'admin.articleArchived',
+    };
     try {
       await repository.setNewsStatus(access: token, uid: article.uid, action: action);
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, 'Article ${action}ed.');
+      showAdminMessage(context, tr(doneKey));
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not $action the article.');
+      showAdminMessage(context, tr('admin.couldNotUpdateArticle'));
     }
   }
 
@@ -268,10 +274,15 @@ class _NewsCard extends StatelessWidget {
       );
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, article.featured ? 'Removed from featured.' : 'Featured on home.');
+      showAdminMessage(
+        context,
+        tr(article.featured
+            ? 'admin.removedFromFeatured'
+            : 'admin.featuredOnHome'),
+      );
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not update the featured flag.');
+      showAdminMessage(context, tr('admin.couldNotUpdateFeatured'));
     }
   }
 
@@ -287,9 +298,9 @@ class _NewsCard extends StatelessWidget {
   Future<void> _delete(BuildContext context) async {
     final confirmed = await confirmAction(
       context: context,
-      title: 'Delete article?',
-      message: 'This permanently removes the draft "${article.title}".',
-      confirmLabel: 'Delete',
+      title: tr('admin.deleteArticleTitle'),
+      message: tr('admin.deleteArticleBody').replaceAll('{title}', article.title),
+      confirmLabel: tr('admin.delete'),
       destructive: true,
     );
     if (!confirmed) return;
@@ -297,10 +308,10 @@ class _NewsCard extends StatelessWidget {
       await repository.deleteNewsArticle(access: token, uid: article.uid);
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, 'Article deleted.');
+      showAdminMessage(context, tr('admin.articleDeleted'));
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not delete the article.');
+      showAdminMessage(context, tr('admin.couldNotDeleteArticle'));
     }
   }
 }
@@ -383,7 +394,7 @@ class _NewsEditorPageState extends State<_NewsEditorPage> {
     } on Exception {
       if (!mounted) return;
       setState(() => _saving = false);
-      showAdminMessage(context, 'Could not save the article.');
+      showAdminMessage(context, tr('admin.couldNotSaveArticle'));
     }
   }
 
@@ -392,12 +403,14 @@ class _NewsEditorPageState extends State<_NewsEditorPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.article == null ? 'New Article' : 'Edit Article'),
+        title: Text(widget.article == null
+            ? tr('admin.newArticle')
+            : tr('admin.editArticle')),
         actions: [
           TextButton.icon(
             onPressed: _saving ? null : _save,
             icon: const Icon(Icons.check, size: 18),
-            label: Text(_saving ? 'Saving…' : 'Save'),
+            label: Text(_saving ? tr('admin.saving') : tr('common.save')),
           ),
         ],
       ),
@@ -408,20 +421,20 @@ class _NewsEditorPageState extends State<_NewsEditorPage> {
           children: [
             TextFormField(
               controller: _title,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('admin.fieldTitle'),
+                border: const OutlineInputBorder(),
               ),
               maxLength: 200,
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Title is required.' : null,
+                  (v == null || v.trim().isEmpty) ? tr('admin.titleRequired') : null,
             ),
             const SizedBox(height: AppSpacing.md),
             DropdownButtonFormField<String>(
               initialValue: _category,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('admin.category'),
+                border: const OutlineInputBorder(),
               ),
               items: [
                 for (final c in _categories)
@@ -432,9 +445,9 @@ class _NewsEditorPageState extends State<_NewsEditorPage> {
             const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: _excerpt,
-              decoration: const InputDecoration(
-                labelText: 'Excerpt (optional short summary)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('admin.excerpt'),
+                border: const OutlineInputBorder(),
               ),
               maxLines: 3,
               maxLength: 500,
@@ -442,44 +455,44 @@ class _NewsEditorPageState extends State<_NewsEditorPage> {
             const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: _body,
-              decoration: const InputDecoration(
-                labelText: 'Body',
+              decoration: InputDecoration(
+                labelText: tr('admin.body'),
                 alignLabelWithHint: true,
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
               ),
               maxLines: 8,
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Body is required.' : null,
+                  (v == null || v.trim().isEmpty) ? tr('admin.bodyRequired') : null,
             ),
             const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: _tags,
-              decoration: const InputDecoration(
-                labelText: 'Tags (comma separated)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('admin.tags'),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: _coverUrl,
-              decoration: const InputDecoration(
-                labelText: 'Cover image URL',
-                hintText: 'https://… (image renders on the public site)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('admin.coverUrl'),
+                hintText: tr('admin.coverUrlHint'),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: _coverAlt,
-              decoration: const InputDecoration(
-                labelText: 'Cover alt text',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('admin.coverAlt'),
+                border: const OutlineInputBorder(),
               ),
               maxLength: 300,
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Articles are saved as drafts and can be published from the list.',
+              tr('admin.articlesDraftNote'),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -525,14 +538,14 @@ class _AdminTickerPageState extends State<AdminTickerPage> {
     return ListView(
       children: [
         AdminSectionHeader(
-          title: 'Announcements',
-          subtitle: 'The top banner shown across the public site (content.ticker.manage).',
+          title: tr('admin.nav.announcements'),
+          subtitle: tr('admin.tickerSubtitle'),
           trailing: Wrap(
             spacing: AppSpacing.sm,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               FilterChip(
-                label: const Text('Active only'),
+                label: Text(tr('admin.activeOnly')),
                 selected: _onlyActive,
                 onSelected: (v) {
                   setState(() => _onlyActive = v);
@@ -541,7 +554,7 @@ class _AdminTickerPageState extends State<AdminTickerPage> {
               ),
               FilledButton.icon(
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('New Announcement'),
+                label: Text(tr('admin.newAnnouncement')),
                 onPressed: _showEditor,
               ),
             ],
@@ -550,8 +563,8 @@ class _AdminTickerPageState extends State<AdminTickerPage> {
         AdminAsyncList<AdminTickerAnnouncement>(
           key: _listKey,
           load: _load,
-          emptyTitle: 'No announcements',
-          emptyMessage: 'Nothing here yet.',
+          emptyTitle: tr('admin.noAnnouncements'),
+          emptyMessage: tr('admin.nothingHereYet'),
           emptyIcon: Icons.campaign_outlined,
           itemBuilder: (context, announcement) => _TickerCard(
             announcement: announcement,
@@ -613,8 +626,9 @@ class _TickerCard extends StatelessWidget {
                   announcement.typeLabel.isEmpty
                       ? announcement.type
                       : announcement.typeLabel,
-                  if (announcement.priority != 0) 'priority ${announcement.priority}',
-                  if (announcement.linkUrl.isNotEmpty) 'has link',
+                  if (announcement.priority != 0)
+                    '${tr('admin.priorityLabel')} ${announcement.priority}',
+                  if (announcement.linkUrl.isNotEmpty) tr('admin.hasLink'),
                 ].join(' · '),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -639,7 +653,7 @@ class _TickerCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onEdit,
                   icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Edit'),
+                  label: Text(tr('admin.edit')),
                 ),
                 TextButton.icon(
                   onPressed: () => _delete(context),
@@ -647,7 +661,7 @@ class _TickerCard extends StatelessWidget {
                     foregroundColor: theme.colorScheme.error,
                   ),
                   icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Delete'),
+                  label: Text(tr('admin.delete')),
                 ),
               ],
             ),
@@ -659,13 +673,15 @@ class _TickerCard extends StatelessWidget {
 
   String _scheduleText() {
     if (announcement.startAt == null && announcement.endAt == null) {
-      return 'Always shown when active.';
+      return tr('admin.alwaysShown');
     }
     final parts = <String>[
-      if (announcement.startAt != null) 'from ${announcement.startAt}',
-      if (announcement.endAt != null) 'until ${announcement.endAt}',
+      if (announcement.startAt != null)
+        '${tr('admin.fromLabel')} ${announcement.startAt}',
+      if (announcement.endAt != null)
+        '${tr('admin.untilLabel')} ${announcement.endAt}',
     ];
-    return 'Scheduled: ${parts.join(' ')}';
+    return '${tr('admin.scheduledLabel')} ${parts.join(' ')}';
   }
 
   Future<void> _setActive(BuildContext context, bool active) async {
@@ -673,19 +689,24 @@ class _TickerCard extends StatelessWidget {
       await repository.setTickerActive(access: token, uid: announcement.uid, active: active);
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, active ? 'Announcement activated.' : 'Announcement deactivated.');
+      showAdminMessage(
+        context,
+        tr(active
+            ? 'admin.announcementActivated'
+            : 'admin.announcementDeactivated'),
+      );
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not update the announcement.');
+      showAdminMessage(context, tr('admin.couldNotUpdateAnnouncement'));
     }
   }
 
   Future<void> _delete(BuildContext context) async {
     final confirmed = await confirmAction(
       context: context,
-      title: 'Delete announcement?',
-      message: 'This permanently removes the announcement.',
-      confirmLabel: 'Delete',
+      title: tr('admin.deleteAnnouncementTitle'),
+      message: tr('admin.deleteAnnouncementBody'),
+      confirmLabel: tr('admin.delete'),
       destructive: true,
     );
     if (!confirmed) return;
@@ -693,10 +714,10 @@ class _TickerCard extends StatelessWidget {
       await repository.deleteTicker(access: token, uid: announcement.uid);
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, 'Announcement deleted.');
+      showAdminMessage(context, tr('admin.announcementDeleted'));
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not delete the announcement.');
+      showAdminMessage(context, tr('admin.couldNotDeleteAnnouncement'));
     }
   }
 }
@@ -778,14 +799,16 @@ class _TickerEditorDialogState extends State<_TickerEditorDialog> {
     } on Exception {
       if (!mounted) return;
       setState(() => _saving = false);
-      showAdminMessage(context, 'Could not save the announcement.');
+      showAdminMessage(context, tr('admin.couldNotSaveAnnouncement'));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.existing == null ? 'New Announcement' : 'Edit Announcement'),
+      title: Text(widget.existing == null
+          ? tr('admin.newAnnouncement')
+          : tr('admin.editAnnouncement')),
       scrollable: true,
       content: Form(
         key: _formKey,
@@ -796,15 +819,16 @@ class _TickerEditorDialogState extends State<_TickerEditorDialog> {
             children: [
               TextFormField(
                 controller: _message,
-                decoration: const InputDecoration(labelText: 'Message'),
+                decoration: InputDecoration(labelText: tr('admin.message')),
                 maxLength: 240,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Message is required.' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? tr('admin.messageRequired')
+                    : null,
               ),
               const SizedBox(height: AppSpacing.sm),
               DropdownButtonFormField<String>(
                 initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Type'),
+                decoration: InputDecoration(labelText: tr('admin.type')),
                 items: [
                   for (final t in _types)
                     DropdownMenuItem(value: t, child: Text(t)),
@@ -814,32 +838,33 @@ class _TickerEditorDialogState extends State<_TickerEditorDialog> {
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _link,
-                decoration: const InputDecoration(labelText: 'Link URL (optional)'),
+                decoration:
+                    InputDecoration(labelText: tr('admin.linkUrlOptional')),
               ),
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _priority,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Priority (higher first)'),
+                decoration: InputDecoration(labelText: tr('admin.priorityHint')),
               ),
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _start,
-                decoration: const InputDecoration(
-                  labelText: 'Start (optional, ISO date/time)',
+                decoration: InputDecoration(
+                  labelText: tr('admin.startOptional'),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _end,
-                decoration: const InputDecoration(
-                  labelText: 'End (optional, ISO date/time)',
+                decoration: InputDecoration(
+                  labelText: tr('admin.endOptional'),
                 ),
               ),
               SwitchListTile(
                 value: _active,
                 onChanged: (v) => setState(() => _active = v),
-                title: const Text('Active now'),
+                title: Text(tr('admin.activeNow')),
                 contentPadding: EdgeInsets.zero,
               ),
             ],
@@ -849,11 +874,11 @@ class _TickerEditorDialogState extends State<_TickerEditorDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+          child: Text(tr('common.cancel')),
         ),
         FilledButton(
           onPressed: _saving ? null : _save,
-          child: Text(_saving ? 'Saving…' : 'Save'),
+          child: Text(_saving ? tr('admin.saving') : tr('common.save')),
         ),
       ],
     );

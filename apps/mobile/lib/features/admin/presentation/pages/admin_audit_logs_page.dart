@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -22,7 +23,7 @@ class AdminAuditLogsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _AuditView(
       accessToken: token,
       repository: repository ?? AdminRepository(tokenStore: EphemeralTokenStore()),
@@ -59,8 +60,8 @@ class _AuditViewState extends State<_AuditView> {
     return ListView(
       children: [
         AdminSectionHeader(
-          title: 'Audit Logs',
-          subtitle: 'Recorded administrative and security actions (audit_logs.view).',
+          title: tr('admin.nav.auditLogs'),
+          subtitle: tr('admin.auditSubtitle'),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
@@ -71,9 +72,9 @@ class _AuditViewState extends State<_AuditView> {
                   Expanded(
                     child: TextField(
                       controller: _actionCode,
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.tag, size: 20),
-                        hintText: 'Action code…',
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.tag, size: 20),
+                        hintText: tr('admin.actionCodeHint'),
                         isDense: true,
                       ),
                       onSubmitted: (_) => _listKey.currentState?.reload(),
@@ -83,9 +84,9 @@ class _AuditViewState extends State<_AuditView> {
                   Expanded(
                     child: TextField(
                       controller: _actor,
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.person_outline, size: 20),
-                        hintText: 'Actor email…',
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.person_outline, size: 20),
+                        hintText: tr('admin.actorEmailHint'),
                         isDense: true,
                       ),
                       onSubmitted: (_) => _listKey.currentState?.reload(),
@@ -100,10 +101,10 @@ class _AuditViewState extends State<_AuditView> {
                   spacing: 8,
                   children: [
                     for (final filter in [
-                      ('', 'All results'),
-                      ('SUCCESS', 'Success'),
-                      ('FAILURE', 'Failure'),
-                      ('DENIED', 'Denied'),
+                      ('', tr('admin.allResults')),
+                      ('SUCCESS', tr('admin.success')),
+                      ('FAILURE', tr('admin.failure')),
+                      ('DENIED', tr('admin.denied')),
                     ])
                       ChoiceChip(
                         label: Text(filter.$2),
@@ -123,8 +124,8 @@ class _AuditViewState extends State<_AuditView> {
         AdminAsyncList<AdminAuditLog>(
           key: _listKey,
           load: _load,
-          emptyTitle: 'No log entries',
-          emptyMessage: 'No audit entries match the current filters.',
+          emptyTitle: tr('admin.noLogEntries'),
+          emptyMessage: tr('admin.noAuditMatch'),
           emptyIcon: Icons.history_outlined,
           itemBuilder: (context, log) => Card(
             margin: EdgeInsets.zero,
@@ -141,7 +142,7 @@ class _AuditViewState extends State<_AuditView> {
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               subtitle: Text(
-                '${log.actorEmail.isEmpty ? 'system' : log.actorEmail} · '
+                '${log.actorEmail.isEmpty ? tr('admin.system') : log.actorEmail} · '
                 '${log.resourceType.isEmpty ? '—' : log.resourceType}'
                 '${log.resourceId.isEmpty ? '' : ' #${log.resourceId}'}',
               ),
@@ -165,20 +166,25 @@ class _AuditViewState extends State<_AuditView> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _kv('Actor', log.actorEmail.isEmpty ? 'system' : log.actorEmail),
-              _kv('Result', log.result),
-              if (log.resourceType.isNotEmpty) _kv('Resource', log.resourceType),
-              if (log.resourceId.isNotEmpty) _kv('Resource id', log.resourceId),
-              if (log.ipAddress.isNotEmpty) _kv('IP', log.ipAddress),
-              if (log.requestId.isNotEmpty) _kv('Request id', log.requestId),
-              if (log.createdAt != null) _kv('Timestamp', log.createdAt!),
+              _kv(tr('admin.actor'),
+                  log.actorEmail.isEmpty ? tr('admin.system') : log.actorEmail),
+              _kv(tr('admin.result'), log.result),
+              if (log.resourceType.isNotEmpty)
+                _kv(tr('admin.resource'), log.resourceType),
+              if (log.resourceId.isNotEmpty)
+                _kv(tr('admin.resourceId'), log.resourceId),
+              if (log.ipAddress.isNotEmpty) _kv(tr('admin.ip'), log.ipAddress),
+              if (log.requestId.isNotEmpty)
+                _kv(tr('admin.requestId'), log.requestId),
+              if (log.createdAt != null)
+                _kv(tr('admin.timestamp'), log.createdAt!),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: Text(tr('common.close')),
           ),
         ],
       ),

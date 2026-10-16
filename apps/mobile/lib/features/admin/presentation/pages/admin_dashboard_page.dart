@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/data/token_store.dart';
@@ -26,7 +27,9 @@ class AdminDashboardPage extends StatelessWidget {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
     if (token == null) {
-      return const Center(child: Text('Sign in as an administrator to continue.'));
+      return Center(
+        child: Text(AppLocalizations.of(context).tr('admin.signInAsAdmin')),
+      );
     }
     return _DashboardView(
       accessToken: token,
@@ -87,21 +90,22 @@ class _DashboardViewState extends State<_DashboardView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final s = AppLocalizations.of(context);
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
       return ErrorRetryView(
-        message: 'The dashboard could not be loaded.',
+        message: s.tr('admin.dashboardError'),
         onRetry: _load,
       );
     }
     final dash = _dashboard;
     if (dash == null) {
-      return const EmptyStateView(
+      return EmptyStateView(
         icon: Icons.dashboard_outlined,
-        title: 'No data yet',
-        message: 'Dashboard aggregates will appear once activity is recorded.',
+        title: s.tr('admin.noDataYet'),
+        message: s.tr('admin.dashboardEmpty'),
       );
     }
     final theme = Theme.of(context);
@@ -110,15 +114,15 @@ class _DashboardViewState extends State<_DashboardView>
       children: [
         Text(
           dash.roleKernel.isEmpty
-              ? 'Platform Dashboard'
-              : 'Platform Dashboard · ${dash.roleKernel}',
+              ? s.tr('admin.dashboard')
+              : '${s.tr('admin.dashboard')} · ${dash.roleKernel}',
           style: theme.textTheme.headlineSmall,
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           dash.generatedAt == null
-              ? 'Key indicators are computed from verified ledger data.'
-              : 'Computed ${dash.generatedAt}',
+              ? s.tr('admin.dashboardSubtitle')
+              : s.tr('admin.computedAt').replaceAll('{at}', '${dash.generatedAt}'),
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -139,6 +143,7 @@ class _KpiGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final crossAxisCount = constraints.maxWidth > 1100 ? 4 : 2;
@@ -152,64 +157,64 @@ class _KpiGrid extends StatelessWidget {
           children: [
             AdminKpiCard(
               icon: Icons.people_outline,
-              title: 'Total Users',
+              title: s.tr('admin.totalUsers'),
               value: '${dashboard.intKpi('users_total')}',
-              description: 'Registered accounts',
+              description: s.tr('admin.registeredAccounts'),
             ),
             AdminKpiCard(
               icon: Icons.person_outline,
-              title: 'Active Patients',
+              title: s.tr('admin.activePatients'),
               value: '${dashboard.intKpi('users_active_patients')}',
-              description: 'Currently active',
+              description: s.tr('admin.currentlyActive'),
             ),
             AdminKpiCard(
               icon: Icons.medical_services_outlined,
-              title: 'Verified Doctors',
+              title: s.tr('admin.verifiedDoctors'),
               value: '${dashboard.intKpi('verified_docs')}',
-              description: 'Confirmed practitioners',
+              description: s.tr('admin.confirmedPractitioners'),
             ),
             AdminKpiCard(
               icon: Icons.bloodtype_outlined,
-              title: 'Active Blood Requests',
+              title: s.tr('admin.activeBloodRequests'),
               value: '${dashboard.intKpi('active_blood_requests')}',
-              description: 'Open requests',
+              description: s.tr('admin.openRequests'),
             ),
             AdminKpiCard(
               icon: Icons.emergency_outlined,
-              title: 'Critical Emergencies',
+              title: s.tr('admin.criticalEmergencies'),
               value: '${dashboard.intKpi('emergency_requests_critical')}',
-              description: 'Critical severity',
+              description: s.tr('admin.criticalSeverity'),
             ),
             AdminKpiCard(
               icon: Icons.campaign_outlined,
-              title: 'Active Campaigns',
+              title: s.tr('admin.activeCampaigns'),
               value: '${dashboard.intKpi('active_campaigns')}',
-              description: 'Live fundraisers',
+              description: s.tr('admin.liveFundraisers'),
             ),
             AdminKpiCard(
               icon: Icons.volunteer_activism_outlined,
-              title: 'Confirmed Donations',
+              title: s.tr('admin.confirmedDonations'),
               value:
                   '${dashboard.doubleKpi('confirmed_donations_amount').toStringAsFixed(0)} TZS',
-              description: 'Completed contributions',
+              description: s.tr('admin.completedContributions'),
             ),
             AdminKpiCard(
               icon: Icons.report_outlined,
-              title: 'Open Reports',
+              title: s.tr('admin.openReports'),
               value: '${dashboard.intKpi('open_reports')}',
-              description: 'Awaiting moderation',
+              description: s.tr('admin.awaitingModeration'),
             ),
             AdminKpiCard(
               icon: Icons.article_outlined,
-              title: 'Published Content',
+              title: s.tr('admin.publishedContent'),
               value: '${dashboard.intKpi('published_content')}',
-              description: 'Education articles',
+              description: s.tr('admin.educationArticles'),
             ),
             AdminKpiCard(
               icon: Icons.school_outlined,
-              title: 'Verification Queue',
+              title: s.tr('admin.verificationQueue'),
               value: '${dashboard.intKpi('pending_verifications')}',
-              description: 'Pending verifications',
+              description: s.tr('admin.pendingVerifications'),
             ),
           ],
         );
@@ -226,6 +231,7 @@ class _PendingLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = AppLocalizations.of(context);
     final pendingMod = dashboard.intKpi('pending_moderation');
     final alerts = dashboard.intKpi('system_alerts_24h');
     final emergencies = dashboard.intKpi('active_emergencies');
@@ -241,8 +247,10 @@ class _PendingLine extends StatelessWidget {
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
-              'Pending moderation: $pendingMod · Active emergencies: $emergencies · '
-              'System alerts (24h): $alerts',
+              s.tr('admin.dashboardSummary')
+                  .replaceAll('{pending}', '$pendingMod')
+                  .replaceAll('{emergencies}', '$emergencies')
+                  .replaceAll('{alerts}', '$alerts'),
               style: theme.textTheme.bodyMedium,
             ),
           ),

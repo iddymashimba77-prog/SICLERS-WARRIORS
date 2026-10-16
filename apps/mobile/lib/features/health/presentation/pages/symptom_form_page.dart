@@ -181,16 +181,21 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
             for (final t in _types)
               DropdownMenuItem(
                 value: t,
+                // No flexed Row here: DropdownButton lays its items out with a
+                // width bound by the menu's intrinsic sizing, where an
+                // Expanded child throws "non-zero flex, unbounded width".
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: Text(t.name.isEmpty ? t.code : t.name),
-                    ),
                     if (t.isPainRelated)
                       const Padding(
                         padding: EdgeInsets.only(right: 12),
                         child: Icon(Icons.whatshot, size: 14),
                       ),
+                    Text(
+                      t.name.isEmpty ? t.code : t.name,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),

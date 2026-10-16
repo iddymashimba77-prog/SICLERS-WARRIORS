@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 
@@ -37,7 +38,7 @@ class AppSearchField extends StatelessWidget {
         hintText: hintText,
         prefixIcon: const Icon(Icons.search),
         suffixIcon: IconButton(
-          tooltip: 'Clear search',
+          tooltip: tr('common.clearSearch'),
           icon: const Icon(Icons.close),
           onPressed: () {
             controller?.clear();

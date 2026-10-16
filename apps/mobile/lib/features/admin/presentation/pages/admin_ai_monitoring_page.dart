@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/data/token_store.dart';
@@ -25,7 +26,7 @@ class AdminAiMonitoringPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _AiMonitoringView(
       accessToken: token,
       repository: repository ?? AdminRepository(tokenStore: EphemeralTokenStore()),
@@ -82,14 +83,15 @@ class _AiMonitoringViewState extends State<_AiMonitoringView> {
     return ListView(
       children: [
         AdminSectionHeader(
-          title: 'AI Monitoring',
-          subtitle: 'AI assistant usage from the audit trail (last ${_monitoring?.windowDays ?? 30} days).',
+          title: tr('admin.nav.aiMonitoring'),
+          subtitle: tr('admin.aiSubtitle')
+              .replaceAll('{days}', '${_monitoring?.windowDays ?? 30}'),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
           child: _error == true
               ? ErrorRetryView(
-                  message: 'AI usage telemetry could not be loaded.',
+                  message: tr('admin.aiError'),
                   onRetry: _load,
                 )
               : (_loading || _monitoring == null)
@@ -121,54 +123,54 @@ class _AiMonitoringViewState extends State<_AiMonitoringView> {
               children: [
                 AdminKpiCard(
                   icon: Icons.smart_toy_outlined,
-                  title: 'Total Events',
+                  title: tr('admin.totalEvents'),
                   value: '${m.totalEvents}',
                 ),
                 AdminKpiCard(
                   icon: Icons.check_circle_outline,
-                  title: 'Successful',
+                  title: tr('admin.successful'),
                   value: '${m.successes}',
                   color: AppColors.success,
                 ),
                 AdminKpiCard(
                   icon: Icons.error_outline,
-                  title: 'Failures',
+                  title: tr('admin.failuresKpi'),
                   value: '${m.failures}',
                   color: AppColors.emergency,
                 ),
                 AdminKpiCard(
                   icon: Icons.gpp_bad_outlined,
-                  title: 'Denied',
+                  title: tr('admin.denied'),
                   value: '${m.denied}',
                   color: AppColors.emergency,
                 ),
                 AdminKpiCard(
                   icon: Icons.shield_outlined,
-                  title: 'Safety Blocks',
+                  title: tr('admin.safetyBlocks'),
                   value: '${m.safetyBlocks}',
                 ),
                 AdminKpiCard(
                   icon: Icons.cloud_off_outlined,
-                  title: 'Provider Failures',
+                  title: tr('admin.providerFailures'),
                   value: '${m.providerFailures}',
                 ),
                 AdminKpiCard(
                   icon: Icons.block_outlined,
-                  title: 'Usage Denied',
+                  title: tr('admin.usageDenied'),
                   value: '${m.usageDenied}',
                 ),
                 AdminKpiCard(
                   icon: Icons.people_outline,
-                  title: 'Unique Users',
+                  title: tr('admin.uniqueUsers'),
                   value: '${m.uniqueUsers}',
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.xl),
-            Text('By action', style: theme.textTheme.titleSmall),
+            Text(tr('admin.byAction'), style: theme.textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
             if (m.byAction.isEmpty)
-              const Text('No action breakdown yet.')
+              Text(tr('admin.noActionBreakdown'))
             else
               for (final action in m.byAction)
                 Card(

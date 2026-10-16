@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/data/token_store.dart';
@@ -25,7 +26,7 @@ class AdminAnalyticsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _AnalyticsView(
       accessToken: token,
       repository: repository ?? AdminRepository(tokenStore: EphemeralTokenStore()),
@@ -50,21 +51,21 @@ class _AnalyticsViewState extends State<_AnalyticsView> {
   Object? _error;
   bool _loading = true;
 
-  static const _metrics = <(String, String)>[
-    ('users.total', 'Total users'),
-    ('users.active', 'Active users'),
-    ('users.active_patients', 'Active patients'),
-    ('users.new', 'New users'),
-    ('donations.confirmed_amount', 'Confirmed donations (TZS)'),
-    ('blood_donations.by_outcome', 'Blood donations'),
-    ('blood_matches.by_status', 'Blood matches'),
-    ('emergency_requests.by_status', 'Emergency requests'),
-    ('community_posts.by_status', 'Community posts'),
-    ('reports.by_status', 'Reports'),
-    ('education.by_status', 'Education content'),
-    ('symptoms.avg_pain', 'Average pain level'),
-    ('security_events.non_success', 'Security events (non-success)'),
-  ];
+  List<(String, String)> get _metrics => <(String, String)>[
+        ('users.total', tr('admin.metric.totalUsers')),
+        ('users.active', tr('admin.metric.activeUsers')),
+        ('users.active_patients', tr('admin.metric.activePatients')),
+        ('users.new', tr('admin.metric.newUsers')),
+        ('donations.confirmed_amount', tr('admin.metric.confirmedDonations')),
+        ('blood_donations.by_outcome', tr('admin.metric.bloodDonations')),
+        ('blood_matches.by_status', tr('admin.metric.bloodMatches')),
+        ('emergency_requests.by_status', tr('admin.metric.emergencyRequests')),
+        ('community_posts.by_status', tr('admin.metric.communityPosts')),
+        ('reports.by_status', tr('admin.metric.reports')),
+        ('education.by_status', tr('admin.metric.education')),
+        ('symptoms.avg_pain', tr('admin.metric.avgPain')),
+        ('security_events.non_success', tr('admin.metric.securityEvents')),
+      ];
 
   @override
   void initState() {
@@ -102,13 +103,13 @@ class _AnalyticsViewState extends State<_AnalyticsView> {
     return ListView(
       children: [
         AdminSectionHeader(
-          title: 'Analytics',
-          subtitle: 'Aggregated telemetry from the analytics snapshot store.',
+          title: tr('admin.nav.analytics'),
+          subtitle: tr('admin.analyticsSubtitle'),
           trailing: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'DAILY', label: Text('Daily')),
-              ButtonSegment(value: 'WEEKLY', label: Text('Weekly')),
-              ButtonSegment(value: 'MONTHLY', label: Text('Monthly')),
+            segments: [
+              ButtonSegment(value: 'DAILY', label: Text(tr('admin.daily'))),
+              ButtonSegment(value: 'WEEKLY', label: Text(tr('admin.weekly'))),
+              ButtonSegment(value: 'MONTHLY', label: Text(tr('admin.monthly'))),
             ],
             selected: {_granularity},
             onSelectionChanged: (set) {
@@ -121,7 +122,7 @@ class _AnalyticsViewState extends State<_AnalyticsView> {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
           child: DropdownButtonFormField<String>(
             initialValue: _metric,
-            decoration: const InputDecoration(labelText: 'Metric'),
+            decoration: InputDecoration(labelText: tr('admin.metric')),
             items: [
               for (final m in _metrics)
                 DropdownMenuItem(value: m.$1, child: Text(m.$2)),
@@ -143,7 +144,7 @@ class _AnalyticsViewState extends State<_AnalyticsView> {
           Padding(
             padding: const EdgeInsets.all(AppSpacing.xl),
             child: ErrorRetryView(
-              message: 'The analytics series could not be loaded.',
+              message: tr('admin.analyticsError'),
               onRetry: _load,
             ),
           )
@@ -152,8 +153,10 @@ class _AnalyticsViewState extends State<_AnalyticsView> {
             rows: _result?.rows ?? const [],
             metric: _metric,
             daysLabel: _granularity == 'DAILY'
-                ? 'per day'
-                : (_granularity == 'WEEKLY' ? 'per week' : 'per month'),
+                ? tr('admin.perDay')
+                : (_granularity == 'WEEKLY'
+                    ? tr('admin.perWeek')
+                    : tr('admin.perMonth')),
           ),
       ],
     );
@@ -175,10 +178,10 @@ class _BarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (rows.isEmpty) {
-      return const EmptyStateView(
+      return EmptyStateView(
         icon: Icons.insert_chart_outlined,
-        title: 'No data points yet',
-        message: 'Snapshots will appear once the metric has been computed.',
+        title: tr('admin.noDataPoints'),
+        message: tr('admin.noDataPointsMsg'),
       );
     }
     final maxValue = rows.fold<double>(0, (m, r) => r.value > m ? r.value : m);

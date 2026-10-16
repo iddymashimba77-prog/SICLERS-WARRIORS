@@ -203,7 +203,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Habari, Amina Mwaka'), findsOneWidget);
+      expect(find.text('${AppStrings.greeting}, Amina Mwaka'), findsOneWidget);
       expect(find.text(AppStrings.dailyCheckin), findsOneWidget);
       // Unread badge from the real notifications count.
       expect(find.text('3'), findsWidgets);

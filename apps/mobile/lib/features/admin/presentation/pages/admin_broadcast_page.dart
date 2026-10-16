@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -24,7 +25,7 @@ class AdminBroadcastPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _BroadcastView(
       accessToken: token,
       repository: repository ?? AdminRepository(tokenStore: EphemeralTokenStore()),
@@ -60,60 +61,62 @@ class _BroadcastViewState extends State<_BroadcastView> {
         padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
           AdminSectionHeader(
-            title: 'Broadcast',
-            subtitle: 'Send a system notification to a chosen audience.',
+            title: tr('admin.nav.broadcast'),
+            subtitle: tr('admin.broadcastSubtitle'),
           ),
           const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
             initialValue: _audience,
-            decoration: const InputDecoration(labelText: 'Audience'),
-            items: const [
-              DropdownMenuItem(value: 'ALL', child: Text('All users')),
-              DropdownMenuItem(value: 'ROLE', child: Text('A role')),
-              DropdownMenuItem(value: 'USERS', child: Text('Specific users (by uid)')),
+            decoration: InputDecoration(labelText: tr('admin.audience')),
+            items: [
+              DropdownMenuItem(value: 'ALL', child: Text(tr('admin.allUsers'))),
+              DropdownMenuItem(value: 'ROLE', child: Text(tr('admin.aRole'))),
+              DropdownMenuItem(
+                  value: 'USERS', child: Text(tr('admin.specificUsers'))),
             ],
             onChanged: (value) => setState(() => _audience = value ?? 'ALL'),
           ),
           const SizedBox(height: AppSpacing.md),
           TextFormField(
             controller: _title,
-            decoration: const InputDecoration(labelText: 'Title'),
+            decoration: InputDecoration(labelText: tr('admin.fieldTitle')),
             textInputAction: TextInputAction.next,
             validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Title is required.' : null,
+                (v == null || v.trim().isEmpty) ? tr('admin.titleRequired') : null,
           ),
           const SizedBox(height: AppSpacing.md),
           if (_audience == 'ROLE') ...[
             TextFormField(
               controller: _roleCode,
-              decoration: const InputDecoration(
-                labelText: 'Role code',
-                hintText: 'e.g. PATIENT',
+              decoration: InputDecoration(
+                labelText: tr('admin.roleCode'),
+                hintText: tr('admin.roleCodeExample'),
               ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Role code is required.' : null,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? tr('admin.roleCodeRequired')
+                  : null,
             ),
             const SizedBox(height: AppSpacing.md),
           ],
           if (_audience == 'USERS') ...[
             TextFormField(
               controller: _userUids,
-              decoration: const InputDecoration(
-                labelText: 'User uids',
-                hintText: 'Comma-separated user uids',
+              decoration: InputDecoration(
+                labelText: tr('admin.userUids'),
+                hintText: tr('admin.userUidsHint'),
               ),
               validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'At least one user uid is required.'
+                  ? tr('admin.uidsRequired')
                   : null,
             ),
             const SizedBox(height: AppSpacing.md),
           ],
           TextFormField(
             controller: _body,
-            decoration: const InputDecoration(labelText: 'Message'),
+            decoration: InputDecoration(labelText: tr('admin.message')),
             maxLines: 6,
             validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Message is required.' : null,
+                (v == null || v.trim().isEmpty) ? tr('admin.messageRequired') : null,
           ),
           const SizedBox(height: AppSpacing.lg),
           if (_sending)
@@ -127,7 +130,7 @@ class _BroadcastViewState extends State<_BroadcastView> {
                 borderRadius: AppShapes.tile,
               ),
               child: Text(
-                'Sent to ${_result!.recipientCount} recipient(s)'
+                '${tr('admin.sentTo').replaceAll('{count}', '${_result!.recipientCount}')}'
                 '${_result!.audience.isEmpty ? '' : ' (${_result!.audience})'}.',
                 style: const TextStyle(color: AppColors.success),
               ),
@@ -137,7 +140,7 @@ class _BroadcastViewState extends State<_BroadcastView> {
             child: FilledButton.icon(
               onPressed: _sending ? null : _send,
               icon: const Icon(Icons.send_outlined, size: 18),
-              label: const Text('Send broadcast'),
+              label: Text(tr('admin.sendBroadcast')),
             ),
           ),
         ],
@@ -174,7 +177,7 @@ class _BroadcastViewState extends State<_BroadcastView> {
     } on Exception {
       if (!mounted) return;
       setState(() => _sending = false);
-      showAdminMessage(context, 'Could not send the broadcast.');
+      showAdminMessage(context, tr('admin.couldNotBroadcast'));
     }
   }
 }

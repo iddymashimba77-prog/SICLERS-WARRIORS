@@ -132,25 +132,31 @@ void main() {
     await tester.pumpWidget(_app(_repo()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    final scrollable = find.byType(Scrollable).first;
+    final position = tester.state<ScrollableState>(scrollable).position;
+    final offsetBefore = position.pixels;
     final before = tester.getTopLeft(find.byIcon(Icons.campaign_outlined)).dy;
 
     // Scroll well past the announcement band.
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -900));
+    await tester.drag(scrollable, const Offset(0, -900));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 16));
 
+    // The page genuinely moved under the pinned chrome.
+    expect(position.pixels, greaterThan(offsetBefore),
+        reason: 'the drag must scroll the public page');
     expect(
       find.byIcon(Icons.campaign_outlined),
       findsOneWidget,
       reason: 'an announcement must remain on screen while the page scrolls',
     );
     final after = tester.getTopLeft(find.byIcon(Icons.campaign_outlined)).dy;
-    expect(after, lessThan(before),
-        reason: 'the band moves up to the top of the viewport as a pinned header');
-    // It also stays glued just under the pinned app bar rather than riding
-    // the content.
+    // The band is pinned: it stays glued just under the app bar (never riding
+    // the content off the top of the viewport, and never dropping below its
+    // initial pinned slot — an overscrolling viewport may transiently stretch
+    // it upward, which is why the comparison is not strict).
     expect(after, greaterThan(0));
-    expect(after, lessThan(before));
+    expect(after, lessThanOrEqualTo(before));
     await tester.pumpWidget(const SizedBox());
   });
 

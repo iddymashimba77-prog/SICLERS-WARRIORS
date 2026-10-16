@@ -81,7 +81,7 @@ class _ProfileViewState extends State<ProfileView> {
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _load,
-                child: const Text('Retry'),
+                child: Text(AppStrings.retry),
               ),
             ],
           ),

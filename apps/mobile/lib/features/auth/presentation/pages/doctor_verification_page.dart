@@ -97,7 +97,7 @@ class _DoctorVerificationPageState extends State<DoctorVerificationPage> {
                     );
                   },
                   icon: const Icon(Icons.home_outlined),
-                  label: const Text('Go to Home'),
+                  label: Text(s.tr('auth.goToHome')),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/data/token_store.dart';
@@ -24,7 +25,7 @@ class AdminFinancePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _FinanceView(
       accessToken: token,
       canRefund: session.permissions.contains('donations.refund'),
@@ -89,12 +90,12 @@ class _FinanceViewState extends State<_FinanceView> {
     return ListView(
       children: [
         AdminSectionHeader(
-          title: 'Finance',
-          subtitle: 'Aggregates from confirmed ledger rows (donations.view).',
+          title: tr('admin.nav.finance'),
+          subtitle: tr('admin.financeSubtitle'),
           trailing: SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: true, label: Text('Summary')),
-              ButtonSegment(value: false, label: Text('Ledger')),
+            segments: [
+              ButtonSegment(value: true, label: Text(tr('admin.summary'))),
+              ButtonSegment(value: false, label: Text(tr('admin.ledger'))),
             ],
             selected: {_tabSummary},
             onSelectionChanged: (set) => setState(() => _tabSummary = set.first),
@@ -116,7 +117,7 @@ class _FinanceViewState extends State<_FinanceView> {
       return Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
         child: ErrorRetryView(
-          message: 'The financial summary could not be loaded.',
+          message: tr('admin.financeError'),
           onRetry: _loadSummary,
         ),
       );
@@ -137,39 +138,40 @@ class _FinanceViewState extends State<_FinanceView> {
             children: [
               AdminKpiCard(
                 icon: Icons.volunteer_activism_outlined,
-                title: 'Confirmed Donations',
+                title: tr('admin.confirmedDonations'),
                 value: '${s.confirmedDonationsTotal.toStringAsFixed(0)} TZS',
-                description: '${s.confirmedDonationsCount} completed',
+                description:
+                    '${s.confirmedDonationsCount} ${tr('admin.completedWord')}',
               ),
               AdminKpiCard(
                 icon: Icons.currency_exchange_outlined,
-                title: 'Refunded',
+                title: tr('admin.refunded'),
                 value: '${s.refundedTotal.toStringAsFixed(0)} TZS',
-                description: 'Processed refunds',
+                description: tr('admin.processedRefunds'),
               ),
               AdminKpiCard(
                 icon: Icons.pending_actions_outlined,
-                title: 'Pending Donations',
+                title: tr('admin.pendingDonations'),
                 value: '${s.pendingDonationsCount}',
-                description: 'Awaiting confirmation',
+                description: tr('admin.awaitingConfirmation'),
               ),
               AdminKpiCard(
                 icon: Icons.campaign_outlined,
-                title: 'Active Campaigns',
+                title: tr('admin.activeCampaigns'),
                 value: '${s.activeCampaignsCount}',
-                description: 'Live right now',
+                description: tr('admin.liveRightNow'),
               ),
               AdminKpiCard(
                 icon: Icons.event_available_outlined,
-                title: 'Closed Campaigns',
+                title: tr('admin.closedCampaigns'),
                 value: '${s.closedCampaignsCount}',
-                description: 'Completed',
+                description: tr('admin.completedLabel'),
               ),
               AdminKpiCard(
                 icon: Icons.verified_outlined,
-                title: 'Verified Campaigns',
+                title: tr('admin.verifiedCampaigns'),
                 value: '${s.verifiedCampaignsCount}',
-                description: 'Checked by staff',
+                description: tr('admin.checkedByStaff'),
               ),
             ],
           );
@@ -183,8 +185,8 @@ class _FinanceViewState extends State<_FinanceView> {
       key: _listKey,
       load: () => widget.repository.listDonations(access: widget.accessToken),
       emptyIcon: Icons.receipt_long_outlined,
-      emptyTitle: 'No donations',
-      emptyMessage: 'The donations ledger is empty.',
+      emptyTitle: tr('admin.noDonations'),
+      emptyMessage: tr('admin.ledgerEmpty'),
       itemBuilder: (context, donation) => Card(
         margin: EdgeInsets.zero,
         child: Padding(
@@ -226,7 +228,7 @@ class _FinanceViewState extends State<_FinanceView> {
                     ? TextButton.icon(
                         onPressed: () => _refund(context, donation),
                         icon: const Icon(Icons.currency_exchange_outlined, size: 18),
-                        label: const Text('Refund'),
+                        label: Text(tr('admin.refund')),
                       )
                     : const SizedBox.shrink(),
               ),
@@ -240,32 +242,32 @@ class _FinanceViewState extends State<_FinanceView> {
   Future<void> _refund(BuildContext context, AdminDonation donation) async {
     final reason = await promptReason(
       context: context,
-      title: 'Refund donation',
-      hint: 'Reason for the refund (min 5 characters)',
+      title: tr('admin.refundDonation'),
+      hint: tr('admin.reasonRefund'),
     );
     if (reason == null || !context.mounted) return;
     final amountController = TextEditingController();
     final amount = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Refund amount'),
+        title: Text(tr('admin.refundAmount')),
         content: TextField(
           controller: amountController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             hintText: '0.00 ${donation.currency}',
             helperText:
-                'Confirmed ${donation.amount.toStringAsFixed(0)} ${donation.currency}',
+                '${tr('admin.confirmedLabel')} ${donation.amount.toStringAsFixed(0)} ${donation.currency}',
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(amountController.text.trim()),
-            child: const Text('Refund'),
+            child: Text(tr('admin.refund')),
           ),
         ],
       ),
@@ -274,9 +276,11 @@ class _FinanceViewState extends State<_FinanceView> {
     if (parsed == null || parsed <= 0 || !context.mounted) return;
     final ok = await confirmAction(
       context: context,
-      title: 'Confirm refund',
-      message: 'Refund ${parsed.toStringAsFixed(0)} ${donation.currency} to this donor?',
-      confirmLabel: 'Refund',
+      title: tr('admin.confirmRefund'),
+      message: tr('admin.refundTo')
+          .replaceAll('{amount}', parsed.toStringAsFixed(0))
+          .replaceAll('{currency}', donation.currency),
+      confirmLabel: tr('admin.refund'),
       destructive: true,
     );
     if (!ok || !context.mounted) return;
@@ -289,10 +293,10 @@ class _FinanceViewState extends State<_FinanceView> {
       );
       if (!context.mounted) return;
       _listKey.currentState?.reload();
-      showAdminMessage(context, 'Refund recorded.');
+      showAdminMessage(context, tr('admin.refundRecorded'));
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not process the refund.');
+      showAdminMessage(context, tr('admin.couldNotRefund'));
     }
   }
 }

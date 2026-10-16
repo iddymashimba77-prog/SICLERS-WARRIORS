@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -22,7 +23,7 @@ class AdminFacilitiesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _FacilitiesView(
       accessToken: token,
       repository: repository ?? AdminRepository(tokenStore: EphemeralTokenStore()),
@@ -55,15 +56,15 @@ class _FacilitiesViewState extends State<_FacilitiesView> {
     return ListView(
       children: [
         AdminSectionHeader(
-          title: 'Organizations',
-          subtitle: 'Facilities and their operator accounts (facilities.verify).',
+          title: tr('admin.nav.organizations'),
+          subtitle: tr('admin.facilitiesSubtitle'),
           trailing: Wrap(
             spacing: 8,
             children: [
               for (final filter in [
-                ('', 'All'),
-                ('pending', 'Pending'),
-                ('verified', 'Verified'),
+                ('', tr('admin.filter.all')),
+                ('pending', tr('admin.filter.pending')),
+                ('verified', tr('admin.verified')),
               ])
                 ChoiceChip(
                   label: Text(filter.$2),
@@ -79,8 +80,8 @@ class _FacilitiesViewState extends State<_FacilitiesView> {
         AdminAsyncList<AdminFacility>(
           key: _listKey,
           load: _load,
-          emptyTitle: 'No organizations',
-          emptyMessage: 'No facilities match this filter.',
+          emptyTitle: tr('admin.noOrganizations'),
+          emptyMessage: tr('admin.noFacilitiesMatch'),
           emptyIcon: Icons.business_outlined,
           itemBuilder: (context, facility) => _FacilityCard(
             facility: facility,
@@ -127,7 +128,7 @@ class _FacilityCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         facility.operatorEmail.isEmpty
-                            ? 'Facility type: ${facility.facilityType.isEmpty ? '—' : facility.facilityType}'
+                            ? '${tr('admin.facilityType')}: ${facility.facilityType.isEmpty ? '—' : facility.facilityType}'
                             : facility.operatorEmail,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
@@ -159,11 +160,11 @@ class _FacilityCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             if (facility.isVerified)
-              const Align(
+              Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  'Verified by administrator',
-                  style: TextStyle(fontSize: 12),
+                  tr('admin.verifiedByAdmin'),
+                  style: const TextStyle(fontSize: 12),
                 ),
               )
             else
@@ -173,12 +174,12 @@ class _FacilityCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () => _decide(context, approve: false),
                     icon: const Icon(Icons.close, size: 18),
-                    label: const Text('Reject'),
+                    label: Text(tr('admin.reject')),
                   ),
                   FilledButton.icon(
                     onPressed: () => _decide(context, approve: true),
                     icon: const Icon(Icons.verified_outlined, size: 18),
-                    label: const Text('Approve'),
+                    label: Text(tr('admin.approve')),
                   ),
                 ],
               ),
@@ -191,8 +192,8 @@ class _FacilityCard extends StatelessWidget {
   Future<void> _decide(BuildContext context, {required bool approve}) async {
     final reason = await promptReason(
       context: context,
-      title: approve ? 'Approve facility' : 'Reject facility',
-      hint: approve ? 'Optional note (or 5+ chars)' : 'Reason for rejection (min 5 characters)',
+      title: tr(approve ? 'admin.approveFacility' : 'admin.rejectFacility'),
+      hint: tr(approve ? 'admin.optionalNote' : 'admin.reasonRejection'),
     );
     if (reason == null && !approve) return;
     try {
@@ -204,10 +205,13 @@ class _FacilityCard extends StatelessWidget {
       );
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, approve ? 'Facility approved.' : 'Facility rejected.');
+      showAdminMessage(
+        context,
+        tr(approve ? 'admin.facilityApproved' : 'admin.facilityRejected'),
+      );
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not update the facility.');
+      showAdminMessage(context, tr('admin.couldNotUpdateFacility'));
     }
   }
 }

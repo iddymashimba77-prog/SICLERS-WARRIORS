@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_top_bar.dart';
@@ -27,13 +28,12 @@ class ChangiaHubPage extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
             Text(
-              'Give what matters most.',
+              tr('changia.hubTitle'),
               style: theme.textTheme.headlineSmall,
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Support the warrior community — through blood or verified '
-              'campaigns. Every contribution is tracked transparently.',
+              tr('changia.hubSubtitle'),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -43,7 +43,7 @@ class ChangiaHubPage extends StatelessWidget {
               child: _HubRow(
                 icon: Icons.bloodtype_outlined,
                 title: AppStrings.bloodDonation,
-                subtitle: 'Request, donate or match blood',
+                subtitle: tr('changia.bloodSubtitle'),
               ),
             ),
             AppCard.action(
@@ -51,7 +51,7 @@ class ChangiaHubPage extends StatelessWidget {
               child: _HubRow(
                 icon: Icons.volunteer_activism_outlined,
                 title: AppStrings.financialDonations,
-                subtitle: 'Support verified campaigns securely',
+                subtitle: tr('changia.donationsSubtitle'),
               ),
             ),
           ],

@@ -62,9 +62,11 @@ class _PublicHomePageState extends State<PublicHomePage> {
                   content: _content,
                   onOpenArticle: _openArticle,
                 ),
-                _SectionStrip(
-                  children: [
-                    _ServiceSection(
+                _WarriorNeedsSection(
+                  key: const ValueKey('warrior-needs-section'),
+                  theme: theme,
+                  services: [
+                    _ServiceSpec(
                       title: s.tr('srv.healthTitle'),
                       subtitle: s.tr('srv.healthSubtitle'),
                       icon: Icons.health_and_safety_outlined,
@@ -73,7 +75,7 @@ class _PublicHomePageState extends State<PublicHomePage> {
                         _SectionAction(labelKey: 'act.manageMedication', route: '/medication'),
                       ],
                     ),
-                    _ServiceSection(
+                    _ServiceSpec(
                       title: s.tr('srv.doctorTitle'),
                       subtitle: s.tr('srv.doctorSubtitle'),
                       icon: Icons.medical_services_outlined,
@@ -82,26 +84,26 @@ class _PublicHomePageState extends State<PublicHomePage> {
                         _SectionAction(labelKey: 'act.visitClinic', route: '/clinic'),
                       ],
                     ),
-                    _ServiceSection(
+                    _ServiceSpec(
                       title: s.tr('srv.bloodTitle'),
                       subtitle: s.tr('srv.bloodSubtitle'),
                       icon: Icons.bloodtype_outlined,
-                      emergencyAccent: true,
+                      emergency: true,
                       actions: const [
                         _SectionAction(labelKey: 'act.bloodNetwork', route: '/blood-donation'),
                         _SectionAction(labelKey: 'act.donateBlood', route: '/donor-home'),
                       ],
                     ),
-                    _ServiceSection(
+                    _ServiceSpec(
                       title: s.tr('srv.emergencyTitle'),
                       subtitle: s.tr('srv.emergencySubtitle'),
                       icon: Icons.emergency_outlined,
-                      emergencyAccent: true,
+                      emergency: true,
                       actions: const [
                         _SectionAction(labelKey: 'act.emergencySos', route: '/emergency'),
                       ],
                     ),
-                    _ServiceSection(
+                    _ServiceSpec(
                       title: s.tr('srv.educationTitle'),
                       subtitle: s.tr('srv.educationSubtitle'),
                       icon: Icons.school_outlined,
@@ -109,7 +111,7 @@ class _PublicHomePageState extends State<PublicHomePage> {
                         _SectionAction(labelKey: 'act.openAcademy', route: '/education'),
                       ],
                     ),
-                    _ServiceSection(
+                    _ServiceSpec(
                       title: s.tr('srv.communityTitle'),
                       subtitle: s.tr('srv.communitySubtitle'),
                       icon: Icons.forum_outlined,
@@ -119,7 +121,7 @@ class _PublicHomePageState extends State<PublicHomePage> {
                         _SectionAction(labelKey: 'act.aiCoach', route: '/ai-assistant'),
                       ],
                     ),
-                    _ServiceSection(
+                    _ServiceSpec(
                       title: s.tr('srv.donateTitle'),
                       subtitle: s.tr('srv.donateSubtitle'),
                       icon: Icons.volunteer_activism_outlined,
@@ -1382,146 +1384,667 @@ class _CompactNewsRow extends StatelessWidget {
 
 // ==================================================== service area sections
 
-class _SectionStrip extends StatelessWidget {
-  const _SectionStrip({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    final isDesktop = MediaQuery.of(context).size.width > 1024;
-    return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
-      padding: EdgeInsets.symmetric(
-        vertical: AppSpacing.xxxl,
-        horizontal: isDesktop ? AppSpacing.xxxl : AppSpacing.lg,
-      ),
-      child: Column(
-        children: [
-          Text(
-            s.tr('home.sectionsTitle'),
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            s.tr('home.sectionsSubtitle'),
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          for (final (index, child) in children.indexed) ...[
-            child,
-            if (index < children.length - 1) const SizedBox(height: AppSpacing.lg),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ServiceSection extends StatelessWidget {
-  const _ServiceSection({
+/// One public service area: localized copy, icon, priority action routes.
+///
+/// Drives both the compact checklist inside the section's hero card and the
+/// full action cards rendered beneath it.
+class _ServiceSpec {
+  const _ServiceSpec({
     required this.title,
     required this.subtitle,
     required this.icon,
     required this.actions,
-    this.emergencyAccent = false,
+    this.emergency = false,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
   final List<_SectionAction> actions;
-  final bool emergencyAccent;
+  final bool emergency;
+}
+
+/// "Everything a Warrior Needs" — the premium mid-page service showcase.
+///
+/// A light-blue → white band holds one bevelled, shadowed container: on the
+/// left the badge, heading, copy, a compact tappable checklist of all seven
+/// services and the "Explore All Services" CTA; on the right a phone mockup of
+/// the signed-in app surrounded by floating healthcare icons. The CTA scrolls
+/// to the full service cards (with their real route actions) that render
+/// directly beneath the container inside the same band. News above and the
+/// trust/CTA/footer block below are untouched.
+class _WarriorNeedsSection extends StatefulWidget {
+  const _WarriorNeedsSection({
+    super.key,
+    required this.theme,
+    required this.services,
+  });
+
+  final ThemeData theme;
+  final List<_ServiceSpec> services;
 
   @override
+  State<_WarriorNeedsSection> createState() => _WarriorNeedsSectionState();
+}
+
+class _WarriorNeedsSectionState extends State<_WarriorNeedsSection> {
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final s = AppLocalizations.of(context);
-    final accent = emergencyAccent ? AppColors.emergency : AppColors.blue;
-    final ok = actions.where((a) => a.route.isNotEmpty).isNotEmpty;
+    final theme = widget.theme;
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    final wide = MediaQuery.of(context).size.width > 1024;
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: AppShapes.large,
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: dark
+              ? [scheme.surfaceContainerLow, scheme.surfaceContainer]
+              : [AppColors.lightBlue, AppColors.surface],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      padding: EdgeInsets.symmetric(
+        vertical: AppSpacing.xxxl,
+        horizontal: wide ? AppSpacing.xxxl : AppSpacing.lg,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AppSpacing.contentMaxWidth,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _heroCard(context, s, dark),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _heroCard(BuildContext context, AppLocalizations s, bool dark) {
+    final scheme = widget.theme.colorScheme;
+    final pad = MediaQuery.of(context).size.width > 1024
+        ? AppSpacing.xxl
+        : AppSpacing.lg;
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: dark
+              ? [scheme.surfaceContainerHigh, scheme.surfaceContainer]
+              : [AppColors.surface, AppColors.lightBlue],
+        ),
+        borderRadius: AppShapes.hero,
+        border: Border.all(
+          color: dark ? AppColors.dividerOnDark : AppColors.borderSubtle,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withValues(alpha: dark ? .35 : .10),
+            offset: const Offset(0, 18),
+            blurRadius: 44,
+            spreadRadius: -14,
+          ),
+          BoxShadow(
+            color: AppColors.navy.withValues(alpha: dark ? .20 : .06),
+            offset: const Offset(0, 2),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      padding: EdgeInsets.all(pad),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final twoCol = constraints.maxWidth >= 640;
+          final copy = _heroCopy(context, s, dark);
+          final showcase = Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            child: _PhoneShowcase(
+              theme: widget.theme,
+              services: widget.services,
+            ),
+          );
+          if (!twoCol) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                copy,
+                const SizedBox(height: AppSpacing.xl),
+                showcase,
+              ],
+            );
+          }
+          return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: .1),
-                  borderRadius: AppShapes.tile,
+              Expanded(flex: 11, child: copy),
+              const SizedBox(width: AppSpacing.xl),
+              Expanded(flex: 9, child: showcase),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _heroCopy(BuildContext context, AppLocalizations s, bool dark) {
+    final theme = widget.theme;
+    final scheme = theme.colorScheme;
+    final headingSize =
+        MediaQuery.of(context).size.width > 1024 ? 36.0 : 30.0;
+    final badgeBg =
+        dark ? AppColors.blue.withValues(alpha: .30) : AppColors.lightBlue;
+    final badgeFg = dark ? AppColors.textOnDark : AppColors.blue;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs + 2,
+          ),
+          decoration: BoxDecoration(
+            color: badgeBg,
+            borderRadius: AppShapes.pill,
+            border: Border.all(color: AppColors.blue.withValues(alpha: .3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.verified_outlined, size: 16, color: badgeFg),
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
+                child: Text(
+                  s.tr('home.servicesBadge'),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: badgeFg,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                child: Icon(icon, color: accent, size: 26),
               ),
-              const SizedBox(width: AppSpacing.md),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text(
+          s.tr('home.sectionsTitle'),
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontSize: headingSize,
+            height: 1.15,
+            fontWeight: FontWeight.w800,
+            color: scheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          s.tr('home.sectionsSubtitle'),
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: scheme.onSurfaceVariant,
+            height: 1.55,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        for (final (index, spec) in widget.services.indexed) ...[
+          _serviceRow(context, spec),
+          if (index < widget.services.length - 1)
+            const SizedBox(height: AppSpacing.sm),
+        ],
+      ],
+    );
+  }
+
+  Widget _serviceRow(BuildContext context, _ServiceSpec spec) {
+    final theme = widget.theme;
+    final scheme = theme.colorScheme;
+    final accent = spec.emergency ? AppColors.emergency : AppColors.blue;
+    return Material(
+      color: scheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppShapes.tile,
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
+      child: InkWell(
+        borderRadius: AppShapes.tile,
+        onTap: () => goTo(context, spec.actions.first.route),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: .12),
+                  borderRadius: AppShapes.small,
+                ),
+                child: Icon(spec.icon, size: 18, color: accent),
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface,
-                        fontWeight: FontWeight.w800,
+                      spec.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      subtitle,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        height: 1.45,
+                      spec.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: AppSpacing.xs),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: scheme.onSurfaceVariant,
+              ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              for (final action in actions)
-                if (action.route.isNotEmpty)
-                  OutlinedButton.icon(
-                    onPressed: () => goTo(context, action.route),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: accent,
-                      side: BorderSide(color: accent.withValues(alpha: .5)),
+        ),
+      ),
+    );
+  }
+}
+
+/// Phone mockup of the signed-in app: status notch, brand app bar, a compact
+/// greeting, a 7-tile quick-action grid (every tile routes to its real
+/// destination) and a red SOS strip — ringed by six floating healthcare icons
+/// that reveal with a short staggered rise. The reveal is finite, so widget
+/// tests that settle the page still finish.
+class _PhoneShowcase extends StatefulWidget {
+  const _PhoneShowcase({required this.theme, required this.services});
+
+  final ThemeData theme;
+  final List<_ServiceSpec> services;
+
+  @override
+  State<_PhoneShowcase> createState() => _PhoneShowcaseState();
+}
+
+class _PhoneShowcaseState extends State<_PhoneShowcase>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _reveal = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _reveal.value = 1;
+    } else if (!_reveal.isAnimating && !_reveal.isCompleted) {
+      _reveal.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _reveal.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final theme = widget.theme;
+    final dark = theme.brightness == Brightness.dark;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final colW = constraints.maxWidth;
+        final phoneW = math.max(200.0, math.min(300.0, colW - 72));
+        final phoneH = phoneW * 2.02;
+        final stackH = phoneH + 48;
+
+        const bubbles = <({IconData icon, Color color})>[
+          (icon: Icons.health_and_safety_outlined, color: AppColors.blue),
+          (icon: Icons.water_drop_outlined, color: AppColors.emergency),
+          (icon: Icons.forum_outlined, color: AppColors.blue),
+          (icon: Icons.school_outlined, color: AppColors.navy),
+          (icon: Icons.favorite, color: AppColors.emergency),
+          (icon: Icons.monitor_heart_outlined, color: AppColors.blue),
+        ];
+
+        return SizedBox(
+          width: colW,
+          height: stackH,
+          child: ListenableBuilder(
+            listenable: _reveal,
+            builder: (context, _) {
+              Widget bubbleAt(int index) {
+                final b = bubbles[index];
+                final t = Interval(
+                  index * 0.08,
+                  math.min(1.0, index * 0.08 + 0.55),
+                  curve: Curves.easeOutCubic,
+                ).transform(_reveal.value);
+
+                // Two flanking columns of icons, three down each side.
+                final leftSide = index.isEven;
+                final slot = index ~/ 2;
+                final top = slot == 0
+                    ? stackH * .07
+                    : slot == 1
+                        ? stackH * .44
+                        : null;
+                final bottom = slot == 2 ? 6.0 : null;
+                return Positioned(
+                  left: leftSide
+                      ? (slot == 2 ? colW * .12 : 0.0)
+                      : null,
+                  right: leftSide
+                      ? null
+                      : (slot == 2 ? colW * .10 : 0.0),
+                  top: top,
+                  bottom: bottom,
+                  child: Opacity(
+                    opacity: t,
+                    child: Transform.translate(
+                      offset: Offset(0, (1 - t) * 20),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.navy.withValues(alpha: .18),
+                              offset: const Offset(0, 8),
+                              blurRadius: 18,
+                            ),
+                          ],
+                        ),
+                        child: Icon(b.icon, size: 21, color: b.color),
+                      ),
                     ),
-                    icon: const Icon(Icons.arrow_forward, size: 16),
-                    label: Text(s.tr(action.labelKey)),
                   ),
-            ],
+                );
+              }
+
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    top: 24,
+                    left: (colW - phoneW) / 2,
+                    width: phoneW,
+                    height: phoneH,
+                    child: _phone(context, s, dark),
+                  ),
+                  for (var i = 0; i < bubbles.length; i++) bubbleAt(i),
+                ],
+              );
+            },
           ),
-          if (!ok)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm),
-              child: Text(
-                s.tr('home.signedInOnly'),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontSize: 12,
+        );
+      },
+    );
+  }
+
+  Widget _phone(
+    BuildContext context,
+    AppLocalizations s,
+    bool dark,
+  ) {
+    final theme = widget.theme;
+    final scheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: AppColors.navy,
+        borderRadius: AppShapes.hero,
+        border: Border.all(color: AppColors.dividerOnDark),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withValues(alpha: dark ? .45 : .28),
+            offset: const Offset(0, 24),
+            blurRadius: 40,
+            spreadRadius: -10,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: AppShapes.card,
+        child: ColoredBox(
+          color: dark ? AppColors.navyDeep : AppColors.surface,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                height: 22,
+                color: AppColors.navy,
+                alignment: Alignment.center,
+                child: Container(
+                  width: 56,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: .45),
+                    borderRadius: AppShapes.pill,
+                  ),
                 ),
               ),
-            ),
-        ],
+              Container(
+                color: AppColors.navy,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.sm,
+                  0,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    const AppLogo(height: 16),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        AppStrings.appName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        color: AppColors.emergency,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.emergency_outlined,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppStrings.greeting,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: scheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          s.tr('home.phoneSubtitle'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          s.tr('home.phoneQuickActions'),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: .6,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        for (var start = 0;
+                            start < widget.services.length;
+                            start += 3)
+                          Padding(
+                            padding:
+                                const EdgeInsets.only(bottom: AppSpacing.sm),
+                            child: Row(
+                              children: [
+                                for (var j = start;
+                                    j <
+                                        math.min(
+                                          start + 3,
+                                          widget.services.length,
+                                        );
+                                    j++) ...[
+                                  if (j > start)
+                                    const SizedBox(width: AppSpacing.sm),
+                                  Expanded(child: _phoneTile(context, widget.services[j])),
+                                ],
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        _phoneSos(context, s),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _phoneTile(BuildContext context, _ServiceSpec spec) {
+    final dark = widget.theme.brightness == Brightness.dark;
+    final accent = spec.emergency ? AppColors.emergency : AppColors.blue;
+    return Material(
+      color: dark
+          ? Colors.white.withValues(alpha: .06)
+          : AppColors.lightBlue,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppShapes.small,
+        side: BorderSide(
+          color: dark
+              ? AppColors.dividerOnDark
+              : AppColors.blue.withValues(alpha: .10),
+        ),
+      ),
+      child: InkWell(
+        borderRadius: AppShapes.small,
+        onTap: () => goTo(context, spec.actions.first.route),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xs,
+            vertical: AppSpacing.sm,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(spec.icon, size: 17, color: accent),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                spec.title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: widget.theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 9.5,
+                  height: 1.2,
+                  fontWeight: FontWeight.w600,
+                  color: widget.theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _phoneSos(BuildContext context, AppLocalizations s) {
+    return Material(
+      color: AppColors.emergency,
+      shape: RoundedRectangleBorder(borderRadius: AppShapes.small),
+      child: InkWell(
+        borderRadius: AppShapes.small,
+        onTap: () => goTo(context, '/emergency'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs + 2,
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.emergency_outlined,
+                size: 15,
+                color: AppColors.textOnEmergency,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  s.tr('act.emergencySos'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textOnEmergency,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: AppColors.textOnEmergency,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

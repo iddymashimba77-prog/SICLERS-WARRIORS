@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -30,24 +31,37 @@ const List<String> _inboxOrder = [
 ];
 
 /// Human label per category (approved §23 / mobile-ui-ux-design).
-const Map<String, String> _categoryLabels = {
-  'MEDICATION_REMINDER': 'Medication reminders',
-  'APPOINTMENT': 'Appointments & clinics',
-  'BLOOD': 'Blood network & donors',
-  'EMERGENCY': 'Emergency alerts',
-  'PAYMENT': 'Payments & campaign updates',
-  'COMMUNITY': 'Community activity',
-  'CONSENT': 'Consent & data access',
-  'SYSTEM': 'Security & system alerts',
-};
+String _categoryLabel(String type) {
+  switch (type) {
+    case 'MEDICATION_REMINDER':
+      return tr('notif.cat.medicationReminder');
+    case 'APPOINTMENT':
+      return tr('notif.cat.appointment');
+    case 'BLOOD':
+      return tr('notif.cat.blood');
+    case 'EMERGENCY':
+      return tr('notif.cat.emergency');
+    case 'PAYMENT':
+      return tr('notif.cat.payment');
+    case 'COMMUNITY':
+      return tr('notif.cat.community');
+    case 'CONSENT':
+      return tr('notif.cat.consent');
+    case 'SYSTEM':
+      return tr('notif.cat.system');
+    default:
+      return type.replaceAll('_', ' ');
+  }
+}
 
 /// User-facing preference groups (approve §23.6 grouping).
-const List<MapEntry<String, List<String>>> _preferenceSections = [
-  MapEntry('Medical & Safety', ['MEDICATION_REMINDER', 'APPOINTMENT', 'EMERGENCY']),
-  MapEntry('Blood & Donations', ['BLOOD', 'PAYMENT']),
-  MapEntry('Community & Academy', ['COMMUNITY']),
-  MapEntry('Account & Platform', ['CONSENT', 'SYSTEM']),
-];
+List<MapEntry<String, List<String>>> _preferenceSections() => [
+      MapEntry(tr('notif.group.medicalSafety'),
+          ['MEDICATION_REMINDER', 'APPOINTMENT', 'EMERGENCY']),
+      MapEntry(tr('notif.group.bloodDonations'), ['BLOOD', 'PAYMENT']),
+      MapEntry(tr('notif.group.communityAcademy'), ['COMMUNITY']),
+      MapEntry(tr('notif.group.accountPlatform'), ['CONSENT', 'SYSTEM']),
+    ];
 
 /// Approved in-app deep-link allowlist for notification routes.
 ///
@@ -285,8 +299,7 @@ class _InboxTabState extends State<_InboxTab> {
                     children: [
                       for (final group in groups) ...[
                         _SectionHeader(
-                          label: _categoryLabels[group.type] ??
-                              group.type.replaceAll('_', ' '),
+                          label: _categoryLabel(group.type),
                           count: group.items.length,
                         ),
                         for (final item in group.items)
@@ -493,9 +506,7 @@ class _PreferencesTabState extends State<_PreferencesTab> {
     }
   }
 
-  String _label(String category) =>
-      _categoryLabels[category] ??
-      category.replaceAll('_', ' ').toLowerCase();
+  String _label(String category) => _categoryLabel(category);
 
   @override
   Widget build(BuildContext context) {
@@ -514,7 +525,7 @@ class _PreferencesTabState extends State<_PreferencesTab> {
           child: Text(AppStrings.notificationGroupHelp,
               style: TextStyle(fontSize: 12)),
         ),
-        for (final section in _preferenceSections) ...[
+        for (final section in _preferenceSections()) ...[
           _SectionHeader(label: section.key, count: section.value.length),
           for (final category in section.value)
             SwitchListTile(

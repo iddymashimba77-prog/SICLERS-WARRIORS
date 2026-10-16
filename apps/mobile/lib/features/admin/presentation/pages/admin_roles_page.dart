@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -23,7 +24,7 @@ class AdminRolesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _RolesView(
       accessToken: token,
       canWrite: session.permissions
@@ -57,18 +58,18 @@ class _RolesViewState extends State<_RolesView> {
     return ListView(
       children: [
         AdminSectionHeader(
-          title: 'Roles & Permissions',
+          title: tr('admin.rolesPermissions'),
           subtitle: widget.canWrite
-              ? 'Grant and revoke permission codes (admin.permissions.manage).'
-              : 'Read-only matrix — only SUPER_ADMIN can modify grants.',
+              ? tr('admin.rolesSubtitleWrite')
+              : tr('admin.rolesSubtitleRead'),
         ),
         RepaintBoundary(
           child: AdminAsyncList<AdminRole>(
             key: _listKey,
             load: () => widget.repository.listRoles(access: widget.accessToken),
             emptyIcon: Icons.security_outlined,
-            emptyTitle: 'No roles',
-            emptyMessage: 'The roles registry is empty.',
+            emptyTitle: tr('admin.noRoles'),
+            emptyMessage: tr('admin.rolesRegistryEmpty'),
             itemBuilder: (context, role) => _RoleCard(
               role: role,
               canWrite: widget.canWrite,
@@ -114,8 +115,9 @@ class _RoleCard extends StatelessWidget {
         ),
         title: Text('${role.code} — ${role.name}'),
         subtitle: Text(
-          '${role.permissionCount} permission(s) · ${role.memberCount} member(s)'
-          '${role.isSystem ? ' · system role' : ''}',
+          '${role.permissionCount} ${tr('admin.permissionCount')} · '
+          '${role.memberCount} ${tr('admin.membersCount')}'
+          '${role.isSystem ? ' · ${tr('admin.systemRole')}' : ''}',
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => _openPermissions(context),
@@ -132,7 +134,7 @@ class _RoleCard extends StatelessWidget {
       );
     } on Exception {
       if (context.mounted) {
-        showAdminMessage(context, 'Could not load permissions.');
+        showAdminMessage(context, tr('admin.couldNotLoadPermissions'));
       }
       return;
     }
@@ -196,8 +198,9 @@ class _PermissionsDialogState extends State<_PermissionsDialog> {
   Future<void> _toggle(String code, {required bool grant}) async {
     final reason = await promptReason(
       context: context,
-      title: '${grant ? 'Grant' : 'Revoke'} $code',
-      hint: 'Reason for the change (min 5 characters)',
+      title:
+          (grant ? tr('admin.grantX') : tr('admin.revokeX')).replaceAll('{code}', code),
+      hint: tr('admin.reasonChange'),
     );
     if (reason == null || !mounted) return;
     setState(() => _busy = true);
@@ -219,7 +222,9 @@ class _PermissionsDialogState extends State<_PermissionsDialog> {
       if (!mounted) return;
       setState(() => _busy = false);
       showAdminMessage(
-          context, grant ? 'Could not grant the permission.' : 'Could not revoke the permission.');
+        context,
+        tr(grant ? 'admin.couldNotGrantPermission' : 'admin.couldNotRevokePermission'),
+      );
     }
   }
 
@@ -227,7 +232,9 @@ class _PermissionsDialogState extends State<_PermissionsDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      title: Text('Permissions · ${widget.role.code}'),
+      title: Text(
+        tr('admin.permissionsOf').replaceAll('{code}', widget.role.code),
+      ),
       content: SizedBox(
         width: 460,
         child: Column(
@@ -247,16 +254,16 @@ class _PermissionsDialogState extends State<_PermissionsDialog> {
                     deleteIconColor: theme.colorScheme.error,
                   ),
                 if (_codes.isEmpty)
-                  const Text('No permission codes granted.'),
+                  Text(tr('admin.noPermissionCodes')),
               ],
             ),
             if (widget.canWrite) ...[
               const SizedBox(height: AppSpacing.md),
               TextField(
                 controller: _code,
-                decoration: const InputDecoration(
-                  labelText: 'Permission code',
-                  hintText: 'e.g. education.review',
+                decoration: InputDecoration(
+                  labelText: tr('admin.permissionCode'),
+                  hintText: tr('admin.permissionCodeHint'),
                   isDense: true,
                 ),
               ),
@@ -283,7 +290,7 @@ class _PermissionsDialogState extends State<_PermissionsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(tr('common.close')),
         ),
         if (widget.canWrite)
           FilledButton.icon(
@@ -293,13 +300,13 @@ class _PermissionsDialogState extends State<_PermissionsDialog> {
                     final code = _code.text.trim();
                     if (code.isEmpty) return;
                     if (_codes.contains(code)) {
-                      showAdminMessage(context, 'Code already granted.');
+                      showAdminMessage(context, tr('admin.codeAlreadyGranted'));
                       return;
                     }
                     _toggle(code, grant: true);
                   },
             icon: const Icon(Icons.add_circle_outline, size: 18),
-            label: const Text('Grant'),
+            label: Text(tr('admin.grant')),
           ),
       ],
     );

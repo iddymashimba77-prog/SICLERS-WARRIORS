@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_top_bar.dart';
@@ -30,13 +31,12 @@ class DoctorHubPage extends StatelessWidget {
         SessionScope.controllerOf(context).permissions.contains('education.publish');
     final children = <Widget>[
       Text(
-        'Verified care, close to you.',
+        tr('doctor.hubTitle'),
         style: theme.textTheme.headlineSmall,
       ),
       const SizedBox(height: AppSpacing.xs),
       Text(
-        'Find verified sickle-cell care, book appointments and keep a '
-        'secure line to your care team.',
+        tr('doctor.hubSubtitle'),
         style: theme.textTheme.bodySmall,
       ),
       const SizedBox(height: AppSpacing.xl),
@@ -46,7 +46,7 @@ class DoctorHubPage extends StatelessWidget {
         child: _HubRow(
           icon: Icons.medical_services_outlined,
           title: AppStrings.verifiedDoctors,
-          subtitle: 'Discover verified doctors near you',
+          subtitle: tr('doctor.discoverSubtitle'),
         ),
       ),
       AppCard.action(
@@ -54,7 +54,7 @@ class DoctorHubPage extends StatelessWidget {
         child: _HubRow(
           icon: Icons.event_available_outlined,
           title: AppStrings.clinicCalendar,
-          subtitle: 'Appointments and clinic visits',
+          subtitle: tr('doctor.appointmentsSubtitle'),
         ),
       ),
       AppCard.action(
@@ -63,7 +63,7 @@ class DoctorHubPage extends StatelessWidget {
         child: _HubRow(
           icon: Icons.chat_bubble_outline,
           title: AppStrings.messages,
-          subtitle: 'Private messages with your care team',
+          subtitle: tr('doctor.messagesSubtitle'),
         ),
       ),
       if (canPublish)
@@ -72,8 +72,8 @@ class DoctorHubPage extends StatelessWidget {
               Navigator.pushNamed(context, DoctorEducationPage.routeName),
           child: _HubRow(
             icon: Icons.menu_book_outlined,
-            title: 'My articles',
-            subtitle: 'Write Warrior Academy content and attach patient handouts',
+            title: tr('doctor.myArticles'),
+            subtitle: tr('doctor.myArticlesSubtitle'),
           ),
         ),
       const SizedBox(height: AppSpacing.xl),
@@ -82,10 +82,9 @@ class DoctorHubPage extends StatelessWidget {
         style: theme.textTheme.labelSmall,
       ),
       const SizedBox(height: AppSpacing.sm),
-      const Text(
-        'Treatment plans and authorised records arrive with the doctor '
-        'experience stages.',
-        style: TextStyle(fontSize: 13, height: 1.4),
+      Text(
+        tr('doctor.comingSoonDetail'),
+        style: const TextStyle(fontSize: 13, height: 1.4),
       ),
     ];
     return Scaffold(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -21,7 +22,7 @@ class AdminModerationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _ModerationView(
       accessToken: token,
       repository: repository ?? AdminRepository(tokenStore: EphemeralTokenStore()),
@@ -49,8 +50,8 @@ class _ModerationViewState extends State<_ModerationView> {
       key: _listKey,
       load: () => widget.repository.listReports(access: widget.accessToken),
       emptyIcon: Icons.report_outlined,
-      emptyTitle: 'No open reports',
-      emptyMessage: 'There are no reports awaiting moderation.',
+      emptyTitle: tr('admin.noOpenReports'),
+      emptyMessage: tr('admin.noReportsAwaiting'),
       itemBuilder: (context, report) => _ReportCard(
         report: report,
         repository: widget.repository,
@@ -91,14 +92,15 @@ class _ReportCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${report.targetType} report',
+                        '${report.targetType} ${tr('admin.reportSuffix')}',
                         style: theme.textTheme.titleMedium,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         report.reporterName.isEmpty
-                            ? 'Reported content'
-                            : 'Reported by ${report.reporterName}',
+                            ? tr('admin.reportedContent')
+                            : tr('admin.reportedBy')
+                                .replaceAll('{name}', report.reporterName),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -114,8 +116,8 @@ class _ReportCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               report.targetExists
-                  ? '"${report.targetPreview.isEmpty ? 'Preview unavailable' : report.targetPreview}"'
-                  : 'Target content no longer exists.',
+                  ? '"${report.targetPreview.isEmpty ? tr('admin.previewUnavailable') : report.targetPreview}"'
+                  : tr('admin.targetGone'),
               style: theme.textTheme.bodySmall,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -123,7 +125,7 @@ class _ReportCard extends StatelessWidget {
             if (report.reviewNotes.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Review notes: ${report.reviewNotes}',
+                '${tr('admin.reviewNotes')}: ${report.reviewNotes}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontStyle: FontStyle.italic,
                 ),
@@ -137,12 +139,12 @@ class _ReportCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () => _resolve(context, status: 'DISMISSED'),
                     icon: const Icon(Icons.gpp_bad_outlined, size: 18),
-                    label: const Text('Dismiss'),
+                    label: Text(tr('admin.dismiss')),
                   ),
                   FilledButton.icon(
                     onPressed: () => _resolve(context, status: 'RESOLVED'),
                     icon: const Icon(Icons.check_circle_outline, size: 18),
-                    label: const Text('Resolve'),
+                    label: Text(tr('admin.resolve')),
                   ),
                 ],
               ),
@@ -161,19 +163,19 @@ class _ReportCard extends StatelessWidget {
       final approach = await showDialog<String>(
         context: context,
         builder: (context) => SimpleDialog(
-          title: const Text('Resolve report'),
+          title: Text(tr('admin.resolveReport')),
           children: [
             SimpleDialogOption(
               onPressed: () => Navigator.of(context).pop('NONE'),
-              child: const Text('Keep content — just close the report'),
+              child: Text(tr('admin.keepContent')),
             ),
             SimpleDialogOption(
               onPressed: () => Navigator.of(context).pop('HIDE'),
-              child: const Text('Hide the reported content'),
+              child: Text(tr('admin.hideContent')),
             ),
             SimpleDialogOption(
               onPressed: () => Navigator.of(context).pop('REMOVE'),
-              child: const Text('Remove the reported content'),
+              child: Text(tr('admin.removeContent')),
             ),
           ],
         ),
@@ -182,8 +184,8 @@ class _ReportCard extends StatelessWidget {
       action = approach;
       notes = await promptReason(
         context: context,
-        title: 'Review notes',
-        hint: 'Optional notes for the record (or 5+ chars)',
+        title: tr('admin.reviewNotes'),
+        hint: tr('admin.optionalNotes'),
       );
       if (notes == null) return;
     }
@@ -197,11 +199,13 @@ class _ReportCard extends StatelessWidget {
       );
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context,
-          status == 'RESOLVED' ? 'Report resolved.' : 'Report dismissed.');
+      showAdminMessage(
+        context,
+        tr(status == 'RESOLVED' ? 'admin.reportResolved' : 'admin.reportDismissed'),
+      );
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not resolve the report.');
+      showAdminMessage(context, tr('admin.couldNotResolveReport'));
     }
   }
 }

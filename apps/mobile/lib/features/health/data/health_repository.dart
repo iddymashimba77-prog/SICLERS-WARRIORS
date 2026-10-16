@@ -205,16 +205,33 @@ class HealthRepository {
     }
   }
 
-  Map<String, dynamic> _body(http.Response res) {
+  /// Unwraps the `{data: …}` envelope every success body is rendered with.
+  ///
+  /// `data` is a map for single objects and paginated collections, but a flat
+  /// list for the unpaginated vocabularies (`GET /api/symptom-types/`), so the
+  /// shape is decided by the caller — it is never cast to a map here.
+  dynamic _data(http.Response res) {
     if (res.statusCode >= 400) throw _errorFrom(res, res.body);
     final map = jsonDecode(res.body) as Map<String, dynamic>;
-    return (map['data'] as Map<String, dynamic>?) ?? map;
+    return map['data'] ?? map;
+  }
+
+  Map<String, dynamic> _body(http.Response res) {
+    final data = _data(res);
+    if (data is Map<String, dynamic>) return data;
+    // Single-object callers (POST /symptoms/, the dashboard) must never see a
+    // collection; report it instead of crashing on a `List is not a Map` cast.
+    throw const AuthException('Unexpected response from the server.',
+        code: 'API_ERROR');
   }
 
   List<dynamic> _listPayload(http.Response res) {
-    final payload = _body(res);
-    final results = payload['results'];
-    if (results is List) return results;
+    final data = _data(res);
+    if (data is List) return data;
+    if (data is Map<String, dynamic>) {
+      final results = data['results'];
+      if (results is List) return results;
+    }
     return const [];
   }
 

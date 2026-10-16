@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -21,7 +22,7 @@ class AdminEducationContentPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _ContentView(
       accessToken: token,
       repository: repository ?? AdminRepository(tokenStore: EphemeralTokenStore()),
@@ -54,15 +55,15 @@ class _ContentViewState extends State<_ContentView> {
     return ListView(
       children: [
         AdminSectionHeader(
-          title: 'Content Review',
-          subtitle: 'Editorial review queue (education.review).',
+          title: tr('admin.nav.contentReview'),
+          subtitle: tr('admin.contentReviewSubtitle'),
           trailing: Wrap(
             spacing: 8,
             children: [
               for (final filter in [
-                ('IN_REVIEW', 'In review'),
-                ('PUBLISHED', 'Published'),
-                ('REJECTED', 'Rejected'),
+                ('IN_REVIEW', tr('admin.inReview')),
+                ('PUBLISHED', tr('admin.published')),
+                ('REJECTED', tr('admin.rejected')),
               ])
                 ChoiceChip(
                   label: Text(filter.$2),
@@ -78,8 +79,8 @@ class _ContentViewState extends State<_ContentView> {
         AdminAsyncList<AdminContent>(
           key: _listKey,
           load: _load,
-          emptyTitle: 'Nothing to review',
-          emptyMessage: 'No content in this state.',
+          emptyTitle: tr('admin.nothingToReview'),
+          emptyMessage: tr('admin.noContentState'),
           emptyIcon: Icons.article_outlined,
           itemBuilder: (context, content) => _ContentCard(
             content: content,
@@ -142,7 +143,7 @@ class _ContentCard extends StatelessWidget {
             if (content.rejectionReason.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Rejected: ${content.rejectionReason}',
+                '${tr('admin.rejected')}: ${content.rejectionReason}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.error,
                 ),
@@ -154,20 +155,20 @@ class _ContentCard extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: () => _preview(context),
                   icon: const Icon(Icons.visibility_outlined, size: 18),
-                  label: const Text('Preview'),
+                  label: Text(tr('admin.preview')),
                 ),
                 const Spacer(),
                 if (content.status != 'REJECTED')
                   TextButton.icon(
                     onPressed: () => _decide(context, approve: false),
                     icon: const Icon(Icons.close, size: 18),
-                    label: const Text('Reject'),
+                    label: Text(tr('admin.reject')),
                   ),
                 if (content.status == 'IN_REVIEW')
                   FilledButton.icon(
                     onPressed: () => _decide(context, approve: true),
                     icon: const Icon(Icons.published_with_changes_outlined, size: 18),
-                    label: const Text('Approve'),
+                    label: Text(tr('admin.approve')),
                   ),
               ],
             ),
@@ -189,13 +190,13 @@ class _ContentCard extends StatelessWidget {
         content: SizedBox(
           width: 560,
           child: SelectableText(
-            plain.isEmpty ? 'No content body.' : plain,
+            plain.isEmpty ? tr('admin.noContentBody') : plain,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: Text(tr('common.close')),
           ),
         ],
       ),
@@ -207,8 +208,8 @@ class _ContentCard extends StatelessWidget {
     if (!approve) {
       reason = await promptReason(
         context: context,
-        title: 'Reject content',
-        hint: 'Reason for rejection (min 5 characters)',
+        title: tr('admin.rejectContent'),
+        hint: tr('admin.reasonRejection'),
       );
       if (reason == null) return;
     }
@@ -221,10 +222,13 @@ class _ContentCard extends StatelessWidget {
       );
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, approve ? 'Content approved.' : 'Content rejected.');
+      showAdminMessage(
+        context,
+        tr(approve ? 'admin.contentApproved' : 'admin.contentRejected'),
+      );
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not review the content.');
+      showAdminMessage(context, tr('admin.couldNotReview'));
     }
   }
 }

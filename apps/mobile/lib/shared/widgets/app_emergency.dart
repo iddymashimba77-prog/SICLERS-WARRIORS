@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import 'app_card.dart';
@@ -21,10 +22,9 @@ class SosButton extends StatelessWidget {
     super.key,
     required this.label,
     required this.onConfirmed,
-    this.confirmTitle = 'Confirm emergency',
-    this.confirmMessage =
-        'This sends an emergency alert to responders. Only use it in a real emergency.',
-    this.confirmLabel = 'Send alert',
+    this.confirmTitle,
+    this.confirmMessage,
+    this.confirmLabel,
     this.icon = Icons.sos,
     this.subtitle,
     this.expanded = true,
@@ -32,9 +32,9 @@ class SosButton extends StatelessWidget {
 
   final String label;
   final VoidCallback onConfirmed;
-  final String confirmTitle;
-  final String confirmMessage;
-  final String confirmLabel;
+  final String? confirmTitle;
+  final String? confirmMessage;
+  final String? confirmLabel;
   final IconData icon;
   final String? subtitle;
   final bool expanded;
@@ -48,12 +48,12 @@ class SosButton extends StatelessWidget {
           color: AppColors.emergency,
           size: 40,
         ),
-        title: Text(confirmTitle),
-        content: Text(confirmMessage),
+        title: Text(confirmTitle ?? tr('sos.confirmTitle')),
+        content: Text(confirmMessage ?? tr('sos.confirmMessage')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(tr('common.cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -61,7 +61,7 @@ class SosButton extends StatelessWidget {
               foregroundColor: AppColors.textOnEmergency,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(confirmLabel),
+            child: Text(confirmLabel ?? tr('sos.sendAlert')),
           ),
         ],
       ),

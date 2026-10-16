@@ -13,6 +13,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../data/admin_models.dart';
 import '../../data/admin_repository.dart';
@@ -22,15 +23,15 @@ import 'admin_widgets.dart';
 String documentTypeLabel(String code) {
   switch (code) {
     case 'CERTIFICATE':
-      return 'Certificate';
+      return tr('admin.doctype.certificate');
     case 'NATIONAL_ID':
-      return 'National ID';
+      return tr('admin.doctype.nationalId');
     case 'FACILITY_REGISTRATION':
-      return 'Facility registration';
+      return tr('admin.doctype.facilityRegistration');
     case 'LICENSE':
-      return 'License';
+      return tr('admin.doctype.license');
     default:
-      return code.isEmpty ? 'Document' : code;
+      return code.isEmpty ? tr('admin.doctype.document') : code;
   }
 }
 
@@ -68,7 +69,7 @@ class _SubmittedDocumentsSectionState extends State<SubmittedDocumentsSection> {
       if (!mounted) return;
       await _showDocument(context, doc, result);
     } on Exception {
-      if (mounted) showAdminMessage(context, 'Could not open the document.');
+      if (mounted) showAdminMessage(context, tr('admin.couldNotOpenDocument'));
     } finally {
       if (mounted) setState(() => _opening = null);
     }
@@ -93,10 +94,7 @@ class _SubmittedDocumentsSectionState extends State<SubmittedDocumentsSection> {
     }
     final opened = await _openExternally(doc, bytes);
     if (!opened && context.mounted) {
-      showAdminMessage(
-        context,
-        'No device app can open this file. Use the admin web console to view it.',
-      );
+      showAdminMessage(context, tr('admin.noAppToOpen'));
     }
   }
 
@@ -120,11 +118,11 @@ class _SubmittedDocumentsSectionState extends State<SubmittedDocumentsSection> {
   Widget build(BuildContext context) {
     final docs = widget.documents;
     if (docs.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.only(top: AppSpacing.sm),
+      return Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.sm),
         child: Text(
-          'No verification documents attached yet.',
-          style: TextStyle(fontSize: 12),
+          tr('admin.noVerifDocs'),
+          style: const TextStyle(fontSize: 12),
         ),
       );
     }
@@ -133,9 +131,9 @@ class _SubmittedDocumentsSectionState extends State<SubmittedDocumentsSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Submitted documents',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          Text(
+            tr('admin.submittedDocuments'),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Wrap(
@@ -152,7 +150,9 @@ class _SubmittedDocumentsSectionState extends State<SubmittedDocumentsSection> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.description_outlined, size: 16),
-                  label: Text('${documentTypeLabel(doc.docType)} · View'),
+                  label: Text(
+                    '${documentTypeLabel(doc.docType)} · ${tr('admin.view')}',
+                  ),
                 ),
             ],
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../shared/widgets/admin_shell.dart';
 import '../../../auth/presentation/widgets/role_gate.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -46,12 +47,11 @@ class _NoAccess extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(height: 16),
-              Text('Restricted area', style: theme.textTheme.titleMedium),
+              Text(tr('admin.restrictedArea'),
+                  style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
-                'Verification of the authenticated role is enforced by the '
-                'backend. If you are an administrator, sign in with the '
-                'admin account.',
+                tr('admin.restrictedBody'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall,
               ),

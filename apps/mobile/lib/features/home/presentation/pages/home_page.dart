@@ -141,6 +141,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
           padding: EdgeInsets.zero,
           children: [
             AppHomeHeader(
+              greeting: AppStrings.greeting,
               personName: _personName,
               subtitle: AppStrings.homeSubtitle,
               unreadCount: _data?.unreadCount ?? 0,

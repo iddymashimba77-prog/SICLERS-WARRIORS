@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -22,7 +23,11 @@ class AdminUsersPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) {
+      return Center(
+        child: Text(AppLocalizations.of(context).tr('admin.notSignedIn')),
+      );
+    }
     return _UsersView(
       accessToken: token,
       repository: repository ?? AdminRepository(tokenStore: EphemeralTokenStore()),
@@ -54,11 +59,12 @@ class _UsersViewState extends State<_UsersView> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
     return ListView(
       children: [
         AdminSectionHeader(
-          title: 'Users',
-          subtitle: 'Account status and role assignment (admin.users.manage).',
+          title: s.tr('admin.nav.users'),
+          subtitle: s.tr('admin.usersSubtitle'),
           trailing: _FilterButtons(
             current: _status,
             onChanged: (value) {
@@ -71,9 +77,9 @@ class _UsersViewState extends State<_UsersView> {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
           child: TextField(
             controller: _search,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Search by name or email…',
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: s.tr('admin.searchUsers'),
               isDense: true,
             ),
             onSubmitted: (_) => _listKey.currentState?.reload(),
@@ -84,8 +90,8 @@ class _UsersViewState extends State<_UsersView> {
           key: _listKey,
           load: _load,
           emptyIcon: Icons.groups_outlined,
-          emptyTitle: 'No users match',
-          emptyMessage: 'Adjust the status filter or try another search.',
+          emptyTitle: s.tr('admin.noUsersMatch'),
+          emptyMessage: s.tr('admin.adjustFilter'),
           itemBuilder: (context, user) => _UserCard(
             user: user,
             repository: widget.repository,
@@ -106,15 +112,16 @@ class _FilterButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
     return Wrap(
       spacing: 8,
       children: [
         for (final filter in [
-          ('', 'All'),
-          ('PENDING_VERIFICATION', 'Pending'),
-          ('ACTIVE', 'Active'),
-          ('SUSPENDED', 'Suspended'),
-          ('DEACTIVATED', 'Deactivated'),
+          ('', s.tr('admin.filter.all')),
+          ('PENDING_VERIFICATION', s.tr('admin.filter.pending')),
+          ('ACTIVE', s.tr('admin.filter.active')),
+          ('SUSPENDED', s.tr('admin.filter.suspended')),
+          ('DEACTIVATED', s.tr('admin.filter.deactivated')),
         ])
           ChoiceChip(
             label: Text(filter.$2),
@@ -142,6 +149,7 @@ class _UserCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = AppLocalizations.of(context);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -196,19 +204,19 @@ class _UserCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: () => _openRoles(context),
                   icon: const Icon(Icons.security_outlined, size: 18),
-                  label: const Text('Roles'),
+                  label: Text(s.tr('admin.rolesBtn')),
                 ),
                 if (user.isActive)
                   TextButton.icon(
                     onPressed: () => _deactivate(context),
                     icon: const Icon(Icons.block_outlined, size: 18),
-                    label: const Text('Deactivate'),
+                    label: Text(s.tr('admin.deactivate')),
                   )
                 else
                   TextButton.icon(
                     onPressed: () => _activate(context),
                     icon: const Icon(Icons.check_circle_outline, size: 18),
-                    label: const Text('Activate'),
+                    label: Text(s.tr('admin.activate')),
                   ),
               ],
             ),
@@ -219,9 +227,13 @@ class _UserCard extends StatelessWidget {
   }
 
   Future<void> _activate(BuildContext context) async {
+    final s = AppLocalizations.of(context);
     final reason = await promptReason(
       context: context,
-      title: 'Activate ${user.fullName.isEmpty ? user.email : user.fullName}',
+      title: s
+          .tr('admin.activateUser')
+          .replaceAll('{user}',
+              user.fullName.isEmpty ? user.email : user.fullName),
     );
     if (reason == null) return;
     try {
@@ -233,18 +245,22 @@ class _UserCard extends StatelessWidget {
       );
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, 'Account activated.');
+      showAdminMessage(context, s.tr('admin.accountActivated'));
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not activate the account.');
+      showAdminMessage(context, s.tr('admin.couldNotActivate'));
     }
   }
 
   Future<void> _deactivate(BuildContext context) async {
+    final s = AppLocalizations.of(context);
     final reason = await promptReason(
       context: context,
-      title: 'Deactivate ${user.fullName.isEmpty ? user.email : user.fullName}',
-      hint: 'Reason for deactivation (min 5 characters)',
+      title: s
+          .tr('admin.deactivateUser')
+          .replaceAll('{user}',
+              user.fullName.isEmpty ? user.email : user.fullName),
+      hint: s.tr('admin.reasonDeactivation'),
     );
     if (reason == null) return;
     try {
@@ -256,20 +272,21 @@ class _UserCard extends StatelessWidget {
       );
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, 'Account deactivated.');
+      showAdminMessage(context, s.tr('admin.accountDeactivated'));
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not deactivate the account.');
+      showAdminMessage(context, s.tr('admin.couldNotDeactivate'));
     }
   }
 
   Future<void> _openRoles(BuildContext context) async {
+    final s = AppLocalizations.of(context);
     List<String> roles;
     try {
       roles = await repository.getUserRoles(access: accessToken, uid: user.uid);
     } on Exception {
       if (context.mounted) {
-        showAdminMessage(context, 'Could not load roles.');
+        showAdminMessage(context, s.tr('admin.couldNotLoadRoles'));
       }
       return;
     }
@@ -312,15 +329,17 @@ class _RolesDialogState extends State<_RolesDialog> {
   bool _busy = false;
 
   Future<void> _save({required bool grant}) async {
+    final s = AppLocalizations.of(context);
     final code = _roleCode.text.trim().toUpperCase();
     if (code.isEmpty) {
-      showAdminMessage(context, 'Enter a role code.');
+      showAdminMessage(context, s.tr('admin.enterRoleCode'));
       return;
     }
     final reason = await promptReason(
       context: context,
-      title: grant ? 'Grant $code' : 'Revoke $code',
-      hint: 'Reason for the change (min 5 characters)',
+      title: (grant ? s.tr('admin.grantX') : s.tr('admin.revokeX'))
+          .replaceAll('{code}', code),
+      hint: s.tr('admin.reasonChange'),
     );
     if (reason == null || !mounted) return;
     setState(() => _busy = true);
@@ -342,15 +361,18 @@ class _RolesDialogState extends State<_RolesDialog> {
     } on Exception {
       if (!mounted) return;
       setState(() => _busy = false);
-      showAdminMessage(context,
-          grant ? 'Could not grant the role.' : 'Could not revoke the role.');
+      showAdminMessage(
+        context,
+        s.tr(grant ? 'admin.couldNotGrantRole' : 'admin.couldNotRevokeRole'),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
     return AlertDialog(
-      title: Text('Roles · ${widget.user.email}'),
+      title: Text(s.tr('admin.rolesOf').replaceAll('{email}', widget.user.email)),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -364,15 +386,15 @@ class _RolesDialogState extends State<_RolesDialog> {
                 for (final role in _roles)
                   Chip(label: Text(role), visualDensity: VisualDensity.compact),
                 if (_roles.isEmpty)
-                  const Text('No roles assigned.'),
+                  Text(s.tr('admin.noRolesAssigned')),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _roleCode,
-              decoration: const InputDecoration(
-                labelText: 'Role code',
-                hintText: 'e.g. CAREGIVER',
+              decoration: InputDecoration(
+                labelText: s.tr('admin.roleCode'),
+                hintText: s.tr('admin.roleCodeHint'),
                 isDense: true,
               ),
               textCapitalization: TextCapitalization.characters,
@@ -385,17 +407,17 @@ class _RolesDialogState extends State<_RolesDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(s.tr('common.close')),
         ),
         TextButton.icon(
           onPressed: _busy ? null : () => _save(grant: false),
           icon: const Icon(Icons.remove_circle_outline, size: 18),
-          label: const Text('Revoke'),
+          label: Text(s.tr('admin.revoke')),
         ),
         FilledButton.icon(
           onPressed: _busy ? null : () => _save(grant: true),
           icon: const Icon(Icons.add_circle_outline, size: 18),
-          label: const Text('Grant'),
+          label: Text(s.tr('admin.grant')),
         ),
       ],
     );

@@ -317,8 +317,8 @@ class _ProfilePhotoHeaderState extends State<_ProfilePhotoHeader> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Take a photo'),
-              subtitle: const Text('Use the camera to capture a new picture'),
+              title: Text(tr('profile.takePhoto')),
+              subtitle: Text(tr('profile.takePhotoSubtitle')),
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 _pick(ImageSource.camera);
@@ -326,8 +326,8 @@ class _ProfilePhotoHeaderState extends State<_ProfilePhotoHeader> {
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choose from gallery'),
-              subtitle: const Text('Pick an existing image from your device'),
+              title: Text(tr('profile.chooseGallery')),
+              subtitle: Text(tr('profile.chooseGallerySubtitle')),
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 _pick(ImageSource.gallery);

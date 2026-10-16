@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -22,7 +23,7 @@ class AdminCampaignsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _CampaignsView(
       accessToken: token,
       repository: repository ?? AdminRepository(tokenStore: EphemeralTokenStore()),
@@ -52,12 +53,12 @@ class _CampaignsViewState extends State<_CampaignsView> {
     return ListView(
       children: [
         AdminSectionHeader(
-          title: 'Campaigns',
-          subtitle: 'Verification and lifecycle oversight (campaigns.verify).',
+          title: tr('admin.nav.campaigns'),
+          subtitle: tr('admin.campaignsSubtitle'),
           trailing: SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: true, label: Text('To verify')),
-              ButtonSegment(value: false, label: Text('Active')),
+            segments: [
+              ButtonSegment(value: true, label: Text(tr('admin.toVerify'))),
+              ButtonSegment(value: false, label: Text(tr('admin.filter.active'))),
             ],
             selected: {_queue},
             onSelectionChanged: (set) => setState(() => _queue = set.first),
@@ -70,8 +71,8 @@ class _CampaignsViewState extends State<_CampaignsView> {
               access: widget.accessToken,
             ),
             emptyIcon: Icons.campaign_outlined,
-            emptyTitle: 'Verification queue clear',
-            emptyMessage: 'No campaigns are awaiting verification.',
+            emptyTitle: tr('admin.queueClear'),
+            emptyMessage: tr('admin.noCampaignsAwaiting'),
             itemBuilder: (context, campaign) => _CampaignCard(
               campaign: campaign,
               queue: true,
@@ -88,8 +89,8 @@ class _CampaignsViewState extends State<_CampaignsView> {
               status: 'ACTIVE',
             ),
             emptyIcon: Icons.campaign_outlined,
-            emptyTitle: 'No active campaigns',
-            emptyMessage: 'There are no live campaigns right now.',
+            emptyTitle: tr('admin.noActiveCampaigns'),
+            emptyMessage: tr('admin.noLiveCampaigns'),
             itemBuilder: (context, campaign) => _CampaignCard(
               campaign: campaign,
               queue: false,
@@ -137,8 +138,8 @@ class _CampaignCard extends StatelessWidget {
                       Text(campaign.title, style: theme.textTheme.titleMedium),
                       const SizedBox(height: 2),
                       Text(
-                        '${campaign.ownerName.isEmpty ? 'No owner shown' : campaign.ownerName} · '
-                        '${campaign.goalAmount.toStringAsFixed(0)} ${campaign.currency} goal',
+                        '${campaign.ownerName.isEmpty ? tr('admin.noOwnerShown') : campaign.ownerName} · '
+                        '${campaign.goalAmount.toStringAsFixed(0)} ${campaign.currency} ${tr('admin.goal')}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -160,13 +161,13 @@ class _CampaignCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               '${campaign.progress.toStringAsFixed(0)}% · '
-              '${campaign.raisedAmount.toStringAsFixed(0)} ${campaign.currency} raised',
+              '${campaign.raisedAmount.toStringAsFixed(0)} ${campaign.currency} ${tr('admin.raised')}',
               style: theme.textTheme.bodySmall,
             ),
             if (queue && campaign.rejectionReason.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Rejected: ${campaign.rejectionReason}',
+                '${tr('admin.rejected')}: ${campaign.rejectionReason}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.error,
                 ),
@@ -180,12 +181,12 @@ class _CampaignCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () => _decide(context, approve: false),
                     icon: const Icon(Icons.close, size: 18),
-                    label: const Text('Reject'),
+                    label: Text(tr('admin.reject')),
                   ),
                   FilledButton.icon(
                     onPressed: () => _decide(context, approve: true),
                     icon: const Icon(Icons.verified_outlined, size: 18),
-                    label: const Text('Approve'),
+                    label: Text(tr('admin.approve')),
                   ),
                 ],
               )
@@ -196,12 +197,12 @@ class _CampaignCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () => _lifecycle(context, close: false),
                     icon: const Icon(Icons.pause_outlined, size: 18),
-                    label: const Text('Pause'),
+                    label: Text(tr('admin.pause')),
                   ),
                   TextButton.icon(
                     onPressed: () => _lifecycle(context, close: true),
                     icon: const Icon(Icons.close, size: 18),
-                    label: const Text('Close'),
+                    label: Text(tr('common.close')),
                   ),
                 ],
               ),
@@ -214,8 +215,8 @@ class _CampaignCard extends StatelessWidget {
   Future<void> _decide(BuildContext context, {required bool approve}) async {
     final reason = await promptReason(
       context: context,
-      title: approve ? 'Approve campaign' : 'Reject campaign',
-      hint: approve ? 'Optional note (or 5+ chars)' : 'Reason for rejection (min 5 characters)',
+      title: tr(approve ? 'admin.approveCampaign' : 'admin.rejectCampaign'),
+      hint: tr(approve ? 'admin.optionalNote' : 'admin.reasonRejection'),
     );
     if (reason == null && !approve) return;
     try {
@@ -227,18 +228,21 @@ class _CampaignCard extends StatelessWidget {
       );
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, approve ? 'Campaign approved.' : 'Campaign rejected.');
+      showAdminMessage(
+        context,
+        tr(approve ? 'admin.campaignApproved' : 'admin.campaignRejected'),
+      );
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not update the campaign.');
+      showAdminMessage(context, tr('admin.couldNotUpdateCampaign'));
     }
   }
 
   Future<void> _lifecycle(BuildContext context, {required bool close}) async {
     final reason = await promptReason(
       context: context,
-      title: close ? 'Close campaign' : 'Pause campaign',
-      hint: 'Reason (min 5 characters)',
+      title: tr(close ? 'admin.closeCampaign' : 'admin.pauseCampaign'),
+      hint: tr('admin.reasonShort'),
     );
     if (reason == null) return;
     try {
@@ -257,10 +261,13 @@ class _CampaignCard extends StatelessWidget {
       }
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, close ? 'Campaign closed.' : 'Campaign paused.');
+      showAdminMessage(
+        context,
+        tr(close ? 'admin.campaignClosed' : 'admin.campaignPaused'),
+      );
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not update the campaign.');
+      showAdminMessage(context, tr('admin.couldNotUpdateCampaign'));
     }
   }
 }

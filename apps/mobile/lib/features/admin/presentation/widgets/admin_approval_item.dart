@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_badges.dart';
 
@@ -51,7 +52,7 @@ class AdminApprovalItem extends StatelessWidget {
                           ),
                           const SizedBox(width: AppSpacing.sm),
                           Text(
-                            'Submitted ${item.submittedDate}',
+                            '${tr('admin.submittedAt')} ${item.submittedDate}',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -73,7 +74,7 @@ class AdminApprovalItem extends StatelessWidget {
               children: [
                 TextButton(
                   onPressed: onView,
-                  child: const Text('View'),
+                  child: Text(tr('admin.view')),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 OutlinedButton(
@@ -82,12 +83,12 @@ class AdminApprovalItem extends StatelessWidget {
                     foregroundColor: AppColors.emergency,
                     side: BorderSide(color: AppColors.emergency.withValues(alpha: 0.5)),
                   ),
-                  child: const Text('Reject'),
+                  child: Text(tr('admin.reject')),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 FilledButton(
                   onPressed: onApprove,
-                  child: const Text('Approve'),
+                  child: Text(tr('admin.approve')),
                 ),
               ],
             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -23,7 +24,7 @@ class AdminDoctorsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.controllerOf(context);
     final token = accessToken ?? session.accessToken;
-    if (token == null) return const Center(child: Text('Not signed in.'));
+    if (token == null) return Center(child: Text(tr('admin.notSignedIn')));
     return _DoctorsView(
       accessToken: token,
       repository: repository ?? AdminRepository(tokenStore: EphemeralTokenStore()),
@@ -51,8 +52,8 @@ class _DoctorsViewState extends State<_DoctorsView> {
       key: _listKey,
       load: () => widget.repository.listDoctorQueue(access: widget.accessToken),
       emptyIcon: Icons.medical_services_outlined,
-      emptyTitle: 'Verification queue clear',
-      emptyMessage: 'No doctors are awaiting verification.',
+      emptyTitle: tr('admin.queueClear'),
+      emptyMessage: tr('admin.noDoctorsAwaiting'),
       itemBuilder: (context, doctor) => _DoctorCard(
         doctor: doctor,
         repository: widget.repository,
@@ -116,7 +117,8 @@ class _DoctorCard extends StatelessWidget {
               _InfoRow(icon: Icons.school_outlined,
                   text: doctor.specialty),
               if (doctor.licenseNumber.isNotEmpty)
-                _InfoRow(icon: Icons.badge_outlined, text: 'License ${doctor.licenseNumber}'),
+                _InfoRow(icon: Icons.badge_outlined,
+                    text: '${tr('admin.license')} ${doctor.licenseNumber}'),
               if (doctor.registrationBody.isNotEmpty)
                 _InfoRow(icon: Icons.fact_check_outlined,
                     text: doctor.registrationBody),
@@ -124,7 +126,7 @@ class _DoctorCard extends StatelessWidget {
             if (doctor.rejectionReason.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Rejected: ${doctor.rejectionReason}',
+                '${tr('admin.rejected')}: ${doctor.rejectionReason}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.error,
                 ),
@@ -142,22 +144,22 @@ class _DoctorCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: () => _showHistory(context),
                   icon: const Icon(Icons.history, size: 18),
-                  label: const Text('History'),
+                  label: Text(tr('admin.history')),
                 ),
                 TextButton.icon(
                   onPressed: () => _suspend(context),
                   icon: const Icon(Icons.block_outlined, size: 18),
-                  label: const Text('Suspend'),
+                  label: Text(tr('admin.suspend')),
                 ),
                 TextButton.icon(
                   onPressed: () => _decide(context, approve: false),
                   icon: const Icon(Icons.close, size: 18),
-                  label: const Text('Reject'),
+                  label: Text(tr('admin.reject')),
                 ),
                 FilledButton.icon(
                   onPressed: () => _decide(context, approve: true),
                   icon: const Icon(Icons.verified_outlined, size: 18),
-                  label: const Text('Approve'),
+                  label: Text(tr('admin.approve')),
                 ),
               ],
             ),
@@ -188,8 +190,8 @@ class _DoctorCard extends StatelessWidget {
   Future<void> _decide(BuildContext context, {required bool approve}) async {
     final reason = await promptReason(
       context: context,
-      title: approve ? 'Approve doctor' : 'Reject doctor',
-      hint: approve ? 'Optional note (or 5+ chars)' : 'Reason for rejection (min 5 characters)',
+      title: tr(approve ? 'admin.approveDoctor' : 'admin.rejectDoctor'),
+      hint: tr(approve ? 'admin.optionalNote' : 'admin.reasonRejection'),
     );
     if (reason == null && !approve) return;
     try {
@@ -201,18 +203,21 @@ class _DoctorCard extends StatelessWidget {
       );
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, approve ? 'Doctor approved.' : 'Doctor rejected.');
+      showAdminMessage(
+        context,
+        tr(approve ? 'admin.doctorApproved' : 'admin.doctorRejected'),
+      );
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not update the doctor.');
+      showAdminMessage(context, tr('admin.couldNotUpdateDoctor'));
     }
   }
 
   Future<void> _suspend(BuildContext context) async {
     final reason = await promptReason(
       context: context,
-      title: 'Suspend doctor',
-      hint: 'Reason for suspension (min 5 characters)',
+      title: tr('admin.suspendDoctor'),
+      hint: tr('admin.reasonSuspension'),
     );
     if (reason == null) return;
     try {
@@ -223,10 +228,10 @@ class _DoctorCard extends StatelessWidget {
       );
       if (!context.mounted) return;
       onChanged();
-      showAdminMessage(context, 'Doctor suspended.');
+      showAdminMessage(context, tr('admin.doctorSuspended'));
     } on Exception {
       if (!context.mounted) return;
-      showAdminMessage(context, 'Could not suspend the doctor.');
+      showAdminMessage(context, tr('admin.couldNotSuspendDoctor'));
     }
   }
 }
@@ -312,13 +317,14 @@ class _AdminVerificationHistoryPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Verification history')),
+      appBar: AppBar(title: Text(tr('admin.verificationHistory'))),
       body: _loading
           ? const LoadingView()
           : _error != null
-              ? ErrorRetryView(message: 'Could not load the history.', onRetry: _load)
+              ? ErrorRetryView(
+                  message: tr('admin.couldNotLoadHistory'), onRetry: _load)
               : _decisions.isEmpty
-                  ? const EmptyStateView(message: 'No decisions recorded yet.')
+                  ? EmptyStateView(message: tr('admin.noDecisions'))
                   : ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: _decisions.length,
@@ -336,7 +342,7 @@ class _AdminVerificationHistoryPageState
                             subtitle: Text([
                               decision.decidedAt,
                               if (decision.actorName.isNotEmpty)
-                                'by ${decision.actorName}',
+                                '${tr('admin.byActor')} ${decision.actorName}',
                               if (decision.reason.isNotEmpty) decision.reason,
                             ].join(' · ')),
                           ),

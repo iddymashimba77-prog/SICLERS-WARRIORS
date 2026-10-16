@@ -225,4 +225,60 @@ void main() {
     expect(symptom.uid, 'sym-2');
     expect(symptom.painLevel, 6);
   });
+
+  test('listSymptomTypes unwraps the flat catalog envelope', () async {
+    // GET /api/symptom-types/ is explicitly unpaginated, so the renderer sends
+    // `data` as a bare list rather than a `{results: …}` page.
+    final client = MockClient((request) async {
+      expect(request.method, 'GET');
+      expect(request.url.path, contains('/symptom-types/'));
+      return http.Response(
+        jsonEncode({
+          'data': [
+            {'code': 'pain_crisis', 'name': 'Pain crisis', 'is_pain_related': true},
+            {'code': 'headache', 'name': 'Headache', 'is_pain_related': false},
+          ],
+          'meta': {'correlation_id': ''},
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    final repo = HealthRepository(tokenStore: store, client: client);
+    final types = await repo.listSymptomTypes(access: _token);
+    expect(types, hasLength(2));
+    expect(types.first.code, 'pain_crisis');
+    expect(types.first.isPainRelated, isTrue);
+    expect(types.last.name, 'Headache');
+  });
+
+  test('listSymptoms still reads a paginated collection', () async {
+    final client = MockClient((request) async {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'count': 1,
+            'next': null,
+            'previous': null,
+            'results': [
+              {
+                'uid': 'sym-1',
+                'symptom_type_code': 'PAIN',
+                'pain_level': 4,
+                'triggers': [],
+                'recorded_at': '2026-09-16T07:30:00Z',
+              },
+            ],
+          },
+          'meta': {'correlation_id': ''},
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    final repo = HealthRepository(tokenStore: store, client: client);
+    final symptoms = await repo.listSymptoms(access: _token);
+    expect(symptoms, hasLength(1));
+    expect(symptoms.single.painLevel, 4);
+  });
 }
