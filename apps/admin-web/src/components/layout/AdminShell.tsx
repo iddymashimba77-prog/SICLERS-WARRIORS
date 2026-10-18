@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, Link, useMatch } from 'react-router-dom';
 import { navSectionsFor, type NavSection } from '../../lib/nav';
 import { useAuth } from '../../lib/auth/AuthContext';
-import { useBranding } from '../../lib/BrandingContext';
+import { useBranding, logoFallback } from '../../lib/BrandingContext';
 import { useTheme } from '../../lib/theme';
 import { Button } from '../ui';
 import './styles.css';
@@ -15,6 +15,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
         src={logoUrl}
         alt={info?.logo_alt || "Sickler's Warriors logo"}
         className="sw-brand-img"
+        onError={logoFallback()}
       />
       {!compact ? (
         <div className="sw-brand-text">

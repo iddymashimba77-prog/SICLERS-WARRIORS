@@ -79,6 +79,10 @@ class AppBranding(models.Model):
     """
 
     logo = models.FileField(upload_to="branding/", blank=True)
+    # Authoritative logo bytes live in the database: the filesystem is
+    # ephemeral on Render free tier, so a stored file vanishes on restart
+    # while this row survives. ``logo`` is kept as a best-effort mirror.
+    logo_data = models.BinaryField(null=True, blank=True)
     logo_alt = models.CharField(max_length=160, blank=True)
     updated_by = models.ForeignKey(
         "accounts.User",

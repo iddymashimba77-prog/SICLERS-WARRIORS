@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth/AuthContext';
-import { useBranding } from '../lib/BrandingContext';
+import { useBranding, logoFallback } from '../lib/BrandingContext';
 import { Button, Field, Input } from '../components/ui';
 
 export function LoginPage() {
@@ -41,7 +41,7 @@ export function LoginPage() {
         </p>
       </div>
       <div className="sw-login-card">
-        <img src={logoUrl} alt={info?.logo_alt || 'Sickler\'s Warriors logo'} className="sw-brand-img" style={{ width: 72, height: 72 }} />
+        <img src={logoUrl} alt={info?.logo_alt || 'Sickler\'s Warriors logo'} className="sw-brand-img" style={{ width: 72, height: 72 }} onError={logoFallback()} />
         <h2>Admin Panel</h2>
         <p className="sw-sub">Sign in to continue</p>
         <form onSubmit={onSubmit} style={{ width: '100%' }} noValidate>

@@ -137,6 +137,27 @@ class BrandingTests(TestCase):
             AuditLog.objects.filter(action_code="branding.logo_update", result="SUCCESS").exists()
         )
 
+    def test_logo_survives_ephemeral_filesystem_wipe(self):
+        """Render free tier keeps the DB volume but wipes local files: the
+        public endpoint must still serve the uploaded logo afterwards."""
+        from django.core.files import storage as files_storage
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        upload = SimpleUploadedFile("logo.jpg", _jpeg_bytes(), content_type="image/jpeg")
+        resp = self.super.post("/api/admin/branding/logo/", {"image": upload}, format="multipart")
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        from core.models import AppBranding
+
+        branding = AppBranding.objects.get(pk=1)
+        if branding.logo:
+            files_storage.default_storage.delete(branding.logo.name)
+
+        served = self.anon.get("/api/branding/logo/")
+        self.assertEqual(served.status_code, 200)
+        self.assertEqual(served["Content-Type"], "image/jpeg")
+        self.assertTrue(self.anon.get("/api/branding/").json()["data"]["has_logo"])
+
     def test_super_removes_logo(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 

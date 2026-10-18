@@ -9,7 +9,7 @@ import {
   PageHeader,
   pushToast,
 } from '../components/ui';
-import { useBranding } from '../lib/BrandingContext';
+import { useBranding, logoFallback } from '../lib/BrandingContext';
 import {
   deleteBrandingLogo,
   fetchAdminBranding,
@@ -147,6 +147,7 @@ export function BrandingPage() {
               src={logoUrl}
               alt={info?.logo_alt || 'Platform logo'}
               style={{ maxWidth: 220, maxHeight: 120, objectFit: 'cover' }}
+              onError={logoFallback()}
             />
           </div>
           {info?.has_logo ? (

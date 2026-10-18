@@ -57,11 +57,32 @@ def _branding():
     return obj
 
 
+def _has_logo(branding):
+    return bool(branding.logo_data or branding.logo)
+
+
+def _read_logo_bytes(branding):
+    """Return the stored logo bytes, or ``None`` when unavailable.
+
+    The database copy is authoritative (the filesystem is ephemeral on the
+    Render free tier); the ``FileField`` copy is only a legacy fallback.
+    """
+    if branding.logo_data:
+        return bytes(branding.logo_data)
+    if branding.logo:
+        try:
+            with default_storage.open(branding.logo.name, "rb") as stored:
+                return stored.read()
+        except (FileNotFoundError, OSError):
+            return None
+    return None
+
+
 def _public_payload(branding):
     payload = {
         "logo_url": "/api/branding/logo/",
         "logo_alt": branding.logo_alt,
-        "has_logo": bool(branding.logo),
+        "has_logo": _has_logo(branding),
     }
     if branding.logo and branding.updated_at:
         # The logo endpoint serves one constant URL; this version tag lets
@@ -91,17 +112,14 @@ class BrandingLogoFileView(APIView):
 
     def get(self, request):
         branding = _branding()
-        if not branding.logo:
+        data = _read_logo_bytes(branding)
+        if not data:
             return HttpResponseNotFound("no logo configured")
-        logo = default_storage.open(branding.logo.name, "rb")
-        try:
-            return HttpResponse(
-                logo.read(),
-                content_type="image/jpeg",
-                headers={"Cache-Control": "public, max-age=3600"},
-            )
-        finally:
-            logo.close()
+        return HttpResponse(
+            data,
+            content_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
 
 
 class AdminBrandingView(APIView):
@@ -190,19 +208,25 @@ class AdminBrandingLogoView(APIView):
 
         branding = _branding()
         previous = branding.logo.name if branding.logo else None
-        stored_name = default_storage.save(
-            f"branding/brand_logo_{int(timezone.now().timestamp())}.jpg",
-            ContentFile(buffer.getvalue()),
-        )
-        if previous:
+        stored_name = None
+        try:
+            stored_name = default_storage.save(
+                f"branding/brand_logo_{int(timezone.now().timestamp())}.jpg",
+                ContentFile(buffer.getvalue()),
+            )
+        except OSError:
+            # Ephemeral/readonly disk: the database copy below is authoritative.
+            stored_name = None
+        if previous and stored_name:
             try:
                 default_storage.delete(previous)
             except Exception:
                 pass
-        branding.logo = stored_name
+        branding.logo = stored_name or ""
+        branding.logo_data = buffer.getvalue()
         branding.logo_alt = alt
         branding.updated_by = request.user
-        branding.save(update_fields=["logo", "logo_alt", "updated_by", "updated_at"])
+        branding.save(update_fields=["logo", "logo_data", "logo_alt", "updated_by", "updated_at"])
         _audit(
             request,
             "branding.logo_update",
@@ -216,11 +240,16 @@ class AdminBrandingLogoView(APIView):
     @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def delete(self, request):
         branding = _branding()
+        removed = branding.logo.name if branding.logo else ""
         if branding.logo:
-            removed = branding.logo.name
-            branding.logo.delete(save=False)
-            branding.updated_by = request.user
-            branding.save(update_fields=["logo", "updated_by", "updated_at"])
+            try:
+                branding.logo.delete(save=False)
+            except OSError:
+                pass
+        branding.logo_data = None
+        branding.updated_by = request.user
+        branding.save(update_fields=["logo", "logo_data", "updated_by", "updated_at"])
+        if removed:
             _audit(
                 request,
                 "branding.logo_remove",
