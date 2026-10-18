@@ -26,6 +26,19 @@ cd backend && DJANGO_SETTINGS_MODULE=config.settings.staging venv/bin/python man
 ```
 (Or via Render shell against the deployed DB; ask for secrets separately.)
 
+## Public Web (Flutter) — CRITICAL: committed build snapshot
+- `sicklers-app` is a Render Static Site that serves the committed `public-web/`
+  folder directly (Render static sites have no Flutter SDK and do NOT run
+  `flutter build`).
+- Therefore a Flutter change only reaches production after:
+  1. `bash scripts/refresh_public_web.sh` (rebuilds `apps/mobile` for web and
+     syncs the output into `public-web/`)
+  2. `git add public-web && git commit -m "Refresh public web build"`
+  3. `git push origin main` -> Render auto-deploys the snapshot.
+- Pushing Flutter source alone does NOT update the live public site.
+- The Flutter service worker is the self-unregistering variant; returning
+  visitors pick up the new build after one reload.
+
 ## Flutter Mobile
 app_config defaults to live API in release builds. For release APK:
 ```bash
