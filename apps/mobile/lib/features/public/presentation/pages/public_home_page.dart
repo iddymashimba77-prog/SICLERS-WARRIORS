@@ -1105,7 +1105,7 @@ class _NewsCarouselState extends State<_NewsCarousel> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth > 720;
-        final height = wide ? 240.0 : 340.0;
+        final height = wide ? 320.0 : 420.0;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1196,7 +1196,7 @@ class _CarouselCard extends StatelessWidget {
                   PublicNewsCover(
                     url: article.coverUrl,
                     alt: article.coverAlt,
-                    height: 130,
+                    height: 220,
                     borderRadius: 0,
                   ),
                   Expanded(
@@ -1222,11 +1222,11 @@ class _CarouselCard extends StatelessWidget {
             return Row(
               children: [
                 SizedBox(
-                  width: 280,
+                  width: 360,
                   child: PublicNewsCover(
                     url: article.coverUrl,
                     alt: article.coverAlt,
-                    height: 180,
+                    height: 260,
                     borderRadius: 20,
                   ),
                 ),
@@ -1287,7 +1287,7 @@ class _CompactNewsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            PublicNewsCover(url: article.coverUrl, alt: article.coverAlt, height: 96, borderRadius: 0),
+            PublicNewsCover(url: article.coverUrl, alt: article.coverAlt, height: 160, borderRadius: 0),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
@@ -1336,11 +1336,11 @@ class _CompactNewsRow extends StatelessWidget {
           child: Row(
             children: [
               SizedBox(
-                width: 74,
+                width: 112,
                 child: PublicNewsCover(
                   url: article.coverUrl,
                   alt: article.coverAlt,
-                  height: 60,
+                  height: 88,
                   borderRadius: 12,
                 ),
               ),
