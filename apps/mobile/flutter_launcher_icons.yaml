@@ -1,0 +1,8 @@
+flutter_launcher_icons:
+  image_path: "assets/brand/sicklers_warriors_logo.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "assets/brand/sicklers_warriors_logo.png"
