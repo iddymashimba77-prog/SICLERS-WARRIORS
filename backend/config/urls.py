@@ -13,8 +13,10 @@ only way an alias like this stays trustworthy over time.
 
 Uploaded media (``/media/…``) is served by Django only when ``SERVE_MEDIA`` is
 enabled (default on for development/staging, off in production where object
-storage/CDN is expected). Serving it here is what makes profile pictures, news
-covers and education documents resolvable for API clients.
+storage/CDN is expected). Profile pictures are the one exception: the
+deterministic ``/media/accounts/avatars/{uid}.jpg`` route is always registered
+and serves database-held bytes, so avatars survive redeploys without opening
+any other upload.
 """
 
 from django.conf import settings
@@ -23,6 +25,7 @@ from django.urls import include, path, re_path
 from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from accounts.views import ProfilePhotoView
 from core.handlers import api_not_found, api_server_error
 from core.schema_gate import SchemaAccess
 
@@ -77,6 +80,20 @@ urlpatterns = [
         "api/docs/",
         SpectacularSwaggerView.as_view(url_name="schema", permission_classes=[SchemaAccess]),
         name="swagger-ui",
+    ),
+]
+
+# Avatars are served unconditionally: deterministic /media/accounts/avatars/
+# paths only (identity-only, non-PHI profile images; clients fetch them without
+# auth headers). Bytes come from the database (accounts.views), so redeploys
+# with an ephemeral disk and SERVE_MEDIA=false can never break every visible
+# avatar. Must precede the generic SERVE_MEDIA route below so the durable
+# bytes are authoritative when both could match.
+urlpatterns += [
+    path(
+        "media/accounts/avatars/<uuid:uid>.jpg",
+        ProfilePhotoView.as_view(),
+        name="profile-photo",
     ),
 ]
 

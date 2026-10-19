@@ -852,6 +852,25 @@ class AppStrings {
       'Medication reminders appear only for authorized linked patients.',
       'Vikumbusho vya dawa vinaonekana tu kwa wagonjwa waliounganishwa '
           'walioruhusiwa.');
+  static String get caregiverNoLinkGuidance => _t(
+      'No patient has linked you yet. Ask them to invite you as a caregiver, '
+          'then accept the invitation.',
+      'Mgonjwa bado hajaounganisha nawe. Mwombe akuite kama mlezi, kisha '
+          'kubali mwaliko wake.');
+  static String get caregiverNoConsentGuidance => _t(
+      'The patient has not shared health access with you yet. They can grant '
+          'it from your permissions.',
+      'Mgonjwa bado hajashiriki nafasi ya afya nawe. Anaweza kuikupa kutoka '
+          'ruhusa zako.');
+  static String get healthLoadFailed =>
+      _t('Unable to load the health track.', 'Imeshindikana kupakia ufuatiliaji wa afya.');
+  static String get recordForPatient => _t('Record for patient', 'Rekodi kwa mgonjwa');
+  static String get openHealthTrack =>
+      _t('Open health track', 'Fungua ufuatiliaji wa afya');
+  static String get linkedPatient =>
+      _t('Linked patient', 'Mgonjwa ulioambatanishwa');
+  static String get notSharedYet =>
+      _t('Not shared by the patient yet.', 'Bado haijagawanywa na mgonjwa.');
 
   // --------------------------------------------------- community post editing
   static String get editPost => _t('Edit post', 'Hariri chapisho');

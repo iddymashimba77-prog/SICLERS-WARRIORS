@@ -5,7 +5,10 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../shared/widgets/dashboard_widgets.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../auth/presentation/widgets/role_gate.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
+import '../../../caregiver/data/caregiver_health_repository.dart';
+import '../../../caregiver/presentation/pages/caregiver_health_page.dart';
 import '../../../medical/presentation/pages/medical_records_page.dart';
 import '../../../medication/presentation/pages/medication_page.dart';
 import '../../data/health_repository.dart';
@@ -20,12 +23,14 @@ class HealthDashboardPage extends StatelessWidget {
     super.key,
     this.authController,
     this.healthRepository,
+    this.caregiverRepository,
   });
 
   static const String routeName = '/health';
 
   final AuthController? authController;
   final HealthRepository? healthRepository;
+  final CaregiverHealthRepository? caregiverRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +40,20 @@ class HealthDashboardPage extends StatelessWidget {
     final token = session.accessToken;
     if (token == null) {
       return const SignedOutGate();
+    }
+    // Caregivers never see the patient-only dashboard (the backend 403s it):
+    // /health branches to the consent-gated linked-patient track instead —
+    // this is also where notification deep-links land for caregivers.
+    if (session.roles.contains(AppRoles.caregiver)) {
+      return Scaffold(
+        appBar: AppBar(title: Text(AppStrings.healthTracking)),
+        body: SafeArea(
+          child: CaregiverHealthView(
+            accessToken: token,
+            repository: caregiverRepository,
+          ),
+        ),
+      );
     }
     return Scaffold(
       appBar: AppBar(title: Text(AppStrings.healthTracking)),

@@ -259,11 +259,16 @@ class _ProfilePhotoHeaderState extends State<_ProfilePhotoHeader> {
         filename: file.name,
         mimeType: _mimeTypeForName(file.name),
       );
+      // The avatar path never changes, so version the URL to invalidate
+      // Flutter's image cache — and push it through the session so every
+      // other avatar surface (home header, shells) swaps immediately.
+      final busted = '$url?v=${DateTime.now().millisecondsSinceEpoch}';
       if (!mounted) return;
       setState(() {
         _uploading = false;
-        _photoUrl = url;
+        _photoUrl = busted;
       });
+      widget.controller?.applyPhotoUrl(busted);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n(context).tr('profile.photoUpdated'))),
       );

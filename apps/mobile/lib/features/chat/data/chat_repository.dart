@@ -91,6 +91,38 @@ class Conversation {
   }
 }
 
+/// One identity row from `GET /api/chat/recipients/` — the searchable picker
+/// that replaces typing a verified professional UID by hand. Carries identity
+/// only (no contact data, no medical payload); the server builds the list
+/// from the same rules `POST /chat/conversations/` enforces, so every row is
+/// startable.
+class ChatRecipient {
+  const ChatRecipient({
+    required this.uid,
+    required this.displayName,
+    required this.role,
+    required this.detail,
+  });
+
+  factory ChatRecipient.fromJson(Map<String, dynamic> json) => ChatRecipient(
+        uid: (json['uid'] as String?) ?? '',
+        displayName: (json['display_name'] as String?) ?? 'Member',
+        role: (json['role'] as String?) ?? '',
+        detail: (json['detail'] as String?) ?? '',
+      );
+
+  final String uid;
+  final String displayName;
+
+  /// Server role code for the row: a professional type for professionals
+  /// (DOCTOR / PSYCHOLOGIST / SOCIAL_SUPPORT) or `PATIENT` on the
+  /// professional-side picker.
+  final String role;
+
+  /// Specialty · facility for professionals, empty for patients.
+  final String detail;
+}
+
 class ChatMessage {
   const ChatMessage({
     required this.uid,
@@ -183,6 +215,25 @@ class ChatRepository {
         .timeout(_timeout);
     return _list(res)
         .map((e) => Conversation.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// `GET /api/chat/recipients/?q=` — role-aware recipient picker.
+  ///
+  /// A patient is offered verified professionals; a professional or healthcare
+  /// staff member is offered patients. Roles without `chat.start` (caregiver,
+  /// donors, admin) receive 403 and their clients hide the compose action.
+  Future<List<ChatRecipient>> listRecipients({
+    required String access,
+    String query = '',
+  }) async {
+    final uri = _uri(['chat', 'recipients']).replace(
+      queryParameters: query.trim().isEmpty ? null : {'q': query.trim()},
+    );
+    final res =
+        await _client.get(uri, headers: _headers(access)).timeout(_timeout);
+    return _list(res)
+        .map((e) => ChatRecipient.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 

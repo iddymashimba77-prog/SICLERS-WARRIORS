@@ -35,6 +35,7 @@ class DonorHomePage extends StatelessWidget {
       appBar: AppTopBar(
         title: AppStrings.donorHome,
         avatarName: session.displayName,
+        avatarImageUrl: session.photoUrl,
       ),
       body: SafeArea(
         child: DonorHomeView(

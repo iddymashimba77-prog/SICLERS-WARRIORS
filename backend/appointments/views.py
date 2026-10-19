@@ -12,6 +12,7 @@ hard-deleted: clinical history must survive a mistaken booking (§8 history).
 """
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import status as http_status
@@ -55,25 +56,33 @@ class AppointmentListCreateView(AppointmentAccess, ListCreateAPIView):
             return AppointmentClinicalSerializer
         return super().get_serializer_class()
 
+    # Statuses that are finished business: they never belong to "upcoming".
+    TERMINAL_STATUSES = ["CANCELLED", "COMPLETED", "NO_SHOW"]
+
     def get_queryset(self):
         qs = super().get_queryset()
         # Directory-level management permission widens to everything, then the
-        # usual status filter applies.
-        if self.request.user.has_perm_code(APPOINTMENT_MANAGE):
-            params = self.request.query_params
-            wanted = (params.get("status") or "").strip().upper()
-            if wanted:
-                qs = qs.filter(status=wanted)
-            return qs
-        qs = qs.filter(patient_id__in=self.accessible_patient_ids())
+        # usual status/upcoming filters apply to every reader alike.
+        if not self.request.user.has_perm_code(APPOINTMENT_MANAGE):
+            qs = qs.filter(patient_id__in=self.accessible_patient_ids())
         params = self.request.query_params
         wanted = (params.get("status") or "").strip().upper()
         if wanted:
             qs = qs.filter(status=wanted)
-        upcoming_only = (params.get("upcoming") or "").strip().lower() in ("1", "true", "yes")
-        if upcoming_only:
+        # Upcoming/past split (§11 + FR-CLI): `upcoming=1` is the future,
+        # still-live list; `upcoming=0` is everything that is no longer a
+        # future visit — past-dated rows plus terminal statuses (a cancelled
+        # appointment shows under Past with its CANCELLED status intact, never
+        # silently dropped and never implied to be completed).
+        upcoming_flag = (params.get("upcoming") or "").strip().lower()
+        if upcoming_flag in ("1", "true", "yes"):
             qs = qs.filter(scheduled_at__gte=timezone.now()).exclude(
-                status__in=["CANCELLED", "COMPLETED", "NO_SHOW"]
+                status__in=self.TERMINAL_STATUSES
+            )
+        elif upcoming_flag in ("0", "false", "no"):
+            qs = qs.filter(
+                Q(scheduled_at__lt=timezone.now())
+                | Q(status__in=self.TERMINAL_STATUSES)
             )
         return qs
 

@@ -1,36 +1,57 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/chat_repository.dart';
 import 'conversation_thread_page.dart';
+import '../widgets/recipient_picker_dialog.dart';
 import '../../../../shared/widgets/signed_out_gate.dart';
 
 /// Conversation list (approved CHAT-001; FR-DOC-005/UR-01).
 ///
 /// Private doctor⇄patient threads only; community content is never mixed in
 /// here. Unread counts surface without any message-body preview.
+///
+/// Starting a conversation uses the server-built recipient picker
+/// (`GET /api/chat/recipients/`) instead of asking anyone to paste a
+/// verified professional UID; roles without `chat.start` (caregiver, donors)
+/// never see the compose action at all — the backend stays the authority.
 class ConversationListPage extends StatelessWidget {
   const ConversationListPage({super.key, this.authController, this.repository});
 
   static const String routeName = '/messages';
+
+  /// Roles the backend lets start a conversation (`chat.start` seeds).
+  static const Set<String> _startableRoles = {
+    'PATIENT',
+    'DOCTOR',
+    'PSYCHOLOGIST',
+    'SOCIAL_SUPPORT',
+    'HEALTHCARE_STAFF',
+  };
 
   final AuthController? authController;
   final ChatRepository? repository;
 
   @override
   Widget build(BuildContext context) {
-    final token = (authController ?? SessionScope.controllerOf(context))
-        .accessToken;
+    final controller = authController ?? SessionScope.controllerOf(context);
+    final token = controller.accessToken;
     if (token == null) {
       return const SignedOutGate();
     }
+    // Unknown roles (session still hydrating) keep compose visible; the
+    // server refuses anyone without `chat.start` regardless.
+    final roles = controller.roles;
+    final canCompose = roles.isEmpty || roles.any(_startableRoles.contains);
     return ConversationListView(
       accessToken: token,
       repository: repository ?? ChatRepository(tokenStore: EphemeralTokenStore()),
+      canCompose: canCompose,
     );
   }
 }
@@ -40,10 +61,15 @@ class ConversationListView extends StatefulWidget {
     super.key,
     required this.accessToken,
     required this.repository,
+    this.canCompose = true,
   });
 
   final String accessToken;
   final ChatRepository repository;
+
+  /// Whether this session may start conversations (`chat.start`). Caregivers
+  /// and donors never can, so their clients hide compose entirely.
+  final bool canCompose;
 
   @override
   State<ConversationListView> createState() => _ConversationListViewState();
@@ -83,28 +109,12 @@ class _ConversationListViewState extends State<ConversationListView> {
   }
 
   Future<void> _startConversation() async {
-    final controller = TextEditingController();
-    final uid = await showDialog<String>(
+    final uid = await showRecipientPicker(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.privateDoctorChat),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Verified professional UID',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppStrings.cancel)),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: Text(AppStrings.messages),
-          ),
-        ],
-      ),
+      repository: widget.repository,
+      accessToken: widget.accessToken,
     );
-    if (uid == null || uid.isEmpty) return;
+    if (uid == null || uid.isEmpty || !mounted) return;
     try {
       final conversation = await widget.repository.startConversation(
         access: widget.accessToken,
@@ -125,22 +135,25 @@ class _ConversationListViewState extends State<ConversationListView> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.conversationsLoadFailed)),
+        SnackBar(content: Text(AppLocalizations.of(context).tr('chat.startFailed'))),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(AppStrings.messages),
         actions: [
-          IconButton(
-            tooltip: AppStrings.messages,
-            icon: const Icon(Icons.add_comment_outlined),
-            onPressed: _startConversation,
-          ),
+          if (widget.canCompose)
+            IconButton(
+              key: const ValueKey<String>('compose-conversation'),
+              tooltip: s.tr('chat.newConversation'),
+              icon: const Icon(Icons.add_comment_outlined),
+              onPressed: _startConversation,
+            ),
         ],
       ),
       body: _buildBody(),

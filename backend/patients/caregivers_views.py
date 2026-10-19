@@ -8,6 +8,8 @@ Surface (mounted at ``/api/caregivers/``):
     POST        /api/caregivers/{id}/decline/  invitee only
     DELETE      /api/caregivers/{id}/      caregivers.remove (PAT) — revoke + consent REVOKED
     GET         /api/caregivers/me/patient/   caregivers.view (C3 grantee, consent-gated)
+    GET         /api/caregivers/me/health/    caregivers.view (consent-gated health track)
+    POST        /api/caregivers/me/health/observations/  consent-gated log for linked patient
 
 Rules (C14, role-perm §10/§15):
 * CAREGIVER role alone grants nothing. Data access requires BOTH an ACTIVE
@@ -26,6 +28,7 @@ from rest_framework.response import Response
 from accounts.models import Role, SecurityEvent, User
 from accounts.permissions import IsAuthenticatedRespectStatus, require
 from audit.services import record_audit
+from medications.serializers import SymptomSerializer
 from medical_records import services as consent_services
 from medical_records.models import Consent
 from medical_records.serializers import ConsentSerializer
@@ -252,3 +255,167 @@ class CaregiverViewSet(
             "last_name": patient.user.last_name,
             "relationship_type": relation.relationship_type,
         }).data)
+
+    # --- caregiver helpers (shared by the health track surfaces) ------------
+    def _require_caregiver(self):
+        if not self.request.user.is_caregiver:
+            raise PermissionDenied("A CAREGIVER identity is required.")
+
+    def _active_relation_for(self, user):
+        return (
+            CaregiverRelationship.objects.filter(user=user, status="ACTIVE")
+            .select_related("patient__user")
+            .order_by("-accepted_at")
+            .first()
+        )
+
+    def _empty_health(self, reason):
+        """Honest no-data payload: a state, never an error (§13 empty ≠ failure)."""
+        return Response({
+            "linked_patient": None,
+            "reason": reason,
+            "consent_scope": [],
+            "can_view_symptoms": False,
+            "can_view_medications": False,
+            "can_log": False,
+            "symptoms": [],
+            "medications": [],
+        })
+
+    # --- caregiver: consent-gated health track (FR-CG health) ---------------
+    @action(detail=False, methods=["get"], url_path="me/health")
+    def health(self, request):
+        """Linked patient's health summary under BOTH relationship + consent.
+
+        The caregiver never reuses the patient's own ``/patients/me/dashboard/``
+        response: every section here is separately consent-gated
+        (``symptoms.view`` / ``medications.view`` / ``symptoms.create``), and
+        "no link", "no consent" and "no records yet" are three distinct,
+        non-error states the client renders as empty/form views — never as a
+        permanent load failure.
+        """
+        user = request.user
+        self._require_caregiver()
+        relation = self._active_relation_for(user)
+        if relation is None:
+            return self._empty_health("no_link")
+        patient = relation.patient
+        if not consent_services.can_access(patient, user, "patients.view"):
+            return self._empty_health("no_consent")
+        scope = sorted(consent_services.active_scope(patient, user))
+        can_view_symptoms = "symptoms.view" in scope
+        can_view_medications = "medications.view" in scope
+        can_log = "symptoms.create" in scope
+
+        symptoms = []
+        if can_view_symptoms:
+            symptom_qs = (
+                patient.user.symptoms.select_related("symptom_type")
+                .order_by("-recorded_at")[:20]
+            )
+            symptoms = SymptomSerializer(symptom_qs, many=True).data
+
+        medications = []
+        if can_view_medications:
+            medications = [
+                {
+                    "uid": str(m.uid),
+                    "name": m.name,
+                    "strength": m.strength,
+                    "dosage": m.dosage,
+                    "frequency": m.frequency,
+                    "is_active": m.is_active,
+                    "start_date": m.start_date.isoformat() if m.start_date else None,
+                }
+                for m in patient.user.medications.filter(is_active=True).order_by("name")
+            ]
+
+        record_audit(
+            actor=user,
+            action_code="consents.view",
+            resource_type="patient",
+            resource_id=patient.pk,
+            request=request,
+            details={"grantee": str(user.uid), "scope": scope},
+        )
+        return Response({
+            "linked_patient": {
+                "patient_uid": patient.user.uid,
+                "first_name": patient.user.first_name,
+                "last_name": patient.user.last_name,
+                "relationship_type": relation.relationship_type,
+            },
+            "reason": "ok",
+            "consent_scope": scope,
+            "can_view_symptoms": can_view_symptoms,
+            "can_view_medications": can_view_medications,
+            "can_log": can_log,
+            "symptoms": symptoms,
+            "medications": medications,
+        })
+
+    @action(detail=False, methods=["post"], url_path="me/health/observations")
+    def health_observation(self, request):
+        """Log a health observation for the LINKED patient (never for self).
+
+        Same payload contract as the patient's own ``POST /api/symptoms/``
+        (symptom_type_code / pain_level / triggers / duration_minutes / notes /
+        recorded_at), but authorized by the consent ``symptoms.create`` scope on
+        an ACTIVE caregiver link — never by assuming caregiver == patient, and
+        never by the caregiver's role code alone.
+        """
+        user = request.user
+        self._require_caregiver()
+        relation = self._active_relation_for(user)
+        if relation is None:
+            raise PermissionDenied("You have no active caregiver link to a patient.")
+        patient = relation.patient
+        if not consent_services.can_access(patient, user, "symptoms.create"):
+            raise PermissionDenied(
+                "No active consent grants you to log health observations "
+                "for this patient."
+            )
+        symptom_serializer = SymptomSerializer(data=request.data)
+        symptom_serializer.is_valid(raise_exception=True)
+        symptom = symptom_serializer.save(patient=patient.user)
+        # Same projection as the patient's own logging: health timeline plus
+        # the audit trail (the caregiver is the actor, the patient is the
+        # record subject).
+        from medications import services as med_services
+
+        st_code = symptom.symptom_type.code if symptom.symptom_type else "UNKNOWN"
+        med_services.record_timeline(
+            patient=patient.user,
+            event_type="SYMPTOM_RECORDED",
+            event_id=symptom.uid,
+            occurred_at=symptom.recorded_at,
+            summary=f"Symptom recorded: {st_code}",
+            payload={
+                "symptom_uid": str(symptom.uid),
+                "type_code": st_code,
+                "pain_level": symptom.pain_level,
+            },
+        )
+        if symptom.pain_level is not None:
+            med_services.record_timeline(
+                patient=patient.user,
+                event_type="PAIN_RECORDED",
+                event_id=symptom.uid,
+                occurred_at=symptom.recorded_at,
+                summary=f"Pain level: {symptom.pain_level}/10",
+                payload={"pain_level": symptom.pain_level, "symptom_uid": str(symptom.uid)},
+            )
+        record_audit(
+            actor=user,
+            action_code="symptoms.create",
+            resource_type="symptom",
+            resource_id=symptom.pk,
+            request=request,
+            details={
+                "on_behalf_of": str(patient.user.uid),
+                "type_code": st_code,
+                "pain_level": symptom.pain_level,
+            },
+        )
+        _event(user, "SYMPTOM_RECORDED", {"patient": str(patient.user.uid)})
+        return Response(SymptomSerializer(symptom).data, status=http_status.HTTP_201_CREATED)

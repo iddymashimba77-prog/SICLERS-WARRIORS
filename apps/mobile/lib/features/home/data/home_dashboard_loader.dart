@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../../auth/data/auth_repository.dart';
 import '../../auth/data/token_store.dart';
 import '../../blood_donation/data/blood_repository.dart';
+import '../../clinic/data/appointments_repository.dart';
 import '../../education/data/education_repository.dart';
 import '../../emergency/data/emergency_repository.dart';
 import '../../health/data/health_repository.dart';
@@ -23,6 +24,7 @@ class HomeDashboardData {
     this.articles = const [],
     this.activeEmergencies = const [],
     this.openBloodRequests = const [],
+    this.upcomingAppointments,
     this.offline = false,
   });
 
@@ -44,6 +46,10 @@ class HomeDashboardData {
   /// Caller's blood requests still open (amber alert).
   final List<BloodRequest> openBloodRequests;
 
+  /// Upcoming visits from `GET /appointments/?upcoming=1`; `null` means the
+  /// side call failed — the card renders an honest error, never fake slots.
+  final List<ClinicAppointment>? upcomingAppointments;
+
   /// True when a transport/time-out failure was observed; the UI shows an
   /// honest offline banner instead of fabricating data.
   final bool offline;
@@ -64,6 +70,8 @@ class HomeDashboardLoader {
     _education = EducationRepository(tokenStore: _tokenStore, client: _client);
     _emergency = EmergencyRepository(tokenStore: _tokenStore, client: _client);
     _blood = BloodRepository(tokenStore: _tokenStore, client: _client);
+    _appointments =
+        AppointmentsRepository(tokenStore: _tokenStore, client: _client);
   }
 
   final http.Client? _client;
@@ -75,6 +83,7 @@ class HomeDashboardLoader {
   late final EducationRepository _education;
   late final EmergencyRepository _emergency;
   late final BloodRepository _blood;
+  late final AppointmentsRepository _appointments;
 
   /// The shared health client; the check-in flow reuses it to record symptoms.
   HealthRepository get healthRepository => _health;
@@ -87,6 +96,7 @@ class HomeDashboardLoader {
       _safe(() => _education.listContent(access: access, pageSize: 3)),
       _safe(() => _emergency.listRequests(access: access)),
       _safe(() => _blood.listRequests(access: access)),
+      _safe(() => _appointments.list(access: access, upcoming: true)),
     ]);
 
     final dash = results[0] as _LoadResult<HealthDashboard>;
@@ -95,6 +105,7 @@ class HomeDashboardLoader {
     final articles = results[3] as _LoadResult<List<EducationalContent>>;
     final emergencies = results[4] as _LoadResult<List<EmergencyRequest>>;
     final bloodRequests = results[5] as _LoadResult<List<BloodRequest>>;
+    final appointments = results[6] as _LoadResult<List<ClinicAppointment>>;
 
     final failed = [
       dash,
@@ -103,6 +114,7 @@ class HomeDashboardLoader {
       articles,
       emergencies,
       bloodRequests,
+      appointments,
     ].where((r) => r.isError).toList();
 
     return HomeDashboardData(
@@ -116,6 +128,7 @@ class HomeDashboardLoader {
       openBloodRequests: (bloodRequests.value ?? const [])
           .where((b) => b.isOpen)
           .toList(),
+      upcomingAppointments: appointments.value,
       offline: failed.any((r) => _isOfflineError(r.error!)),
     );
   }

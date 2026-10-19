@@ -5,16 +5,37 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../auth/domain/auth_types.dart';
 import '../../data/health_repository.dart';
 
+/// Symptom payload submitter: the patient's own `POST /api/symptoms/`
+/// (repository tear-off) or a consent-gated on-behalf-of endpoint — both
+/// share the exact same payload contract.
+typedef SymptomSubmitter = Future<Symptom> Function({
+  required String access,
+  required Map<String, dynamic> payload,
+});
+
 /// Record a symptom (pain level, type, triggers, duration).
+///
+/// Caregivers reuse this form for linked-patient observations: they pass the
+/// symptom-type vocabulary via [repository] and override [submit] with the
+/// caregiver endpoint — payload and validation stay identical.
 class SymptomFormPage extends StatefulWidget {
   const SymptomFormPage({
     super.key,
     required this.accessToken,
     required this.repository,
+    this.submit,
+    this.title,
   });
 
   final String accessToken;
   final HealthRepository repository;
+
+  /// Defaults to [HealthRepository.recordSymptom] (the signed-in user's own
+  /// log); caregivers pass `CaregiverHealthRepository.logObservation`.
+  final SymptomSubmitter? submit;
+
+  /// AppBar title; defaults to "Record Symptom".
+  final String? title;
 
   @override
   State<SymptomFormPage> createState() => _SymptomFormPageState();
@@ -81,7 +102,8 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
     setState(() => _saving = true);
     try {
       final duration = int.tryParse(_duration.text.trim());
-      await widget.repository.recordSymptom(
+      final submit = widget.submit ?? widget.repository.recordSymptom;
+      await submit(
         access: widget.accessToken,
         payload: {
           if (type.code.isNotEmpty) 'symptom_type_code': type.code,
@@ -122,7 +144,7 @@ class _SymptomFormPageState extends State<SymptomFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(AppStrings.recordSymptom)),
+      appBar: AppBar(title: Text(widget.title ?? AppStrings.recordSymptom)),
       body: _buildBody(),
       bottomNavigationBar: SafeArea(
         child: Padding(

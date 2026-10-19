@@ -382,6 +382,110 @@ class AppointmentReminderObligationTests(TestCase):
         response = _client(self.patient).get("/api/appointments/reminders/due")
         self.assertEqual(response.status_code, 403)
 
+class AppointmentUpcomingPastSplitTests(TestCase):
+    """The Upcoming/Past tabs must partition the list (FR-CLI).
+
+    ``upcoming=0`` used to be treated as falsy and skipped entirely, so the
+    Past tab showed every row in the list. Each test pins one half of the
+    contract: future live rows → Upcoming; past-dated or terminal rows → Past
+    with their real status preserved (cancelled never silently dropped, never
+    faked to COMPLETED; a rescheduled future slot stays Upcoming).
+    """
+
+    def setUp(self):
+        self.patient = _orm_user("PATIENT")
+        _patient_profile(self.patient)
+        self.facility = _facility()
+        self.client_for_patient = _client(self.patient)
+
+    def _make(self, **overrides):
+        defaults = {
+            "patient": self.patient,
+            "created_by": self.patient,
+            "facility": self.facility,
+            "scheduled_at": timezone.now() + timezone.timedelta(days=7),
+            "appointment_type": "FOLLOW_UP",
+            "reminder_enabled": True,
+            "reminder_days_before": [1],
+            "reminder_times": ["07:00"],
+            "reminder_channels": ["in_app"],
+        }
+        defaults.update(overrides)
+        return ClinicAppointment.objects.create(**defaults)
+
+    def _uids(self, params):
+        res = self.client_for_patient.get("/api/appointments/", params)
+        self.assertEqual(res.status_code, 200, res.data)
+        # Normalise to UUID so rows compare cleanly against model instances
+        # regardless of how the field serialises (dashed vs hex string).
+        return {_uuid.UUID(str(row["uid"])) for row in res.data["results"]}
+
+    def test_upcoming_flag_returns_only_future_live_rows(self):
+        future = self._make()
+        past = self._make(scheduled_at=timezone.now() - timezone.timedelta(days=2))
+        cancelled = self._make(
+            scheduled_at=timezone.now() + timezone.timedelta(days=3),
+            status="CANCELLED",
+        )
+        got = self._uids({"upcoming": "1"})
+        self.assertIn(future.uid, got)
+        self.assertNotIn(past.uid, got)
+        self.assertNotIn(cancelled.uid, got)
+
+    def test_upcoming_zero_returns_past_and_terminal_rows_only(self):
+        """The original defect: ``upcoming=0`` fell through to *no* filter."""
+        future = self._make()
+        past = self._make(scheduled_at=timezone.now() - timezone.timedelta(days=2))
+        future_cancelled = self._make(
+            scheduled_at=timezone.now() + timezone.timedelta(days=3),
+            status="CANCELLED",
+        )
+        got = self._uids({"upcoming": "0"})
+        self.assertIn(past.uid, got)
+        self.assertIn(future_cancelled.uid, got)
+        self.assertNotIn(future.uid, got)
+
+    def test_cancelled_row_keeps_its_status_in_the_past_list(self):
+        cancelled = self._make(
+            scheduled_at=timezone.now() + timezone.timedelta(days=3),
+            status="CANCELLED",
+        )
+        res = self.client_for_patient.get("/api/appointments/", {"upcoming": "0"})
+        rows = {
+            _uuid.UUID(str(row["uid"])): row for row in res.data["results"]
+        }
+        self.assertEqual(rows[cancelled.uid]["status"], "CANCELLED")
+
+    def test_rescheduled_future_row_stays_in_upcoming(self):
+        # Reschedule mutates the same row: a future RESCHEDULED slot is live
+        # and must not be treated as finished business.
+        rescheduled = self._make(status="RESCHEDULED")
+        self.assertIn(rescheduled.uid, self._uids({"upcoming": "1"}))
+        self.assertNotIn(rescheduled.uid, self._uids({"upcoming": "0"}))
+
+    def test_without_the_flag_nothing_is_filtered_out(self):
+        future = self._make()
+        past = self._make(scheduled_at=timezone.now() - timezone.timedelta(days=2))
+        got = self._uids({})
+        self.assertIn(future.uid, got)
+        self.assertIn(past.uid, got)
+
+    def test_slots_expressed_in_local_offset_partition_correctly(self):
+        """A +03:00 (Africa/Dar) instant lands on the right side of the split."""
+        import datetime as dt
+
+        ahead_local = dt.datetime.now(dt.timezone(dt.timedelta(hours=3))) + dt.timedelta(days=3)
+        behind_local = dt.datetime.now(dt.timezone(dt.timedelta(hours=3))) - dt.timedelta(days=2)
+        ahead = self._make(scheduled_at=ahead_local)
+        behind = self._make(scheduled_at=behind_local)
+        upcoming = self._uids({"upcoming": "1"})
+        past = self._uids({"upcoming": "0"})
+        self.assertIn(ahead.uid, upcoming)
+        self.assertNotIn(ahead.uid, past)
+        self.assertIn(behind.uid, past)
+        self.assertNotIn(behind.uid, upcoming)
+
+
 class AppointmentReminderDispatchTests(TestCase):
     """The dispatcher is the documented home for appointment reminders."""
 

@@ -28,7 +28,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
@@ -273,7 +273,13 @@ class MeUploadPhotoView(APIView):
         # when the response is rendered (core.media), so a stale or internal
         # request Host can never be pinned into the row.
         user.profile_photo_url = store_media_path(stored_name)
-        user.save(update_fields=["profile_photo_url", "updated_at"])
+        # Durable copy alongside the storage file (see User.profile_photo_data):
+        # on ephemeral hosts the file vanishes on redeploy, while these bytes
+        # keep every visible avatar rendering.
+        user.profile_photo_data = buffer.getvalue()
+        user.save(
+            update_fields=["profile_photo_url", "profile_photo_data", "updated_at"]
+        )
         record_audit(
             actor=user,
             action_code="accounts.profile_photo_updated",
@@ -287,6 +293,49 @@ class MeUploadPhotoView(APIView):
         return Response(
             UserSummarySerializer(user, context={"request": request}).data,
             status=status.HTTP_200_OK,
+        )
+
+
+class ProfilePhotoView(APIView):
+    """GET ``/media/accounts/avatars/{uid}.jpg`` — durable public avatar route.
+
+    Registered in ``config/urls.py`` *independently* of ``SERVE_MEDIA`` so
+    profile pictures keep rendering in production, where that switch is off and
+    the disk is wiped on every redeploy — the combination that once made every
+    visible avatar a 404. The route is deliberately limited to this one
+    deterministic avatar path: avatars are identity-only, non-PHI profile
+    images (network clients fetch them without auth headers, so the view is
+    anonymous-readable), and every other uploaded file still follows the
+    ``SERVE_MEDIA`` switch or authenticated flows.
+
+    Bytes come from ``User.profile_photo_data`` first; rows written before that
+    column existed fall back to the storage-backend file. A missing photo is a
+    plain 404.
+    """
+
+    authentication_classes: list = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, uid):
+        user = get_user_model().objects.filter(
+            uid=uid, deleted_at__isnull=True
+        ).first()
+        if user is None or not user.profile_photo_url:
+            raise NotFound("Not found.")
+        payload = bytes(user.profile_photo_data) if user.profile_photo_data else b""
+        if not payload:
+            stored = MeUploadPhotoView._stored_name_from_url(user.profile_photo_url)
+            if not stored or not default_storage.exists(stored):
+                raise NotFound("Not found.")
+            try:
+                with default_storage.open(stored) as handle:
+                    payload = handle.read()
+            except OSError:
+                raise NotFound("Not found.")
+        return HttpResponse(
+            payload,
+            content_type="image/jpeg",
+            headers={"Cache-Control": "private, max-age=300"},
         )
 
 

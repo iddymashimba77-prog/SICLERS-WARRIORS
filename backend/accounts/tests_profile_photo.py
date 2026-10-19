@@ -212,6 +212,84 @@ class MeProfilePhotoClientCompatibilityTests(TestCase):
         self.assertNotIn("image", entry.details)
 
 
+class DurableAvatarServeTests(TestCase):
+    """Profile pictures must outlive the storage file.
+
+    Production reality that motivated this: ``SERVE_MEDIA=false`` (404 for
+    every ``/media/…`` path) plus an ephemeral disk wiped on each redeploy —
+    the uploaded file disappears while ``profile_photo_url`` keeps pointing at
+    it. The bytes now live in the row and an always-on route serves them.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.user = _orm_user()
+        self.client = _client(self.user)
+
+    def _upload(self) -> str:
+        uploaded = SimpleUploadedFile(
+            "face.png", _make_png(), content_type="image/png",
+        )
+        res = self.client.post(
+            "/api/auth/me/photo/", {"image": uploaded}, format="multipart",
+        )
+        self.assertEqual(res.status_code, 200, res.json())
+        return res.json()["data"]["profile_photo_url"]
+
+    def test_upload_stores_bytes_and_the_always_on_route_serves_them(self):
+        url = self._upload()
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.profile_photo_data)
+        self.assertTrue(
+            url.startswith("http://testserver/media/accounts/avatars/"), url
+        )
+        # Anonymous fetch: image widgets request avatars without auth headers.
+        res = APIClient().get(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res["Content-Type"], "image/jpeg")
+        self.assertEqual(res.content, bytes(self.user.profile_photo_data))
+
+    def test_bytes_are_served_even_after_the_storage_file_disappears(self):
+        from django.core.files.storage import default_storage
+
+        url = self._upload()
+        self.user.refresh_from_db()
+        # Simulate the ephemeral-disk wipe that broke every avatar in prod.
+        default_storage.delete(f"accounts/avatars/{self.user.uid}.jpg")
+        res = APIClient().get(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.content, bytes(self.user.profile_photo_data))
+
+    def test_missing_or_unknown_avatar_is_a_plain_404(self):
+        res = APIClient().get(f"/media/accounts/avatars/{self.user.uid}.jpg")
+        self.assertEqual(res.status_code, 404)
+        stranger = APIClient().get(
+            f"/media/accounts/avatars/{_uuid.uuid4()}.jpg"
+        )
+        self.assertEqual(stranger.status_code, 404)
+
+    def test_reupload_replaces_the_stored_bytes(self):
+        first = SimpleUploadedFile(
+            "a.png", _make_png(color=(10, 20, 30)), content_type="image/png",
+        )
+        self.client.post("/api/auth/me/photo/", {"image": first}, format="multipart")
+        self.user.refresh_from_db()
+        old = bytes(self.user.profile_photo_data)
+        second = SimpleUploadedFile(
+            "b.png", _make_png(color=(200, 100, 50)), content_type="image/png",
+        )
+        res = self.client.post(
+            "/api/auth/me/photo/", {"image": second}, format="multipart",
+        )
+        self.assertEqual(res.status_code, 200, res.json())
+        self.user.refresh_from_db()
+        new = bytes(self.user.profile_photo_data)
+        self.assertNotEqual(old, new)
+        served = APIClient().get(res.json()["data"]["profile_photo_url"])
+        self.assertEqual(served.status_code, 200)
+        self.assertEqual(served.content, new)
+
+
 class ProfileUploadValidationTests(TestCase):
     """The declared-type gate stays strict where it matters."""
 

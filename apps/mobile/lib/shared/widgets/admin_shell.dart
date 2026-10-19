@@ -90,6 +90,7 @@ class _AdminShellState extends State<AdminShell> {
                       leading: useDrawer ? Builder(builder: _drawerButton) : null,
                       onNotificationsTap: () {},
                       avatarName: adminName,
+                      avatarImageUrl: session?.photoUrl,
                     ),
                     Expanded(child: _content(section)),
                   ],

@@ -60,6 +60,15 @@ class AuthController extends ChangeNotifier {
   String? _photoUrl;
   String? get photoUrl => _photoUrl;
 
+  /// In-session photo swap after a successful upload. The avatar path is
+  /// stable, so callers pass a cache-busting version query — every avatar
+  /// surface drops the previously cached image; a cold start re-reads the
+  /// clean server URL when the memory cache is empty anyway.
+  void applyPhotoUrl(String url) {
+    _photoUrl = url;
+    notifyListeners();
+  }
+
   /// Whether the account has configured its 4-digit login PIN (server-asserted).
   bool _hasLoginPin = false;
   bool get hasLoginPin => _hasLoginPin;

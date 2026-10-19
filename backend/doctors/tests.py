@@ -30,11 +30,11 @@ _PASSWORD = "Str0ng!Pass9"
 
 
 def _orm_user(role_code, email=None, account_status="ACTIVE", **extra):
+    extra.setdefault("first_name", "Test")
+    extra.setdefault("last_name", role_code.title())
     user = User.objects.create_user(
         email=email or f"{role_code.lower()}-{_uuid.uuid4().hex[:10]}@example.com",
         password=_PASSWORD,
-        first_name="Test",
-        last_name=role_code.title(),
         account_status=account_status,
         **extra,
     )
@@ -181,6 +181,145 @@ class ChatApiTests(TestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, 400)
+
+
+class ChatRecipientPickerTests(TestCase):
+    """``GET /api/chat/recipients/`` replaces the manual-UID chat dialog.
+
+    Two invariants:
+    * every row offered is one ``POST /chat/conversations/`` would accept as a
+      partner for that creator (no pick-then-403 surprises — the C13b
+      verification rules stay in force server-side, they just stop being
+      something honest users have to type);
+    * roles without ``chat.start`` (caregiver, donor, admin) are refused here
+      too, so their clients hide compose instead of offering a dead end.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.approved = _orm_user("DOCTOR", first_name="Amina", last_name="Juma")
+        Doctor.objects.create(
+            user=self.approved, verification_status="APPROVED",
+            professional_type="DOCTOR", specialty="Hematology",
+        )
+        self.psychologist = _orm_user("PSYCHOLOGIST", first_name="Neema", last_name="Kalu")
+        Doctor.objects.create(
+            user=self.psychologist, verification_status="APPROVED",
+            professional_type="PSYCHOLOGIST", specialty="Counselling",
+        )
+        self.rejected = _orm_user("DOCTOR", first_name="Rejected", last_name="Applicant")
+        Doctor.objects.create(
+            user=self.rejected, verification_status="REJECTED",
+            professional_type="DOCTOR",
+        )
+        self.dormant = _orm_user("DOCTOR", first_name="Dormant", last_name="Registry")
+        Doctor.objects.create(
+            user=self.dormant, verification_status="APPROVED",
+            professional_type="DOCTOR", is_active=False,
+        )
+        self.suspended_account = _orm_user(
+            "DOCTOR", first_name="Suspended", last_name="Account",
+            account_status="SUSPENDED",
+        )
+        Doctor.objects.create(
+            user=self.suspended_account, verification_status="APPROVED",
+            professional_type="DOCTOR",
+        )
+        self.patient = _orm_user("PATIENT", first_name="Baraka", last_name="Mwangi")
+        self.other_patient = _orm_user("PATIENT", first_name="Zawadi", last_name="Kileo")
+        self.patient_client = _client(self.patient)
+        self.caregiver_client = _client(_orm_user("CAREGIVER"))
+        self.staff = _orm_user("HEALTHCARE_STAFF")
+
+    def _rows(self, client, params=None):
+        res = client.get("/api/chat/recipients/", params or {})
+        self.assertEqual(res.status_code, 200, res.data)
+        return res.data["results"]
+
+    def _uids(self, rows):
+        return {str(r["uid"]) for r in rows}
+
+    def _start(self, client, partner_uid):
+        return client.post(
+            "/api/chat/conversations/", {"participant_uid": str(partner_uid)}, format="json",
+        )
+
+    def test_patient_sees_only_partners_create_would_accept(self):
+        rows = self._rows(self.patient_client)
+        uids = self._uids(rows)
+        self.assertIn(str(self.approved.uid), uids)
+        self.assertIn(str(self.psychologist.uid), uids)
+        # A rejected applicant, a dormant registry row and a suspended account
+        # are all invisible — none of them would survive `create` either.
+        self.assertNotIn(str(self.rejected.uid), uids)
+        self.assertNotIn(str(self.dormant.uid), uids)
+        self.assertNotIn(str(self.suspended_account.uid), uids)
+        # Never another patient (patient -> patient is refused by create).
+        self.assertNotIn(str(self.other_patient.uid), uids)
+        self.assertNotIn(str(self.patient.uid), uids)
+
+    def test_patient_rows_carry_only_identity_fields(self):
+        for row in self._rows(self.patient_client):
+            self.assertEqual(
+                set(row.keys()), {"uid", "display_name", "role", "detail"}
+            )
+            self.assertIn(row["role"], {"DOCTOR", "PSYCHOLOGIST"})
+        doctor_row = next(
+            r for r in self._rows(self.patient_client) if r["uid"] == str(self.approved.uid)
+        )
+        # display_name is the first-name-only identity display (no PHI).
+        self.assertEqual(doctor_row["display_name"], "Amina")
+        self.assertIn("Hematology", doctor_row["detail"])
+
+    def test_patient_search_narrows_by_name_and_specialty(self):
+        by_specialty = self._rows(self.patient_client, {"q": "Hematology"})
+        self.assertEqual(self._uids(by_specialty), {str(self.approved.uid)})
+        by_name = self._rows(self.patient_client, {"q": "Kalu"})
+        self.assertEqual(self._uids(by_name), {str(self.psychologist.uid)})
+        nothing = self._rows(self.patient_client, {"q": "Nobody-Matches"})
+        self.assertEqual(nothing, [])
+
+    def test_every_offered_patient_row_is_startable(self):
+        for row in self._rows(self.patient_client):
+            resp = self._start(self.patient_client, _uuid.UUID(str(row["uid"])))
+            self.assertEqual(resp.status_code, 201, (row, resp.data))
+
+    def test_professional_sees_identity_only_patient_rows(self):
+        rows = self._rows(_client(self.approved))
+        uids = self._uids(rows)
+        self.assertIn(str(self.patient.uid), uids)
+        self.assertIn(str(self.other_patient.uid), uids)
+        self.assertNotIn(str(self.approved.uid), uids)
+        self.assertNotIn(str(self.psychologist.uid), uids)
+        for row in rows:
+            self.assertEqual(set(row.keys()), {"uid", "display_name", "role", "detail"})
+            self.assertEqual(row["role"], "PATIENT")
+            self.assertEqual(row["detail"], "")
+        mwangi = next(r for r in rows if r["uid"] == str(self.patient.uid))
+        self.assertEqual(mwangi["display_name"], "Baraka")
+
+    def test_professional_search_narrows(self):
+        rows = self._rows(_client(self.approved), {"q": "Mwangi"})
+        self.assertEqual(self._uids(rows), {str(self.patient.uid)})
+
+    def test_healthcare_staff_gets_the_same_patient_picker(self):
+        rows = self._rows(_client(self.staff))
+        self.assertIn(str(self.patient.uid), self._uids(rows))
+
+    def test_unapproved_professional_is_refused_like_create(self):
+        res = _client(self.rejected).get("/api/chat/recipients/")
+        self.assertEqual(res.status_code, 403)
+        self.assertIn("verification", str(res.data))
+
+    def test_roles_without_chat_start_are_refused(self):
+        self.assertEqual(self.caregiver_client.get("/api/chat/recipients/").status_code, 403)
+        admin_client = _client(_orm_user("SUPER_ADMIN"))
+        self.assertEqual(admin_client.get("/api/chat/recipients/").status_code, 403)
+        donor_client = _client(_orm_user("BLOOD_DONOR"))
+        self.assertEqual(donor_client.get("/api/chat/recipients/").status_code, 403)
+
+    def test_anonymous_is_401(self):
+        self.assertEqual(APIClient().get("/api/chat/recipients/").status_code, 401)
 
 
 class DoctorVerificationHistoryTests(TestCase):

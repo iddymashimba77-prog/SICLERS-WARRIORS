@@ -30,8 +30,8 @@ class NavDestination {
 
 /// The raised center action living in the bar's wave crest.
 ///
-/// Patient shells use it for "Ask Sickler AI"; role shells pass `null` and the
-/// crest stays decorative.
+/// The patient shell and every role shell use it for "Ask Sickler AI"; a shell
+/// may pass `null` and the crest stays decorative.
 class NavCenterAction {
   const NavCenterAction({
     required this.icon,

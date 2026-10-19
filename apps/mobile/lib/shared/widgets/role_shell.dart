@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/l10n/app_localizations.dart';
 import '../../core/responsive/responsive.dart';
+import '../../features/ai_assistant/presentation/pages/ai_assistant_page.dart';
 import '../../features/emergency/presentation/pages/emergency_page.dart';
 import 'floating_bottom_nav.dart';
 import 'main_shell.dart' show AppHomeMark;
 
 /// Adaptive shell for the staff/role experiences (FRONTEND-3).
 ///
-/// Mirrors the patient [MainShell] chrome (announced nav, SOS) so every role
-/// surface feels like the same product, but each role supplies its own
+/// Mirrors the patient [MainShell] chrome (announced nav, SOS, Ask AI) so every
+/// role surface feels like the same product, but each role supplies its own
 /// destinations and bodies. The backend remains the authorization authority:
-/// every body performs its own role-guarded API calls.
+/// every body performs its own role-guarded API calls, and Ask AI is offered
+/// because `ai.use` is granted to every role.
 class RoleShell extends StatefulWidget {
   const RoleShell({
     super.key,
@@ -20,12 +23,16 @@ class RoleShell extends StatefulWidget {
     required this.bodyFor,
     this.initialIndex = 0,
     this.includeSos = true,
+    this.showAskAi = true,
   });
 
   final List<RoleDestination> destinations;
   final Widget Function(BuildContext context, int index) bodyFor;
   final int initialIndex;
   final bool includeSos;
+
+  /// Whether the shared Ask Sickler AI entry (crest + rail) is shown.
+  final bool showAskAi;
 
   static const String home = 'Home';
 
@@ -38,6 +45,10 @@ class _RoleShellState extends State<RoleShell> {
 
   void _openSos() {
     Navigator.of(context).pushNamed(EmergencyPage.routeName);
+  }
+
+  void _openAskAi() {
+    Navigator.of(context).pushNamed(AiAssistantPage.routeName);
   }
 
   @override
@@ -55,6 +66,7 @@ class _RoleShellState extends State<RoleShell> {
         );
 
         Widget? navigation;
+        final askAiLabel = AppLocalizations.of(context).tr('nav.askAi');
         if (compact) {
           navigation = FloatingBottomNav(
             index: _index,
@@ -67,6 +79,13 @@ class _RoleShellState extends State<RoleShell> {
                   label: d.label,
                 ),
             ],
+            centerAction: widget.showAskAi
+                ? NavCenterAction(
+                    icon: Icons.auto_awesome,
+                    label: askAiLabel,
+                    onTap: _openAskAi,
+                  )
+                : null,
           );
         } else {
           final showLabels = AppLayout.showRailLabels(constraints);
@@ -83,6 +102,18 @@ class _RoleShellState extends State<RoleShell> {
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: AppHomeMark(),
                 ),
+                trailing: widget.showAskAi
+                    ? Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: IconButton(
+                          key: const ValueKey<String>('rail-ask-ai'),
+                          tooltip: askAiLabel,
+                          color: AppColors.blue,
+                          onPressed: _openAskAi,
+                          icon: const Icon(Icons.auto_awesome),
+                        ),
+                      )
+                    : null,
                 minExtendedWidth: 120,
                 destinations: [
                   for (final d in destinations)

@@ -208,7 +208,10 @@ class _ClinicViewState extends State<ClinicView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 2),
-                  Text(item.scheduledAt, style: Theme.of(context).textTheme.bodySmall),
+                  Text(
+                    formatScheduledAt(item.scheduledAt),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                   Text(
                     item.facilityName.isEmpty
                         ? item.facilityCity
@@ -228,6 +231,16 @@ class _ClinicViewState extends State<ClinicView> {
       ),
     );
   }
+}
+
+/// Human local date/time for a `scheduled_at` ISO string — raw ISO never
+/// reaches the UI (timezone-aware, matches the other list surfaces).
+String formatScheduledAt(String iso) {
+  final dt = DateTime.tryParse(iso)?.toLocal();
+  if (dt == null) return iso;
+  final hh = dt.hour.toString().padLeft(2, '0');
+  final mm = dt.minute.toString().padLeft(2, '0');
+  return '${dt.day}/${dt.month}/${dt.year} $hh:$mm';
 }
 
 /// Human label for an appointment type code.

@@ -38,6 +38,7 @@ class AiAssistantPage extends StatelessWidget {
       appBar: AppTopBar(
         title: s.tr('act.aiCoach'),
         avatarName: session.displayName,
+        avatarImageUrl: session.photoUrl,
       ),
       body: SafeArea(
         child: AiAssistantView(

@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/responsive/responsive.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../../blood_donation/presentation/pages/blood_donation_page.dart';
+import '../../../clinic/data/appointments_repository.dart';
+import '../../../clinic/presentation/pages/clinic_page.dart';
 import '../../../doctor/presentation/pages/doctor_hub_page.dart';
 import '../../../donations/presentation/pages/donations_page.dart';
 import '../../../education/data/education_repository.dart';
@@ -150,6 +153,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
               onAvatarTap: () =>
                   Navigator.of(context).pushNamed(ProfilePage.routeName),
               avatarName: _personName,
+              avatarImageUrl: _session.photoUrl,
             ),
             _buildBody(context),
           ],
@@ -237,6 +241,8 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
                     onRefresh: _load,
                   ),
                   _AppointmentCard(
+                    appointments: data.upcomingAppointments,
+                    onRefresh: _load,
                     onOpenDoctor: () => Navigator.of(context)
                         .pushNamed(DoctorHubPage.routeName),
                   ),
@@ -637,14 +643,26 @@ class _PainSymptomsCard extends StatelessWidget {
   }
 }
 
-/// Upcoming appointments — honest empty state until an appointment API exists.
+/// Upcoming appointments from `GET /appointments/?upcoming=1`.
+///
+/// `appointments == null` means the side call failed — that renders an honest
+/// error + retry (the dashboard stays up); an empty list renders the honest
+/// "no appointments" state; real rows show type, local time and status chip.
 class _AppointmentCard extends StatelessWidget {
-  const _AppointmentCard({required this.onOpenDoctor});
+  const _AppointmentCard({
+    required this.appointments,
+    required this.onRefresh,
+    required this.onOpenDoctor,
+  });
 
+  final List<ClinicAppointment>? appointments;
+  final VoidCallback onRefresh;
   final VoidCallback onOpenDoctor;
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final items = appointments;
     return _DashCard(
       title: AppStrings.upcomingAppointments,
       icon: Icons.event_outlined,
@@ -652,16 +670,65 @@ class _AppointmentCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _EmptyInline(
-            icon: Icons.event_available_outlined,
-            message: AppStrings.noAppointments,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          TextButton.icon(
-            onPressed: onOpenDoctor,
-            icon: const Icon(Icons.medical_services_outlined),
-            label: Text(AppStrings.navDoctor),
-          ),
+          if (items == null)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    tr('clinic.loadFailed'),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onRefresh,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: Text(AppStrings.retry),
+                ),
+              ],
+            )
+          else if (items.isEmpty) ...[
+            _EmptyInline(
+              icon: Icons.event_available_outlined,
+              message: AppStrings.noAppointments,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextButton.icon(
+              onPressed: onOpenDoctor,
+              icon: const Icon(Icons.medical_services_outlined),
+              label: Text(AppStrings.navDoctor),
+            ),
+          ] else ...[
+            for (final item in items.take(3))
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.event_outlined,
+                  size: 20,
+                  color: AppColors.info,
+                ),
+                title: Text(
+                  appointmentTypeLabel(s, item.appointmentType),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                subtitle: Text(
+                  [
+                    formatScheduledAt(item.scheduledAt),
+                    if (item.facilityName.isNotEmpty) item.facilityName,
+                  ].join(' · '),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                trailing: AppointmentStatusChip(status: item.status),
+                onTap: () => Navigator.of(context)
+                    .pushNamed(ClinicPage.routeName),
+              ),
+            TextButton.icon(
+              onPressed: () =>
+                  Navigator.of(context).pushNamed(ClinicPage.routeName),
+              icon: const Icon(Icons.event_outlined, size: 18),
+              label: Text(tr('clinic.title')),
+            ),
+          ],
         ],
       ),
     );

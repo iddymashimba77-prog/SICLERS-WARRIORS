@@ -123,6 +123,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     mfa_secret_encrypted = models.BinaryField(null=True, blank=True)
 
     profile_photo_url = models.CharField(max_length=500, null=True, blank=True)
+    # Durable avatar bytes. The storage-backend file is only a convenience
+    # copy: on ephemeral hosts (Render) it vanishes on every redeploy, which
+    # once left every visible avatar broken. The URL row points at
+    # ``/media/accounts/avatars/{uid}.jpg``; the serving view reads *these*
+    # bytes first so the picture survives redeploys without exposing any
+    # other uploaded media.
+    profile_photo_data = models.BinaryField(null=True, blank=True)
 
     last_login_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

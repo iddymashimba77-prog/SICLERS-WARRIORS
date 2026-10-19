@@ -123,6 +123,17 @@ class _MainShellState extends State<MainShell> {
             padding: EdgeInsets.symmetric(vertical: 12),
             child: AppHomeMark(),
           ),
+          trailing: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: IconButton(
+              key: const ValueKey<String>('rail-ask-ai'),
+              tooltip: AppLocalizations.of(context).tr('nav.askAi'),
+              color: AppColors.blue,
+              onPressed: () => Navigator.of(context)
+                  .pushNamed(AiAssistantPage.routeName),
+              icon: const Icon(Icons.auto_awesome),
+            ),
+          ),
           minExtendedWidth: 120,
           destinations: [
             for (final d in destinations)

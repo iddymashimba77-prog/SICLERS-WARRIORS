@@ -10,6 +10,7 @@ Chat (approved endpoint-matrix §17):
     POST        /api/chat/conversations/{uid}/read/         member
     POST        /api/chat/conversations/{uid}/leave/        member
     POST        /api/chat/conversations/{uid}/add-participant/  creator (PEER/GROUP)
+    GET         /api/chat/recipients/                role-aware recipient picker
 
 Doctor professional registry (AUTH-1, endpoint-matrix §5):
 
@@ -41,6 +42,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveUpdateAPIView
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from accounts.models import (
     PROFESSIONAL_ROLE_CODES,
@@ -261,6 +263,112 @@ class MessageDeleteView(GenericAPIView):
             details={"conversation": message.conversation_id},
         )
         return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class ChatRecipientListView(APIView):
+    """GET ``/api/chat/recipients/`` — role-aware recipient picker (FR-CHAT).
+
+    Replaces the manual "type a verified professional UID" flow: the client
+    offers this searchable identity list instead of asking people to paste
+    identifiers. The rows mirror ``ConversationViewSet._partner_error`` exactly,
+    so a picker entry can never be someone ``POST /chat/conversations/`` would
+    refuse:
+
+    * patient creator  → approved, active professionals (registry public subset)
+    * professional / healthcare-staff creator → registered patients
+      (identity rows only — no medical payload)
+    * anyone else (caregiver, donor, …) → 403, the same denial ``create`` gives
+
+    Verification for clinical features is NOT removed anywhere — a patient's
+    list only ever contains APPROVED professionals (the server-side C13b rule
+    stays in force), and the picker just makes that rule invisible to honest
+    users. ``?q=`` narrows by name (and specialty for professionals).
+    """
+
+    permission_classes = [IsAuthenticatedRespectStatus]
+    parser_classes = [JSONParser]
+
+    _LIMIT = 50
+
+    def get(self, request):
+        user = request.user
+        if not user.has_perm_code("chat.start"):
+            raise PermissionDenied(
+                "You do not have permission to start conversations."
+            )
+        query = (request.query_params.get("q") or "").strip()
+        if user.is_patient:
+            return Response({"results": self._professionals(query)})
+        if user._has_active_role(*PROFESSIONAL_ROLE_CODES, "HEALTHCARE_STAFF"):
+            # Same creator gate ``create`` applies to professionals (mirrors
+            # _partner_error): an unapproved professional cannot start a chat,
+            # so the picker refuses them with the very same message.
+            if user._has_active_role(*PROFESSIONAL_ROLE_CODES) and not user.is_verified_professional:
+                raise PermissionDenied(
+                    "Your professional verification must be approved first."
+                )
+            return Response({"results": self._patients(query)})
+        raise PermissionDenied("You may not start a conversation.")
+
+    def _professionals(self, query):
+        # Mirrors `is_verified_professional` + the registry's own directory
+        # filters: APPROVED row, active registry entry, ACTIVE account, live
+        # professional role, not soft-deleted — so every listed row is one
+        # `POST /chat/conversations/` would accept as a partner.
+        qs = (
+            models.Doctor.objects.filter(
+                verification_status="APPROVED",
+                is_active=True,
+                user__account_status="ACTIVE",
+                user__deleted_at__isnull=True,
+                user__user_roles__role__code__in=PROFESSIONAL_ROLE_CODES,
+                user__user_roles__is_active=True,
+            )
+            .distinct()
+            .select_related("user", "facility")
+        )
+        if query:
+            qs = qs.filter(
+                Q(user__first_name__icontains=query)
+                | Q(user__last_name__icontains=query)
+                | Q(specialty__icontains=query)
+            )
+        rows = []
+        for doctor in qs.order_by("user__first_name", "user__last_name")[: self._LIMIT]:
+            detail = doctor.specialty or ""
+            if doctor.facility_id:
+                facility = f"{doctor.facility.name}"
+                detail = f"{detail} · {facility}" if detail else facility
+            rows.append({
+                "uid": str(doctor.user.uid),
+                "display_name": serializers.display_name(doctor.user),
+                "role": doctor.professional_type,
+                "detail": detail,
+            })
+        return rows
+
+    def _patients(self, query):
+        qs = User.objects.filter(
+            user_roles__role__code="PATIENT",
+            user_roles__is_active=True,
+            account_status="ACTIVE",
+            deleted_at__isnull=True,
+        ).distinct()
+        if query:
+            qs = qs.filter(
+                Q(first_name__icontains=query)
+                | Q(last_name__icontains=query)
+                | Q(email__icontains=query)
+            )
+        rows = []
+        for patient in qs.order_by("first_name", "last_name")[: self._LIMIT]:
+            rows.append({
+                "uid": str(patient.uid),
+                "display_name": serializers.display_name(patient),
+                "role": "PATIENT",
+                "detail": "",
+            })
+        return rows
 
 
 # ---------------------------------------------------------------------------

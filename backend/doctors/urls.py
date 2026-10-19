@@ -2,6 +2,7 @@
 
 Chat:
     /chat/conversations/                      (router)
+    /chat/recipients/                         (role-aware recipient picker)
 Doctor registry (database-design §3.4, endpoint-matrix §5):
     GET/PATCH   /doctors/me/
     POST        /doctors/me/verification/
@@ -24,6 +25,7 @@ router = DefaultRouter()
 router.register("chat/conversations", views.ConversationViewSet, basename="chat-conversation")
 
 urlpatterns = router.urls + [
+    path("chat/recipients/", views.ChatRecipientListView.as_view(), name="chat-recipients"),
     path(
         "chat/conversations/<uuid:conv_uid>/messages/<uuid:uid>/",
         views.MessageDeleteView.as_view(),

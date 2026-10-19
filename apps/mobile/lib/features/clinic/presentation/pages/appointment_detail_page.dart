@@ -40,6 +40,11 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
   bool _loading = true;
   bool _working = false;
 
+  /// Set after a cancel/reschedule actually changed the appointment; the
+  /// back path pops `true` so the clinic list refreshes exactly when needed
+  /// (and not on a plain look-around).
+  bool _dirty = false;
+
   @override
   void initState() {
     super.initState();
@@ -97,6 +102,9 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
       ),
     );
     if (reason == null || reason.trim().isEmpty) return;
+    // The success toast must stay visible on THIS page; `_run` already set
+    // `_dirty`, so leaving via back (PopScope) hands `true` to the clinic
+    // list and it reloads its upcoming/past split.
     await _run(
       () => widget.repository.setStatus(
         access: widget.accessToken,
@@ -123,12 +131,13 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
       ),
     );
     if (changed == true && mounted) {
+      _dirty = true;
       _toast(AppLocalizations.of(context).tr('clinic.rescheduled'));
       await _load();
     }
   }
 
-  Future<void> _run(
+  Future<bool> _run(
     Future<ClinicAppointment> Function() action,
     String successKey,
     String failureKey,
@@ -136,14 +145,16 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
     setState(() => _working = true);
     try {
       final updated = await action();
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() {
         _appointment = updated;
         _working = false;
+        _dirty = true;
       });
       _toast(AppLocalizations.of(context).tr(successKey));
+      return true;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() => _working = false);
       final s = AppLocalizations.of(context);
       _toast(
@@ -151,6 +162,7 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
             ? e.message.trim()
             : s.tr(failureKey),
       );
+      return false;
     }
   }
 
@@ -169,7 +181,16 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
           ),
         ],
       ),
-      body: _buildBody(),
+      body: PopScope(
+        // Back (system, gesture or AppBar) must carry the dirty flag so the
+        // clinic list reloads after a cancel/reschedule — and only then.
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          Navigator.of(context).pop(_dirty);
+        },
+        child: _buildBody(),
+      ),
       bottomNavigationBar: appointment == null || !appointment.isOpen || _loading
           ? null
           : SafeArea(
@@ -233,7 +254,10 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                ClinicFactRow(label: s.tr('clinic.date'), value: appointment.scheduledAt),
+                ClinicFactRow(
+                  label: s.tr('clinic.date'),
+                  value: formatScheduledAt(appointment.scheduledAt),
+                ),
                 ClinicFactRow(
                   label: s.tr('clinic.duration'),
                   value: '${appointment.durationMinutes}',
