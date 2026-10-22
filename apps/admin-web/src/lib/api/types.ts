@@ -53,6 +53,8 @@ export interface AdminDoctorRow {
   specialty: string;
   license_number: string;
   registration_body: string;
+  /** Which profession the applicant claims: DOCTOR | PSYCHOLOGIST | SOCIAL_SUPPORT. */
+  professional_type: string;
   facility_uid?: string;
   verification_status: string;
   verified_at?: string;

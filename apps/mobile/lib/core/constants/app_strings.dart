@@ -880,4 +880,222 @@ class AppStrings {
       _t('Unable to update the post.', 'Imeshindikana kusasisha chapisho.');
   static String get editOwnPostsOnly =>
       _t('You can edit posts you wrote.', 'Unaweza kuhariri machapisho uliyoandika.');
+
+  // ------------------------------------------- psychology workspace (§2)
+  static String get psychCaseload => _t('Caseload', 'Orodha ya wagonjwa');
+  static String get psychAssessments => _t('Assessments', 'Tathmini');
+  static String get psychNotes => _t('Session notes', 'Kumbukumbu za vipindi');
+  static String get psychReferrals => _t('Referrals', 'Rufaa');
+  static String get psychCaseloadEmpty => _t(
+      'No patients yet. A patient appears here once they consent to you or '
+          'book an appointment with you.',
+      'Hakuna wagonjwa bado. Mgonjwa ataonekana hapa akikubali rhusa kwako '
+          'au akipanga miadi nawe.');
+  static String get psychConsentGranted =>
+      _t('Consent active', 'Ruhusa inatumika');
+  static String get psychNoConsent => _t('No consent yet', 'Bado hakuna ruhusa');
+  static String get psychAssessmentsEmpty =>
+      _t('No assessments recorded yet.', 'Hakuna tathmini zilizorekodiwa bado.');
+  static String get psychNewAssessment => _t('New assessment', 'Tathmini mpya');
+  static String get psychNotesEmpty =>
+      _t('No session notes yet.', 'Hakuna kumbukumbu za vipindi bado.');
+  static String get psychNewNote => _t('Add note', 'Ongeza kumbukumbu');
+  static String get psychReferralsEmpty =>
+      _t('No referrals raised yet.', 'Hakuna rufaa zilizoombwa bado.');
+  static String get psychNewReferral => _t('Raise referral', 'Omba rufaa');
+  static String get psychPatient => _t('Patient', 'Mgonjwa');
+  static String get psychConcerns => _t('Concerns', 'Hali zinazohusika');
+  static String get psychImpression => _t('Impression', 'Tathmini ya kimwili');
+  static String get psychRisk => _t('Risk level', 'Kiwango cha hatari');
+  static String get psychClinicalNotes =>
+      _t('Clinical notes', 'Kumbukumbu za kimatibabu');
+  static String get psychDestination => _t('Referred to', 'Rufaa kwenda');
+  static String get psychReason => _t('Reason', 'Sababu');
+  static String get psychUrgency => _t('Urgency', 'Uharaka');
+  static String get psychResponsible =>
+      _t('Responsible person', 'Mtu anayehusika');
+  static String get psychAssessmentSaved =>
+      _t('Assessment recorded.', 'Tathmini imeandikwa.');
+  static String get psychNoteSaved =>
+      _t('Session note saved.', 'Kumbukumbu ya kipindi imehifadhiwa.');
+  static String get psychReferralSaved =>
+      _t('Referral raised.', 'Rufaa imeombwa.');
+  static String get psychReferralUpdated =>
+      _t('Referral updated.', 'Rufaa imesasishwa.');
+  static String get psychLoadFailed =>
+      _t('Unable to load the mental-health workspace.',
+          'Imeshindikana kupakia sehemu ya afya ya akili.');
+  static String get psychEducationTitle =>
+      _t('EN/SW resources', 'Vyanzo vya EN/SW');
+  static String get psychNextSession =>
+      _t('Next session', 'Kipindi kijacho');
+  static String get psychFollowUpDate =>
+      _t('Follow-up date', 'Tarehe ya ufuatiliaji');
+  static String get socialFollowUpDate =>
+      _t('Follow-up date', 'Tarehe ya ufuatiliaji');
+
+  // ---------------------------------------- social support workspace (§3)
+  static String get socialCaseload => _t('Caseload', 'Orodha ya wagonjwa');
+  static String get socialCases => _t('Cases', 'Kesi');
+  static String get socialNeeds => _t('Needs', 'Mahitaji');
+  static String get socialReferrals => _t('Referrals', 'Rufaa');
+  static String get socialCaseloadEmpty => _t(
+      'No patients yet. A patient appears here once they consent to you or '
+          'book an appointment with you.',
+      'Hakuna wagonjwa bado. Mgonjwa ataonekana hapa akikubali ruhusa kwako '
+          'au akipanga miadi nawe.');
+  static String get socialConsentGranted =>
+      _t('Consent active', 'Ruhusa inatumika');
+  static String get socialNoConsent => _t('No consent yet', 'Bado hakuna ruhusa');
+  static String get socialOpenCasesLabel =>
+      _t('Open cases', 'Kesi zilizo wazi');
+  static String get socialCasesEmpty =>
+      _t('No cases open yet.', 'Hakuna kesi zilizofunguliwa bado.');
+  static String get socialNewCase => _t('Open case', 'Fungua kesi');
+  static String get socialCaseTitle =>
+      _t('Case summary', 'Muhtasari wa kesi');
+  static String get socialLinkedWorkflow =>
+      _t('Linked workflow', 'Kazi iliyounganishwa');
+  static String get socialNeedsEmpty =>
+      _t('No needs assessments yet.', 'Hakuna tathmini za mahitaji bado.');
+  static String get socialNewNeeds => _t('Record needs', 'Rekodi mahitaji');
+  static String get socialObservations => _t('Observations', 'Maoni');
+  static String get socialReferralsEmpty =>
+      _t('No referrals raised yet.', 'Hakuna rufaa zilizoombwa bado.');
+  static String get socialNewReferral => _t('Raise referral', 'Omba rufaa');
+  static String get socialNotesEmpty =>
+      _t('No case notes yet.', 'Hakuna kumbukumbu za kesi bado.');
+  static String get socialAddNote => _t('Add note', 'Ongeza kumbukumbu');
+  static String get socialCaseSaved =>
+      _t('Case opened.', 'Kesi imefunguliwa.');
+  static String get socialCaseUpdated =>
+      _t('Case status updated.', 'Hali ya kesi imesasishwa.');
+  static String get socialNoteSaved =>
+      _t('Note added.', 'Kumbukumbu imeongezwa.');
+  static String get socialNeedsSaved =>
+      _t('Needs recorded.', 'Mahitaji yamerekodiwa.');
+  static String get socialReferralSaved =>
+      _t('Referral raised.', 'Rufaa imeombwa.');
+  static String get socialReferralUpdated =>
+      _t('Referral updated.', 'Rufaa imesasishwa.');
+  static String get socialLoadFailed =>
+      _t('Unable to load the social-support workspace.',
+          'Imeshindikana kupakia sehemu ya msaada wa kijamii.');
+  static String get socialPatient => _t('Patient', 'Mgonjwa');
+  static String get socialDestination => _t('Referred to', 'Rufaa kwenda');
+  static String get socialReason => _t('Reason', 'Sababu');
+  static String get socialResponsible =>
+      _t('Responsible person', 'Mhusika mkuu');
+  static String get socialCaseStatus => _t('Status', 'Hali');
+  static String get socialLinkedWorkflowHint => _t(
+      'Pointer to an existing campaign or donation workflow (no money here).',
+      'Maelezo ya kazi ya kampeni au michango iliyopo (hakuna pesa hapa).');
+  static String get socialNotes => _t('Case notes', 'Maelezo ya kesi');
+
+  /// Protocol status codes → bilingual label; every visible code in the two
+  /// workspaces renders through here, never as a raw token.
+  static String codeLabel(String code) {
+    switch (code) {
+      case 'NEW':
+        return _t('New', 'Mpya');
+      case 'IN_PROGRESS':
+        return _t('In progress', 'Inaendelea');
+      case 'AWAITING_REFERRAL':
+        return _t('Awaiting referral', 'Inasubiri rufaa');
+      case 'RESOLVED':
+        return _t('Resolved', 'Imekamilika');
+      case 'REQUESTED':
+        return _t('Requested', 'Imeombwa');
+      case 'ACCEPTED':
+        return _t('Accepted', 'Imepokelewa');
+      case 'DECLINED':
+        return _t('Declined', 'Imekataliwa');
+      case 'COMPLETED':
+        return _t('Completed', 'Imekamilika');
+      case 'CANCELLED':
+        return _t('Cancelled', 'Imeghairiwa');
+      case 'ROUTINE':
+        return _t('Routine', 'Kawaida');
+      case 'MONITOR':
+        return _t('Monitor', 'Fuatilia');
+      case 'URGENT':
+        return _t('Urgent', 'Haraka');
+      case 'IMMEDIATE':
+        return _t('Immediate', 'Mara moja');
+      case 'NONE':
+        return _t('None', 'Hakuna');
+      case 'MILD':
+        return _t('Mild', 'Kiasi kidogo');
+      case 'MODERATE':
+        return _t('Moderate', 'Wastani');
+      case 'SEVERE':
+        return _t('Severe', 'Kali');
+      case 'PENDING':
+        return _t('Pending', 'Inasubiri');
+      case 'APPROVED':
+        return _t('Approved', 'Imeidhinishwa');
+      case 'REJECTED':
+        return _t('Rejected', 'Imekataliwa');
+      case 'SUSPENDED':
+        return _t('Suspended', 'Imesimamishwa');
+      default:
+        return code;
+    }
+  }
+
+  /// Concern-domain codes (psychology) → bilingual label.
+  static String concernLabel(String code) {
+    switch (code) {
+      case 'coping_with_chronic_illness':
+        return _t('Coping with chronic illness',
+            'Kushughulika na ugonjwa wa muda mrefu');
+      case 'pain_related_distress':
+        return _t('Pain-related distress', 'Mateso yanayohusiana na maumivu');
+      case 'anxiety_symptoms':
+        return _t('Anxiety symptoms', 'Dalili za wasiwasi');
+      case 'depression_symptoms':
+        return _t('Depression symptoms', 'Dalili za msongo wa mawazo');
+      case 'stigma':
+        return _t('Stigma', 'Aibu ya ugonjwa');
+      case 'bullying':
+        return _t('Bullying', 'Kubaguliwa');
+      case 'sleep_difficulties':
+        return _t('Sleep difficulties', 'Shida za usingizi');
+      case 'social_support':
+        return _t('Social support', 'Msaada wa kijamii');
+      case 'family_relationships':
+        return _t('Family relationships', 'Uhusiano wa familia');
+      case 'school_challenges':
+        return _t('School challenges', 'Changamoto za shuleni');
+      case 'workplace_challenges':
+        return _t('Workplace challenges', 'Changamoto za kazini');
+      default:
+        return code;
+    }
+  }
+
+  /// Social-need codes → bilingual label.
+  static String needLabel(String code) {
+    switch (code) {
+      case 'food_security':
+        return _t('Food security', 'Usalama wa chakula');
+      case 'transport_to_care':
+        return _t('Transport to care', 'Usafiri kwenda kupata matibabu');
+      case 'housing_living_situation':
+        return _t('Housing / living situation', 'Nyumba na mazingira ya kuishi');
+      case 'income_employment':
+        return _t('Income and employment', 'Mapato na ajira');
+      case 'family_caregiving':
+        return _t('Family and caregiving', 'Familia na ulezi');
+      case 'school_work_support':
+        return _t('School or work support', 'Msaada wa shule au kazi');
+      case 'social_inclusion':
+        return _t('Social inclusion', 'Ushirikishwaji wa kijamii');
+      case 'treatment_adherence':
+        return _t('Treatment adherence support',
+            'Msaada wa kufuata matibabu');
+      default:
+        return code;
+    }
+  }
 }

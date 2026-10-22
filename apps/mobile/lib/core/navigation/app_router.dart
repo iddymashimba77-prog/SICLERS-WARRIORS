@@ -19,6 +19,8 @@ const List<String> _protectedExact = [
   '/donor-home',
   '/donor-shell',
   '/doctor-shell',
+  '/psychology-shell',
+  '/social-shell',
   '/doctor-medications',
   '/caregiver-shell',
   '/role-workspace',

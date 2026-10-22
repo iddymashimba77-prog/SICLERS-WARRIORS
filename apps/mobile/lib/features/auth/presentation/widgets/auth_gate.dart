@@ -5,7 +5,9 @@ import '../../../admin/presentation/pages/admin_panel_page.dart';
 import '../../../blood_donation/presentation/pages/donor_shell.dart';
 import '../../../caregiver/presentation/pages/caregiver_shell.dart';
 import '../../../doctor/presentation/pages/doctor_shell.dart';
+import '../../../psychology/presentation/pages/psychology_shell.dart';
 import '../../../public/presentation/pages/public_home_page.dart';
+import '../../../social_work/presentation/pages/social_shell.dart';
 import '../../../../shared/widgets/main_shell.dart';
 import '../controllers/auth_controller.dart';
 import '../pages/continue_as_page.dart';
@@ -103,6 +105,10 @@ class SessionRouterView extends StatelessWidget {
         return const AdminPanelPage();
       case '/doctor-shell':
         return const DoctorShell();
+      case '/psychology-shell':
+        return const PsychologyShell();
+      case '/social-shell':
+        return const SocialShell();
       case '/donor-shell':
         return const DonorShell();
       case '/caregiver-shell':

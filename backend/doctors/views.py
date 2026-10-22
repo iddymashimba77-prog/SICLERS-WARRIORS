@@ -451,24 +451,6 @@ class DoctorVerificationSubmitView(GenericAPIView):
         serializer = serializers.DoctorVerificationSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        # Mandatory-document enforcement (C5): a professional applicant must
-        # attach at least a government-verified education/professional
-        # certificate and a National ID scan before the queue will review them.
-        submitted_doc_types = {
-            str(d.get("doc_type", "")).upper() for d in data.get("documents", [])
-        }
-        if not submitted_doc_types:
-            raise ValidationError(
-                {"documents": "Please attach your verification documents before submitting."}
-            )
-        if "NATIONAL_ID" not in submitted_doc_types:
-            raise ValidationError(
-                {"documents": "A National ID (NIDA) scan is required for verification."}
-            )
-        if not submitted_doc_types.intersection({"LICENSE", "CERTIFICATE"}):
-            raise ValidationError(
-                {"documents": "A government-verified education certificate or professional license is required."}
-            )
         # The claimed type must match the account role that actually holds this
         # profile, otherwise a DOCTOR could submit as a psychologist and inherit
         # nothing, or (worse) the queue would file them under the wrong
@@ -485,6 +467,38 @@ class DoctorVerificationSubmitView(GenericAPIView):
                     f"a {claimed_type} verification."
                 )
             })
+        # Mandatory-document enforcement (C5), role-specific: every applicant
+        # needs a government National ID, but what proves the profession differs.
+        # A doctor's claim rests on a practice licence (or degree certificate);
+        # psychologists and social workers are reviewed against their
+        # professional QUALIFICATION certificate — a medical practice licence is
+        # neither required nor accepted for them (no statutory licence regime is
+        # assumed for either profession in Tanzania; see the module docstring).
+        submitted_doc_types = {
+            str(d.get("doc_type", "")).upper() for d in data.get("documents", [])
+        }
+        if not submitted_doc_types:
+            raise ValidationError(
+                {"documents": "Please attach your verification documents before submitting."}
+            )
+        if "NATIONAL_ID" not in submitted_doc_types:
+            raise ValidationError(
+                {"documents": "A National ID (NIDA) scan is required for verification."}
+            )
+        if expected_type == "DOCTOR":
+            if not submitted_doc_types.intersection({"LICENSE", "CERTIFICATE"}):
+                raise ValidationError(
+                    {"documents": "A government-verified education certificate or professional license is required."}
+                )
+        elif "CERTIFICATE" not in submitted_doc_types:
+            raise ValidationError(
+                {
+                    "documents": (
+                        "A professional qualification certificate is required to verify "
+                        "a psychologist or social support applicant."
+                    )
+                }
+            )
         doctor.professional_type = expected_type
         if data.get("license_number"):
             doctor.license_number = data["license_number"]
@@ -585,16 +599,43 @@ class DoctorDirectoryDetailView(GenericAPIView):
 
 
 class AdminDoctorVerificationQueueView(ListAPIView):
-    """GET /admin/doctors/verification-queue — PENDING applications (FR-DOC-003)."""
+    """GET /admin/doctors/verification-queue — applications by status (FR-DOC-003).
+
+    The verification section covers every profession in the registry, not
+    doctors alone, so the queue answers for all of them:
+
+    * ``?status=PENDING`` (default) — awaiting a first decision.
+    * ``?status=RESUBMITTED`` — back in the queue after a rejection.
+    * ``?status=APPROVED|REJECTED|SUSPENDED`` — decided applications.
+    * ``?status=ALL`` — every application, for oversight.
+    * ``?professional_type=…`` — narrows to one profession (as before).
+    """
 
     serializer_class = serializers.DoctorAdminSerializer
     permission_classes = [IsAuthenticatedRespectStatus, require("doctors.verify")]
     pagination_class = CorePageNumberPagination
 
+    _STATUSES = ("PENDING", "APPROVED", "REJECTED", "SUSPENDED", "RESUBMITTED", "ALL")
+
     def get_queryset(self):
-        queryset = models.Doctor.objects.filter(
-            verification_status="PENDING",
-        ).select_related("user", "facility")
+        status = (self.request.query_params.get("status") or "PENDING").strip().upper()
+        if status not in self._STATUSES:
+            raise ValidationError(
+                {"status": "Unknown status. Expected one of: " + ", ".join(self._STATUSES) + "."}
+            )
+        if status == "RESUBMITTED":
+            # A resubmit resets the stored status to PENDING (the decision row
+            # keeps RESUBMITTED), so this queue means "PENDING and sent back
+            # after a rejection".
+            queryset = models.Doctor.objects.filter(
+                verification_status="PENDING",
+                verification_decisions__decision="RESUBMITTED",
+            ).distinct()
+        elif status == "ALL":
+            queryset = models.Doctor.objects.all()
+        else:
+            queryset = models.Doctor.objects.filter(verification_status=status)
+        queryset = queryset.select_related("user", "facility")
         professional_type = (
             self.request.query_params.get("professional_type") or ""
         ).strip().upper()

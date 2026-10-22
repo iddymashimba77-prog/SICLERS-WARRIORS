@@ -38,6 +38,8 @@ import 'features/donations/presentation/pages/donations_page.dart';
 import 'features/doctor/presentation/pages/doctor_hub_page.dart';
 import 'features/doctor/presentation/pages/doctor_medications_page.dart';
 import 'features/doctor/presentation/pages/doctor_shell.dart';
+import 'features/psychology/presentation/pages/psychology_shell.dart';
+import 'features/social_work/presentation/pages/social_shell.dart';
 import 'features/emergency/presentation/pages/emergency_page.dart';
 import 'features/education/presentation/pages/doctor_education_page.dart';
 import 'features/education/presentation/pages/education_page.dart';
@@ -230,6 +232,8 @@ class _MaterialAppView extends StatelessWidget {
         ChangiaHubPage.routeName: (_) => const ChangiaHubPage(),
         MedicalRecordsPage.routeName: (_) => const MedicalRecordsPage(),
         DoctorShell.routeName: (_) => const DoctorShell(),
+        PsychologyShell.routeName: (_) => const PsychologyShell(),
+        SocialShell.routeName: (_) => const SocialShell(),
         DoctorMedicationsPage.routeName: (_) => const DoctorMedicationsPage(),
         DonorShell.routeName: (_) => const DonorShell(),
         CaregiverShell.routeName: (_) => const CaregiverShell(),

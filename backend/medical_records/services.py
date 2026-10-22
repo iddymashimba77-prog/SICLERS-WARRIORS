@@ -52,6 +52,32 @@ def can_access(patient, grantee, permission_code: str) -> bool:
     return permission_code in active_scope(patient, grantee)
 
 
+def live_scope_map(user, prefix: str) -> dict[int, set[str]]:
+    """patient_id → live permission codes under ``prefix`` granted to ``user``.
+
+    Same window/status rules as ``active_scope`` but collapsed into one query
+    for list endpoints, and narrowed to one module prefix: a grant scoped to
+    another module can never widen this one. Deny by default — patients with
+    no matching live grant simply do not appear.
+    """
+    expire_due()
+    now = timezone.now()
+    scopes: dict[int, set[str]] = {}
+    rows = Consent.objects.filter(
+        granted_to=user,
+        status="ACTIVE",
+        start_date__lte=now,
+        expires_at__gt=now,
+    )
+    for row in rows:
+        scope = row.permission_scope or []
+        codes = scope if isinstance(scope, (list, tuple)) else list(scope.values())
+        matching = {str(code) for code in codes if str(code).startswith(prefix)}
+        if matching:
+            scopes.setdefault(row.patient_profile_id, set()).update(matching)
+    return scopes
+
+
 def grant(*, patient, granted_to, permission_scope, resource_type,
           resource_ids=None, purpose="", expires_at=None, start_date=None,
           authorized_role=None):

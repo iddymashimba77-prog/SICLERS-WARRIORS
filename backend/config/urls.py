@@ -51,6 +51,8 @@ API_MOUNTS = [
     ("", "analytics.urls"),
     ("", "ai_assistant.urls"),
     ("", "appointments.urls"),
+    ("", "psychology.urls"),
+    ("", "social_work.urls"),
 ]
 
 

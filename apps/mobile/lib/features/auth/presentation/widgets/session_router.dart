@@ -109,7 +109,7 @@ class SessionRouter {
 
   static const AppContext psychologistVerified = AppContext(
     id: 'psychologist',
-    route: '/doctor-shell',
+    route: '/psychology-shell',
     titleKey: 'role.psychologist',
     subtitleKey: 'role.psychologist.subtitle',
     icon: Icons.psychology_outlined,
@@ -125,7 +125,7 @@ class SessionRouter {
 
   static const AppContext socialSupportVerified = AppContext(
     id: 'social-support',
-    route: '/doctor-shell',
+    route: '/social-shell',
     titleKey: 'role.socialSupport',
     subtitleKey: 'role.socialSupport.subtitle',
     icon: Icons.support_agent_outlined,

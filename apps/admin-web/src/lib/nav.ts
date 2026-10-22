@@ -34,7 +34,7 @@ export function navSectionsFor(user: MeUser, isSuper: boolean): NavSection[] {
   if (governance.length) sections.push({ title: 'Governance', links: governance });
 
   const verification: NavLink[] = [];
-  if (has('doctors.verify')) verification.push({ label: 'Doctors', segment: 'verification/doctors' });
+  if (has('doctors.verify')) verification.push({ label: 'Verification', segment: 'verification/doctors' });
   if (has('facilities.verify'))
     verification.push({ label: 'Organizations', segment: 'verification/organizations' });
   if (has('blood_requests.verify'))

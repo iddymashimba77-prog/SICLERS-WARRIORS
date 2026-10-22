@@ -35,6 +35,16 @@ class _DoctorVerificationPageState extends State<DoctorVerificationPage> {
     final s = AppLocalizations.of(context);
     final controller = _controller;
     final status = controller.doctorVerificationStatus ?? 'PENDING';
+    // The status screen is shared by every professional applicant, so the
+    // heading must name the applicant's own profession, not "Doctor".
+    final String accountTitleKey;
+    if (controller.roles.contains('PSYCHOLOGIST')) {
+      accountTitleKey = 'role.psychologist';
+    } else if (controller.roles.contains('SOCIAL_SUPPORT')) {
+      accountTitleKey = 'role.socialSupport';
+    } else {
+      accountTitleKey = 'auth.doctorAccount';
+    }
 
     final (titleKey, messageKey, icon, color) = switch (status) {
       'APPROVED' => (
@@ -64,7 +74,7 @@ class _DoctorVerificationPageState extends State<DoctorVerificationPage> {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Text(s.tr('auth.doctorAccount'))),
+      appBar: AppBar(title: Text(s.tr(accountTitleKey))),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

@@ -174,15 +174,28 @@ class DoctorAdminSerializer(DoctorSelfSerializer):
     display_name = serializers.SerializerMethodField()
     email = serializers.EmailField(source="user.email", read_only=True)
     verification_documents = serializers.SerializerMethodField()
+    submitted_at = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Doctor
         fields = DoctorSelfSerializer.Meta.fields + [
-            "display_name", "email", "verification_documents",
+            "display_name", "email", "verification_documents", "submitted_at",
         ]
 
     def get_display_name(self, obj) -> str:
         return display_name(obj.user)
+
+    def get_submitted_at(self, obj) -> str:
+        """When the current application entered the queue: the latest
+        SUBMITTED/RESUBMITTED decision — not the registry row's creation time,
+        which can predate the application by months."""
+        from django.db.models import Max
+
+        stamp = (
+            obj.verification_decisions.filter(decision__in=("SUBMITTED", "RESUBMITTED"))
+            .aggregate(latest=Max("decided_at"))["latest"]
+        )
+        return (stamp or obj.created_at).isoformat()
 
     def get_verification_documents(self, obj) -> list:
         """Submission attachments for the reviewer: type/status/file name and the

@@ -540,3 +540,161 @@ class DoctorVerificationHistoryTests(TestCase):
             f"/api/doctors/{self.doctor.user.uid}/verification-history/", {}, format="json"
         )
         self.assertEqual(response.status_code, 405)
+
+
+class ProfessionalVerificationQueueTests(TestCase):
+    """The Verification section serves every profession and every status (§1).
+
+    The failure this prevents: the queue silently showing only pending
+    doctors while psychologists and social workers sit undecided elsewhere,
+    or the reviewer seeing no date, no document state and no profession.
+    """
+
+    def setUp(self):
+        self.vo = _client(_orm_user("VERIFICATION_OFFICER"))
+
+    def _row(self, role_code, status, professional_type=None):
+        user = _orm_user(role_code)
+        doctor = Doctor.objects.create(
+            user=user,
+            license_number=f"LIC-{_uuid.uuid4().hex[:8]}",
+            verification_status=status,
+            professional_type=professional_type or role_code,
+        )
+        return user, doctor
+
+    def _uids(self, response):
+        return [r["uid"] for r in response.data["results"]]
+
+    def _submit(self, client, professional_type, extra_docs):
+        body = {
+            "professional_type": professional_type,
+            "documents": extra_docs
+            + [{"doc_type": "NATIONAL_ID", "file_url": "media/nida-mock.jpg"}],
+        }
+        return client.post("/api/doctors/me/verification/", body, format="json")
+
+    def test_queue_filters_every_status(self):
+        pending_user, _ = self._row("DOCTOR", "PENDING")
+        approved_user, _ = self._row("PSYCHOLOGIST", "APPROVED")
+        rejected_user, _ = self._row("SOCIAL_SUPPORT", "REJECTED")
+
+        pending = self.vo.get("/api/admin/doctors/verification-queue/")
+        self.assertEqual(pending.status_code, 200)
+        self.assertEqual(self._uids(pending), [str(pending_user.uid)])
+
+        approved = self.vo.get("/api/admin/doctors/verification-queue/?status=APPROVED")
+        self.assertEqual(self._uids(approved), [str(approved_user.uid)])
+        self.assertEqual(approved.data["results"][0]["professional_type"], "PSYCHOLOGIST")
+
+        rejected = self.vo.get("/api/admin/doctors/verification-queue/?status=REJECTED")
+        self.assertEqual(self._uids(rejected), [str(rejected_user.uid)])
+        self.assertEqual(rejected.data["results"][0]["professional_type"], "SOCIAL_SUPPORT")
+
+        everything = self.vo.get("/api/admin/doctors/verification-queue/?status=ALL")
+        self.assertEqual(everything.data["count"], 3)
+
+        bad = self.vo.get("/api/admin/doctors/verification-queue/?status=SOMETIMES")
+        self.assertEqual(bad.status_code, 400)
+
+    def test_resubmitted_queue_holds_only_rejected_then_resubmitted_applicants(self):
+        fresh_user, _ = self._row("DOCTOR", "PENDING")
+        resub_user, resub_row = self._row("PSYCHOLOGIST", "REJECTED")
+        DoctorVerificationDecision.objects.create(
+            doctor=resub_row, decision="RESUBMITTED",
+            from_status="REJECTED", to_status="PENDING",
+        )
+        resub_row.verification_status = "PENDING"
+        resub_row.save(update_fields=["verification_status"])
+
+        resubmitted = self.vo.get(
+            "/api/admin/doctors/verification-queue/?status=RESUBMITTED"
+        )
+        self.assertEqual(self._uids(resubmitted), [str(resub_user.uid)])
+
+        pending = self.vo.get("/api/admin/doctors/verification-queue/")
+        self.assertCountEqual(
+            self._uids(pending), [str(fresh_user.uid), str(resub_user.uid)]
+        )
+
+    def test_reviewer_rows_carry_role_documents_and_submission_date(self):
+        social = _client(_orm_user("SOCIAL_SUPPORT"))
+        response = self._submit(
+            social, "SOCIAL_SUPPORT",
+            [{"doc_type": "CERTIFICATE", "file_url": "media/cert-mock.pdf"}],
+        )
+        self.assertIn(response.status_code, (200, 201), response.data)
+
+        queue = self.vo.get("/api/admin/doctors/verification-queue/")
+        row = queue.data["results"][0]
+        self.assertEqual(row["professional_type"], "SOCIAL_SUPPORT")
+        self.assertTrue(row["submitted_at"])
+        self.assertEqual(
+            [d["doc_type"] for d in row["verification_documents"]],
+            ["CERTIFICATE", "NATIONAL_ID"],
+        )
+        self.assertEqual(
+            {d["status"] for d in row["verification_documents"]}, {"PENDING"}
+        )
+        self.assertIn("display_name", row)
+        self.assertIn("email", row)
+
+    def test_role_specific_documents_and_reason_enforced_review(self):
+        # A psychologist may not be verified on a medical practice licence
+        # alone — the qualification certificate is what carries the claim.
+        psych_user = _orm_user("PSYCHOLOGIST")
+        psych = _client(psych_user)
+        license_only = [{"doc_type": "LICENSE", "file_url": "media/lic-mock.pdf"}]
+        refused = self._submit(psych, "PSYCHOLOGIST", license_only)
+        self.assertEqual(refused.status_code, 400, refused.data)
+        self.assertIn("qualification", str(refused.data["error"]["details"]))
+
+        # Social support applicants follow the same rule.
+        social = _client(_orm_user("SOCIAL_SUPPORT"))
+        refused = self._submit(social, "SOCIAL_SUPPORT", license_only)
+        self.assertEqual(refused.status_code, 400, refused.data)
+        self.assertIn("qualification", str(refused.data["error"]["details"]))
+
+        # With the qualification certificate both professions land in the queue.
+        certificate = [{"doc_type": "CERTIFICATE", "file_url": "media/cert-mock.pdf"}]
+        self.assertIn(
+            self._submit(social, "SOCIAL_SUPPORT", certificate).status_code,
+            (200, 201),
+        )
+        self.assertIn(
+            self._submit(psych, "PSYCHOLOGIST", certificate).status_code,
+            (200, 201),
+        )
+
+        # Doctors keep the existing licence-or-certificate workflow.
+        doctor = _client(_orm_user("DOCTOR"))
+        self.assertIn(
+            self._submit(
+                doctor, "DOCTOR",
+                [{"doc_type": "LICENSE", "file_url": "media/lic-mock.pdf"}],
+            ).status_code,
+            (200, 201),
+        )
+
+        # Reviewing a psychologist uses the same reason-enforced decision path.
+        no_reason = self.vo.post(
+            f"/api/admin/doctors/{psych_user.uid}/verify/",
+            {"approve": False},
+            format="json",
+        )
+        self.assertEqual(no_reason.status_code, 400, no_reason.data)
+        decided = self.vo.post(
+            f"/api/admin/doctors/{psych_user.uid}/verify/",
+            {"approve": False, "reason": "Qualification certificate unreadable"},
+            format="json",
+        )
+        self.assertEqual(decided.status_code, 200, decided.data)
+        doctor = Doctor.objects.get(user=psych_user)
+        self.assertEqual(doctor.verification_status, "REJECTED")
+        self.assertEqual(doctor.rejection_reason, "Qualification certificate unreadable")
+        trail = self.vo.get(
+            f"/api/admin/doctors/verification-history/?decision=REJECTED"
+        )
+        self.assertEqual(
+            [r["doctor_uid"] for r in trail.data], [str(psych_user.uid)]
+        )

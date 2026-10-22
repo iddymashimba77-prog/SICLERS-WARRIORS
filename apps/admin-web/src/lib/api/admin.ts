@@ -111,8 +111,10 @@ export async function setRolePermission(
 
 // -------------------------------------------------  verification / orgs
 
-export async function listDoctorQueue(): Promise<AdminDoctorRow[]> {
-  return fetchList<AdminDoctorRow>('/admin/doctors/verification-queue/', AUTH);
+export async function listDoctorQueue(status?: string): Promise<AdminDoctorRow[]> {
+  // `status` mirrors the backend queue filter: omitted = PENDING, plus
+  // APPROVED / REJECTED / SUSPENDED / RESUBMITTED / ALL tabs.
+  return fetchList<AdminDoctorRow>(`/admin/doctors/verification-queue/${query({ status })}`, AUTH);
 }
 
 export interface ReviewDecision {

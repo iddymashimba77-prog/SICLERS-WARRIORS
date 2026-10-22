@@ -37,6 +37,8 @@ PROJECT_APPS = [
     "community",
     "content",
     "education",
+    "psychology",
+    "social_work",
     "notifications",
     "ai_assistant",
     "analytics",
