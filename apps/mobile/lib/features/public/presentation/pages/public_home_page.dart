@@ -15,6 +15,7 @@ import '../../../../shared/widgets/module_placeholder_page.dart';
 import '../../data/content_repository.dart';
 import '../../domain/content_models.dart';
 import '../widgets/content_widgets.dart';
+import 'about_pages.dart';
 import 'news_detail_page.dart';
 import 'news_list_page.dart';
 import '../../../../core/theme/app_shapes.dart';
@@ -2236,8 +2237,7 @@ class _Footer extends StatelessWidget {
                     page: _infoPage(s.tr('footer.consentTitle'),
                         s.tr('footer.consentBody'))),
                 _MenuLink(s.tr('footer.contact'), icon: Icons.mail_outline,
-                    page: _infoPage(s.tr('footer.contactTitle'),
-                        s.tr('footer.contactBody'))),
+                    page: const ContactUsPage()),
               ])
                 _FooterLink(link: link),
             ],
@@ -2392,15 +2392,15 @@ Map<String, List<_MenuLink>> _megaMenusFor(AppLocalizations s) {
   return {
     s.tr('nav.about'): [
       _MenuLink(s.tr('about.about'), icon: Icons.volunteer_activism_outlined,
-          page: _infoPage(s.tr('about.about'), s.tr('about.aboutBody'))),
+          page: const AboutWarriorsPage()),
       _MenuLink(s.tr('about.mission'), icon: Icons.track_changes_outlined,
-          page: _infoPage(s.tr('about.mission'), s.tr('about.missionBody'))),
+          page: const MissionPage()),
       _MenuLink(s.tr('about.howItWorks'), icon: Icons.account_tree_outlined,
-          page: _infoPage(s.tr('about.howItWorks'), s.tr('about.howItWorksBody'))),
+          page: const HowItWorksPage()),
       _MenuLink(s.tr('about.team'), icon: Icons.groups_outlined,
-          page: _infoPage(s.tr('about.team'), s.tr('about.teamBody'))),
+          page: const TeamPage()),
       _MenuLink(s.tr('about.contact'), icon: Icons.mail_outline,
-          page: _infoPage(s.tr('about.contact'), s.tr('about.contactBody'))),
+          page: const ContactUsPage()),
     ],
     s.tr('nav.health'): [
       _MenuLink(s.tr('act.healthDashboard'), icon: Icons.monitor_heart_outlined, route: '/health'),

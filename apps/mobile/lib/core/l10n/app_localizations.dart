@@ -144,10 +144,104 @@ const Map<String, String> _en = {
   'about.missionBody':
       'Care, connection, education and urgent support — in reach for every warrior.',
   'about.howItWorksBody':
-      'From sign-up to care: four simple steps into the Warrior community.',
-  'about.teamBody': 'The people and organizations behind the platform.',
+      'From sign-up to support: six simple steps into the Warrior community.',
+  'about.teamBody': 'Meet the project team building Sickler\'s Warriors.',
   'about.contactBody':
       'Reach out for support, partnership or feedback — the Warrior community is listening.',
+  'about.headline': 'More Than Support. A Community of Strength.',
+  'about.intro1':
+      'Sickler\'s Warriors is built around a simple belief: no one navigating sickle cell disease should have to face the journey alone.',
+  'about.intro2':
+      'We are developing a connected digital platform that brings people living with sickle cell disease, families, caregivers, healthcare professionals and support communities closer together. Through accessible education, coordinated support and practical digital tools, Sickler\'s Warriors aims to make reliable information and meaningful connections easier to access.',
+  'about.intro3':
+      'Our vision is a world where every sickle cell warrior feels informed, supported, connected, and empowered to take an active role in their wellbeing.',
+  'about.whoTitle': 'Who we serve',
+  'about.serveWarriors':
+      'Warriors — people living with sickle cell disease, with ambitions, abilities, dignity and potential.',
+  'about.serveFamilies': 'Families and caregivers who stand beside them every day.',
+  'about.serveProfessionals':
+      'Healthcare professionals who provide care, guidance and treatment.',
+  'about.serveProviders':
+      'Support providers and organisations relevant to sickle cell care.',
+  'about.accessTitle': 'What the platform brings together',
+  'about.accessEducation': 'Reliable sickle cell disease education and awareness.',
+  'about.accessConnect':
+      'Connections with healthcare professionals and appropriate support services.',
+  'about.accessTracking':
+      'Health information, treatment and medication tracking features where available.',
+  'about.accessAppointments':
+      'Appointment and follow-up support where available.',
+  'about.accessSupport': 'Emotional, psychological and social support.',
+  'about.accessBlood':
+      'Blood donation and assistance initiatives where supported by the platform.',
+  'about.accessCommunity':
+      'Communication and community support for patients and families.',
+  'about.availabilityNote':
+      'Some of these features are available today; others are planned or in active development, and we say so openly. Sickler\'s Warriors supports care — it never replaces doctors, hospitals, emergency services, or professional medical advice.',
+  'about.ctaJoin': 'Join the Community',
+  'about.ctaExplore': 'Explore the Platform',
+  'about.missionCardTitle': 'Mission',
+  'about.missionStatement':
+      'To empower people living with sickle cell disease and their families through accessible education, meaningful connections, coordinated support, and technology that helps them navigate their healthcare journey with greater confidence.',
+  'about.visionTitle': 'Our Vision',
+  'about.visionStatement':
+      'A future where every person affected by sickle cell disease can access knowledge, compassionate support, and opportunities to live a fulfilling life without facing the journey alone.',
+  'about.valuesTitle': 'Our Core Values',
+  'about.valueCompassionT': 'Compassion',
+  'about.valueCompassionB':
+      'Treat every person with dignity, empathy and respect.',
+  'about.valueAccessT': 'Access',
+  'about.valueAccessB': 'Make useful information and support easier to reach.',
+  'about.valueCommunityT': 'Community',
+  'about.valueCommunityB':
+      'Encourage constructive connections among patients, families and support providers.',
+  'about.valueTrustT': 'Trust',
+  'about.valueTrustB':
+      "Protect users' privacy and handle personal information responsibly.",
+  'about.valueEmpowermentT': 'Empowerment',
+  'about.valueEmpowermentB':
+      'Help users make informed decisions alongside qualified healthcare professionals.',
+  'about.valueInnovationT': 'Innovation',
+  'about.valueInnovationB':
+      'Use technology responsibly to improve coordination, education and support.',
+  'about.step1T': 'Join the Community',
+  'about.step1B':
+      'Create an account and choose the role that fits you — patient, caregiver, blood donor, doctor, psychologist, social support, facility or organisation.',
+  'about.step2T': 'Build Your Profile',
+  'about.step2B':
+      'Complete the profile information that suits your role. Patients and caregivers only provide what is appropriate for them, and you stay in control of your information.',
+  'about.step3T': 'Discover Information and Support',
+  'about.step3B':
+      'Explore educational resources, available support services and the features your account is permitted to use.',
+  'about.step4T': 'Connect and Coordinate Care',
+  'about.step4B':
+      'Where supported, communicate with authorised professionals or members of your care network, request appointments and manage follow-ups.',
+  'about.step5T': 'Track and Stay Informed',
+  'about.step5B':
+      'Where available, keep health records, medication information, appointments and follow-up information organised in one place.',
+  'about.step6T': 'Find Strength in Support',
+  'about.step6B':
+      'Discover appropriate community, family, psychological, social or blood donation support initiatives when those services are available.',
+  'about.howNote':
+      'Features differ by role, and some services are still being developed. Sickler\'s Warriors does not replace doctors, hospitals or emergency services — in an emergency, use the app\'s SOS or call your local emergency number.',
+  'about.teamIntro':
+      'Sickler\'s Warriors is shaped by a small project team building the platform step by step.',
+  'about.teamRole': 'Project Team · Platform Development',
+  'about.teamIddyBody':
+      'Developing and advancing the Sickler\'s Warriors digital platform — turning the vision of a connected support community into working features for warriors and their care networks.',
+  'about.teamMichaelBody':
+      'Part of the team working on the Sickler\'s Warriors initiative, contributing to the development and progress of the platform.',
+  'about.collabTitle': 'Growing Through Collaboration',
+  'about.collabBody':
+      'Sickler\'s Warriors aims to collaborate with healthcare professionals, patient communities, families and relevant organisations to improve sickle cell awareness and support. These are intended areas of collaboration, not confirmed partnerships.',
+  'about.collab1': 'Healthcare professionals and facilities',
+  'about.collab2': 'Patient communities and support groups',
+  'about.collab3': 'Families and caregivers',
+  'about.collab4': 'Relevant organisations and initiatives',
+  'about.contactHeadline': 'We\'re Here to Connect.',
+  'about.contactIntro':
+      'Have a question, an idea, or feedback about Sickler\'s Warriors? We welcome your message. Reach out using the contact details below and help us continue building a more connected and supportive sickle cell community.',
+  'about.contactCallUs': 'Call us',
   'nav.sos': 'SOS',
   // ------------------------------------------------------------ public home
   'home.heroTitle': 'Empowering Every Warrior.',
@@ -1339,10 +1433,103 @@ const Map<String, String> _sw = {
   'about.missionBody':
       'Utunzaji, kuunganisha, elimu na msaada wa dharura — kwa kila shujaa.',
   'about.howItWorksBody':
-      'Kutoka usajili hadi utunzaji: hatua nne rahisi kuingia kwenye jamii ya Mashujaa.',
-  'about.teamBody': 'Watu na mashirika nyuma ya jukwaa hili.',
+      'Kutoka usajili hadi msaada: hatua sita rahisi kuingia kwenye jamii ya Mashujaa.',
+  'about.teamBody': 'Karibu na timu ya mradi inayojenga Sickler\'s Warriors.',
   'about.contactBody':
       'Wasiliana kwa msaada, ushirikiano au maoni — jamii ya Mashujaa inasikiliza.',
+  'about.headline': 'Zaidi ya Msaada. Jamii ya Nguvu.',
+  'about.intro1':
+      'Sickler\'s Warriors inajengwa kwa msingi mmoja rahisi: mtu yeyote anayeishi na ugonjwa wa seli mundu hafai kukabiliana na safari hii peke yake.',
+  'about.intro2':
+      'Tunajenga jukwaa la kidijitali linalounganisha wanaoishi na ugonjwa wa seli mundu, familia, walezi, wataalamu wa afya na majimii ya msaada. Kwa kupitia elimu inayofikika, msaada uliopangwa na zana za kidijitali, Sickler\'s Warriors inalenga kufanya taarifa zinazotegemewa na maunganisho ya maana yawe rahisi kupatikana.',
+  'about.intro3':
+      'Ndoto yetu ni dunia ambayo kila shujaa wa seli mundu anapata taarifa, msaada, muunganiko na uwezo wa kushiriki kikamilifu katika masuala yake ya afya.',
+  'about.whoTitle': 'Tunawatumia nani',
+  'about.serveWarriors':
+      'Mashujaa — watu wanaoishi na ugonjwa wa seli mundu, wenye malengo, uwezo na heshima.',
+  'about.serveFamilies': 'Familia na walezi wanaosimama nao kila siku.',
+  'about.serveProfessionals':
+      'Wataalamu wa afya wanaotoa huduma, ushauri na matibabu.',
+  'about.serveProviders':
+      'Watoa msaada na mashirika yanayohusiana na huduma za seli mundu.',
+  'about.accessTitle': 'Kile jukwaa linalounganisha',
+  'about.accessEducation': 'Elimu na uelewa wa kuaminika kuhusu seli mundu.',
+  'about.accessConnect':
+      'Kuunganishana na wataalamu wa afya na huduma zinazofaa za msaada.',
+  'about.accessTracking':
+      'Vipengele vya kufuatilia taarifa za afya, matibabu na dawa pale vinapatikana.',
+  'about.accessAppointments': 'Msaada wa miadi na ufuatiliaji pale unapatikana.',
+  'about.accessSupport': 'Msaada wa kihisia, kimawazo na kijamii.',
+  'about.accessBlood':
+      'Mipango ya kuchangia damu na msaada wa damu pale jukwaa linalowapa mkono.',
+  'about.accessCommunity':
+      'Mawasiliano na msaada wa jamii kwa wagonjwa na familia.',
+  'about.availabilityNote':
+      'Baadhi ya vipengele hivi vinapatikana leo; vingine viko katika mpangilio au maendeleo, na tunasema wazi. Sickler\' Warriors inasaidia matibabu — haiwabadili madaktari, hospitali, huduma za dharura au ushauri wa kitaalamu wa afya.',
+  'about.ctaJoin': 'Jiunge na Jamii',
+  'about.ctaExplore': 'Chunguza Jukwaa',
+  'about.missionCardTitle': 'Dhamira',
+  'about.missionStatement':
+      'Kuwawezesha wanaoishi na ugonjwa wa seli mundu na familia zao kupitia elimu inayofikika, maunganisho ya maana, msaada uliopangwa na teknolojia inayowasaidia kusafiri katika safari yao ya afya kwa kujiamini zaidi.',
+  'about.visionTitle': 'Ndoto Yetu',
+  'about.visionStatement':
+      'Wakati ujao ambapo kila mtu anaegusa ugonjwa wa seli mundu anaweza kupata maarifa, msaada wenye huruma na fursa za kuishi maisha kamili bila kukabiliana na safari peke yake.',
+  'about.valuesTitle': 'Maadili Yetu Makuu',
+  'about.valueCompassionT': 'Huruma',
+  'about.valueCompassionB':
+      'Kila mtu anapokelewa kwa heshima, uelewa wa hisia na utu.',
+  'about.valueAccessT': 'Ufikiaji',
+  'about.valueAccessB': 'Kufanya taarifa na msaada muhimu uwe rahisi kufikiwa.',
+  'about.valueCommunityT': 'Jamii',
+  'about.valueCommunityB':
+      'Kukuza miunganiko yenye manufaa kati ya wagonjwa, familia na watoa msaada.',
+  'about.valueTrustT': 'Uaminifu',
+  'about.valueTrustB':
+      'Kulinda faragha ya watumiaji na kushughulikia taarifa za kibinafsi kwa uwajibikaji.',
+  'about.valueEmpowermentT': 'Kuwawezesha',
+  'about.valueEmpowermentB':
+      'Kusaidia watumiaji kufanya maamuzi yenye taarifa pamoja na wataalamu wa afya waliohitimu.',
+  'about.valueInnovationT': 'Ubunifu',
+  'about.valueInnovationB':
+      'Kutumia teknolojia kwa uwajibikaji ili kuboresha upangaji, elimu na msaada.',
+  'about.step1T': 'Jiunge na Jamii',
+  'about.step1B':
+      'Fungua akaunti na chagua jukumu linalokufaa — mgonjwa, mlezi, mtoaji damu, daktari, mtaalamu wa saikolojia, msaada wa kijamii, kituo cha afya au shirika.',
+  'about.step2T': 'Jenga Wasifu Wako',
+  'about.step2B':
+      'Kamilisha taarifa za wasifu zinazohusu jukumu lako. Wagonjwa na walezi hutoa tu yale yanayowafaa, na wewe unabaki na udhibiti wa taarifa zako.',
+  'about.step3T': 'Gundua Taarifa na Msaada',
+  'about.step3B':
+      'Gundua rasilimali za elimu, huduma zinazopatikana za msaada na vipengele ambalo akaunti yako inaruhusiwa kutumia.',
+  'about.step4T': 'Unganisha na Kupanga Matibabu',
+  'about.step4B':
+      'Pale inapowezekana, wasiliana na wataalamu walioruhusiwa au wanachama wa mtandao wako wa afya, omba miadi na simamia ufuatiliaji.',
+  'about.step5T': 'Fuatilia na Kuendelea Kujua',
+  'about.step5B':
+      'Pale inapatikana, hifadhi kumbukumbu za afya, taarifa za dawa, miadi na taarifa za ufuatiliaji mahali pamoja.',
+  'about.step6T': 'Pata Nguvu Katika Msaada',
+  'about.step6B':
+      'Gundua mipango ya msaada ya jamii, familia, saikolojia, kijamii au uchangiaji damu pale huduma hizo zinapatikana.',
+  'about.howNote':
+      'Vipengele hutofautiana kwa jukumu, na baadhi ya huduma bado zinajengwa. Sickler\' Warriors haiwabadili madaktari, hospitali au huduma za dharura — wakati wa dharura, tumia SOS ya app au piga namba ya dharura ya eneo lako.',
+  'about.teamIntro':
+      'Sickler\'s Warriors inaongozwa na timu ndogo ya mradi inayojenga jukwaa hatua kwa hatua.',
+  'about.teamRole': 'Timu ya Mradi · Maendeleo ya Jukwaa',
+  'about.teamIddyBody':
+      'Kujenga na kukuza jukwaa la kidijitali la Sickler\'s Warriors — kubadilisha ndoto ya jamii ya msaada iliyounganishwa kuwa vipengele vinavyofanya kazi kwa mashujaa na mitandao yao ya afya.',
+  'about.teamMichaelBody':
+      'Sehemu ya timu inayofanya kazi kwa mradi wa Sickler\'s Warriors, ikichangia maendeleo na mwelekeo wa jukwaa.',
+  'about.collabTitle': 'Kukua Kwa Ushirikiano',
+  'about.collabBody':
+      'Sickler\'s Warriors inalenga kushirikiana na wataalamu wa afya, majimii ya wagonjwa, familia na mashirika husika ili kuboresha uelewa na msaada wa seli mundu. Haya ni maeneo ya ushirikiano yanayolengwa — si ushirikiano uliothibitishwa.',
+  'about.collab1': 'Wataalamu wa afya na vituo vya afya',
+  'about.collab2': 'Majimii ya wagonjwa na vikundi vya msaada',
+  'about.collab3': 'Familia na walezi',
+  'about.collab4': 'Mashirika na mipango husika',
+  'about.contactHeadline': 'Tuko Hapa Kuunganishana.',
+  'about.contactIntro':
+      'Je, una swali, wazo au maoni kuhusu Sickler\'s Warriors? Karibu tuandikie. Wasiliana kupitia maelezo hapo chini na usaidie kujenga jamii yenye msaada zaidi ya seli mundu.',
+  'about.contactCallUs': 'Piga Simu',
   'nav.sos': 'SOS',
   // ------------------------------------------------------------ public home
   'home.heroTitle': 'Kuwapa Nguvu Kila Shujaa.',
