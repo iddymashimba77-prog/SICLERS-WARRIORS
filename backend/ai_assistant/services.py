@@ -158,12 +158,17 @@ class AiAssistantService:
         )
         try:
             result = providers.get_ai_provider().generate(payload)
-        except providers.ProviderUnavailable:
+        except providers.ProviderUnavailable as exc:
             record_audit(
                 actor=user, action_code="ai.provider_failure",
                 resource_type="ai.assistant", resource_id=None,
                 result="FAILURE", request=request,
-                details={"request_id": request_id, "use_case": use_case},
+                details={
+                    "request_id": request_id, "use_case": use_case,
+                    # Operator-facing code (missing_api_key, upstream_http_403…);
+                    # never sent to the client.
+                    "reason": getattr(exc, "reason", "") or "unknown",
+                },
             )
             raise
 

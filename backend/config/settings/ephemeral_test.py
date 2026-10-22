@@ -34,6 +34,12 @@ CACHES = {
     }
 }
 
+# The suite never calls an external provider: pin the offline sandbox even when
+# the operator's environment (or backend/.env) carries a real GEMINI_API_KEY,
+# so a filled-in key can never make tests hit the network.
+AI_PROVIDER = "rule_based"
+GEMINI_API_KEY = ""
+
 # Fast, non-competition hashing for the ephemeral suite (NEVER production;
 # § base PASSWORD_HASHERS already prefer Argon2/PBKDF2 for real runs).
 PASSWORD_HASHERS = [

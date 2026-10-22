@@ -418,11 +418,13 @@ AUTH_USER_MODEL = "accounts.User"
 # AI Assistant (Stage 4.15) — provider abstraction, never secrets here.
 #
 # `AI_PROVIDER` selects the provider through the factory in ai_assistant.providers.
-# Only ``rule_based`` ships in this build (deterministic, no external calls, no
-# keys). External LLM providers are the documented extension point and are NOT
-# configured — no provider API key exists in any environment variable here.
+# Explicit values are authoritative ("rule_based", "gemini", or any future
+# registered name — unknown names fail honestly with 503, never a silent
+# fallback). When AI_PROVIDER is unset/empty, the provider AUTO-DETECTS:
+# "gemini" if a GEMINI_API_KEY is present in the environment, else the
+# deterministic "rule_based" sandbox. This removes the classic misconfiguration
+# of setting a key but forgetting AI_PROVIDER (or vice versa).
 # ---------------------------------------------------------------------------
-AI_PROVIDER = os.environ.get("AI_PROVIDER", "rule_based")
 AI_MAX_MESSAGE_CHARS = int(os.environ.get("AI_MAX_MESSAGE_CHARS", "2000"))
 AI_CONTEXT_DAYS = int(os.environ.get("AI_CONTEXT_DAYS", "30"))
 AI_TRENDS_DEFAULT_WINDOW_DAYS = int(os.environ.get("AI_TRENDS_WINDOW_DAYS", "30"))
@@ -440,10 +442,12 @@ AI_DISCLAIMER = (
 )
 
 # --- Google Gemini provider (opt-in) ---------------------------------------
-# Set AI_PROVIDER=gemini and GEMINI_API_KEY in the environment to activate.
-# The key is read ONLY from the environment and is NEVER written to source or
-# committed. With no key configured the provider fails honestly (503) instead
-# of pretending to answer.
+# Set GEMINI_API_KEY in the environment and the assistant activates Gemini
+# automatically; set AI_PROVIDER explicitly only to override or to pin the
+# sandbox ("rule_based"). The key is read ONLY from the environment and is
+# NEVER written to source or committed. With no key configured the system
+# runs the offline rule-based sandbox; an explicit "gemini" with no key fails
+# honestly (503) instead of pretending to answer.
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
 GEMINI_API_BASE = os.environ.get(
@@ -452,3 +456,9 @@ GEMINI_API_BASE = os.environ.get(
 GEMINI_TIMEOUT_SECONDS = int(os.environ.get("GEMINI_TIMEOUT_SECONDS", "30"))
 GEMINI_TEMPERATURE = float(os.environ.get("GEMINI_TEMPERATURE", "0.30"))
 GEMINI_MAX_OUTPUT_TOKENS = int(os.environ.get("GEMINI_MAX_OUTPUT_TOKENS", "800"))
+
+# Provider resolution (see comment at the AI Assistant block above). Empty or
+# "auto" → gemini when a key exists, otherwise the offline sandbox.
+AI_PROVIDER = (
+    os.environ.get("AI_PROVIDER") or ("gemini" if GEMINI_API_KEY else "rule_based")
+).strip().lower()

@@ -17,9 +17,15 @@ Covers the approved surface end-to-end:
 * trends — owner-only 200, cross-patient 403 (audited consent_unavailable),
   non-patient 403 (missing_permission), bad window bounds 400, invalid uid 404
 * rate limiting — chat 6/min → 429; trends class configured to 30/hour
-* provider failure — misconfigured provider → 503 + audited ai.provider_failure
-* audit hygiene — NO transcript retention: the sent message never appears in
-  any persisted audit row's details
+    * provider failure — misconfigured provider → 503 + audited ai.provider_failure
+    * audit hygiene — NO transcript retention: the sent message never appears in
+      any persisted audit row's details
+    * per-role Ask AI — every mobile role whose shell exposes the Ask AI entry
+      (patient main shell + the five role shells + facility fallbacks) gets a
+      real 200 answer, safety refusals included
+    * provider auto-activation — GEMINI_API_KEY alone selects Gemini; no key
+      → offline sandbox; an explicit AI_PROVIDER always wins; a missing key
+      under AI_PROVIDER=gemini → 503 with an audited operator reason
 """
 
 import json
@@ -621,3 +627,158 @@ class GeminiProviderTests(TestCase):
                             message="What is sickle cell?", context={}, sources=[],
                         )
                     )
+
+
+#: Every mobile surface whose shell shows the shared Ask AI entry: the patient
+#: main shell, the five RoleShell destinations (doctor, psychology, social,
+#: donor, caregiver) and the facility roles that fall back to the main shell
+#: (session_router: "no dedicated hospital shell exists yet"). ADMIN/ORGANIZATION
+#: and verification-status screens have no Ask AI entry and are out of scope.
+ASK_AI_ROLE_CODES = [
+    "PATIENT", "DOCTOR", "PSYCHOLOGIST", "SOCIAL_SUPPORT",
+    "BLOOD_DONOR", "CAREGIVER", "HOSPITAL", "CLINIC",
+]
+
+
+class AiPerRoleAskAiTests(TestCase):
+    """Ask AI must answer for EVERY role whose shell exposes it."""
+
+    def setUp(self):
+        cache.clear()
+        self.clients = {
+            code: _client(_orm_user(code, email=f"ask-{code.lower()}-{_uuid.uuid4().hex[:8]}@x.com"))
+            for code in ASK_AI_ROLE_CODES
+        }
+
+    def test_every_ask_ai_role_gets_a_real_answer(self):
+        for code in ASK_AI_ROLE_CODES:
+            with self.subTest(role=code):
+                resp = _chat(
+                    self.clients[code],
+                    "What is a vaso-occlusive crisis in sickle cell disease?",
+                )
+                self.assertEqual(resp.status_code, 200, resp.data)
+                self.assertTrue(resp.data["message"].strip(), resp.data)
+                self.assertFalse(resp.data["safety"]["blocked"], resp.data)
+                self.assertFalse(resp.data["emergency_action"], resp.data)
+                self.assertEqual(resp.data["disclaimer"], settings.AI_DISCLAIMER)
+
+    def test_every_ask_ai_role_gets_the_scope_refusal(self):
+        for code in ASK_AI_ROLE_CODES:
+            with self.subTest(role=code):
+                resp = _chat(self.clients[code], "Who won the 1998 FIFA World Cup?")
+                self.assertEqual(resp.status_code, 200, resp.data)
+                self.assertTrue(resp.data["safety"]["blocked"], resp.data)
+                self.assertEqual(resp.data["safety"]["reason"], "off_topic")
+
+    def test_every_ask_ai_role_gets_the_emergency_short_circuit(self):
+        for code in ASK_AI_ROLE_CODES:
+            with self.subTest(role=code):
+                resp = _chat(
+                    self.clients[code],
+                    "I have severe chest pain and can't breathe, help me",
+                )
+                self.assertEqual(resp.status_code, 200, resp.data)
+                self.assertTrue(resp.data["emergency_action"], resp.data)
+                self.assertTrue(resp.data["safety"]["blocked"], resp.data)
+
+    def test_suspended_account_denied_from_any_ask_ai_surface(self):
+        suspended = _orm_user(
+            "PATIENT", account_status="SUSPENDED",
+            email=f"ask-sus-{_uuid.uuid4().hex[:8]}@x.com",
+        )
+        resp = _chat(_client(suspended), "Hello")
+        self.assertEqual(resp.status_code, 403)
+
+
+class ProviderActivationTests(TestCase):
+    """AI_PROVIDER auto-detection: a key alone must activate Gemini."""
+
+    def _factory(self):
+        from . import providers
+
+        return providers.get_ai_provider()
+
+    def test_key_alone_selects_gemini(self):
+        with override_settings(AI_PROVIDER="", GEMINI_API_KEY="k-123"):
+            self.assertTrue(self._factory().model_id.startswith("gemini"))
+
+    def test_auto_alias_selects_gemini_when_key_present(self):
+        with override_settings(AI_PROVIDER="auto", GEMINI_API_KEY="k-123"):
+            self.assertTrue(self._factory().model_id.startswith("gemini"))
+
+    def test_no_key_uses_offline_sandbox(self):
+        with override_settings(AI_PROVIDER="", GEMINI_API_KEY=""):
+            self.assertEqual(self._factory().model_id, "rule_based")
+        with override_settings(AI_PROVIDER="auto", GEMINI_API_KEY=""):
+            self.assertEqual(self._factory().model_id, "rule_based")
+
+    def test_explicit_rule_based_wins_even_with_a_key(self):
+        """Operators can pin the sandbox (e.g. for demo/offline builds)."""
+        with override_settings(AI_PROVIDER="rule_based", GEMINI_API_KEY="k-123"):
+            self.assertEqual(self._factory().model_id, "rule_based")
+
+    def test_end_to_end_chat_via_gemini_provider(self):
+        """Full HTTP pipeline with Gemini selected and the transport mocked."""
+        user = _orm_user("PATIENT", email=f"g-e2e-{_uuid.uuid4().hex[:8]}@x.com")
+        patient = _client(user)
+
+        class _FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self):
+                return json.dumps({
+                    "candidates": [{
+                        "content": {"parts": [{
+                            "text": "Vaso-occlusive crisis ni muhuzurisho wa "
+                                    "damu kupita kwenye mishipa midogo."
+                        }]}
+                    }]
+                }).encode("utf-8")
+
+        def _fake_urlopen(req, timeout=None):
+            return _FakeResponse()
+
+        with override_settings(AI_PROVIDER="gemini", GEMINI_API_KEY="k-123"):
+            with patch("ai_assistant.providers.urllib.request.urlopen", _fake_urlopen):
+                resp = _chat(patient, "What is a vaso-occlusive crisis?")
+
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertIn("Vaso-occlusive crisis", resp.data["message"])
+        self.assertFalse(resp.data["safety"]["blocked"])
+        self.assertEqual(resp.data["disclaimer"], settings.AI_DISCLAIMER)
+        # model_id in the completed audit row proves Gemini actually answered
+        row = (
+            AuditLog.objects.filter(
+                actor=user, action_code="ai.completed", result="SUCCESS"
+            )
+            .order_by("-id")
+            .first()
+        )
+        self.assertIsNotNone(row)
+        self.assertTrue(row.details.get("model_id", "").startswith("gemini"))
+
+    def test_missing_key_under_gemini_returns_503_with_audit_reason(self):
+        patient = _client(
+            _orm_user("PATIENT", email=f"g-mk-{_uuid.uuid4().hex[:8]}@x.com")
+        )
+        with override_settings(AI_PROVIDER="gemini", GEMINI_API_KEY=""):
+            resp = _chat(patient, "Hello there")
+        self.assertEqual(resp.status_code, 503)
+        self.assertEqual(resp.data["error"]["code"], "SERVICE_UNAVAILABLE")
+        # The client message stays generic…
+        self.assertNotIn("key", resp.data["error"]["message"].lower())
+        # …but operators get the exact reason in the audit trail.
+        row = (
+            AuditLog.objects.filter(
+                action_code="ai.provider_failure", result="FAILURE"
+            )
+            .order_by("-id")
+            .first()
+        )
+        self.assertIsNotNone(row)
+        self.assertEqual(row.details.get("reason"), "missing_api_key")

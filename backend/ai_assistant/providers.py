@@ -54,11 +54,20 @@ PERSONALIZED_USE_CASES = frozenset({
 
 
 class ProviderUnavailable(APIException):
-    """No configured provider could process the request (transient/503)."""
+    """No configured provider could process the request (transient/503).
+
+    ``reason`` is an operator-facing code recorded in the ``ai.provider_failure``
+    audit row (missing_api_key, upstream_error, no_text, unknown_provider…).
+    It is never sent to the client, so no configuration detail leaks.
+    """
 
     status_code = 503
     default_detail = "The AI assistant is temporarily unavailable. Please try again shortly."
     default_code = "ai_provider_unavailable"
+
+    def __init__(self, reason: str = "", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reason = reason
 
 
 @dataclass
@@ -335,7 +344,7 @@ class GeminiProvider(BaseAIProvider):
         api_key = getattr(settings, "GEMINI_API_KEY", "") or ""
         if not api_key:
             logger.error("ai.provider: GEMINI_API_KEY is not configured")
-            raise ProviderUnavailable()
+            raise ProviderUnavailable(reason="missing_api_key")
 
         body = {
             "system_instruction": {
@@ -373,14 +382,19 @@ class GeminiProvider(BaseAIProvider):
                 req, timeout=getattr(settings, "GEMINI_TIMEOUT_SECONDS", 30)
             ) as resp:
                 raw = resp.read().decode("utf-8")
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:
+        except urllib.error.HTTPError as exc:
+            # Keep the status only (never the body/key) for operator diagnosis:
+            # 400/403 = bad key or model name, 429 = quota, 5xx = upstream.
+            logger.error("ai.provider: Gemini HTTP status: %s", exc.code)
+            raise ProviderUnavailable(reason=f"upstream_http_{exc.code}") from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
             logger.error("ai.provider: Gemini request failed: %s", type(exc).__name__)
-            raise ProviderUnavailable() from exc
+            raise ProviderUnavailable(reason="upstream_error") from exc
 
         text = self._extract_text(raw)
         if not text:
             logger.error("ai.provider: Gemini returned no usable text")
-            raise ProviderUnavailable()
+            raise ProviderUnavailable(reason="no_text")
 
         return AIResult(
             text=text,
@@ -430,13 +444,17 @@ _PROVIDERS = {
 def get_ai_provider() -> BaseAIProvider:
     """Provider factory (settings.AI_PROVIDER). Honest failure on misconfig.
 
-    An unknown/unsupported name raises ``ProviderUnavailable`` (→ 503 + audited
-    ``ai.provider_failure``): we must never silently fall back to a different
-    model than the operator asked for.
+    An unset/empty/auto name resolves to "gemini" when a GEMINI_API_KEY is
+    configured and to the offline "rule_based" sandbox otherwise, so setting
+    the key alone is enough to activate Gemini. Any other unknown name raises
+    ``ProviderUnavailable`` (→ 503 + audited ``ai.provider_failure``): we must
+    never silently fall back to a different model than the operator asked for.
     """
-    name = (getattr(settings, "AI_PROVIDER", "rule_based") or "rule_based").lower()
+    name = (getattr(settings, "AI_PROVIDER", "") or "").strip().lower()
+    if name in ("", "auto"):
+        name = "gemini" if (getattr(settings, "GEMINI_API_KEY", "") or "") else "rule_based"
     builder = _PROVIDERS.get(name)
     if builder is None:
         logger.error("ai.provider: unknown provider configured: %s", name)
-        raise ProviderUnavailable()
+        raise ProviderUnavailable(reason="unknown_provider")
     return builder()
