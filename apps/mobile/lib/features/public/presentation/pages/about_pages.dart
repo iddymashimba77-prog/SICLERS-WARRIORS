@@ -114,6 +114,8 @@ class AboutWarriorsPage extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         _Lead(s.tr('about.intro2')),
         const SizedBox(height: AppSpacing.lg),
+        _Lead(s.tr('about.challenges')),
+        const SizedBox(height: AppSpacing.lg),
         _Lead(s.tr('about.intro3')),
         const SizedBox(height: AppSpacing.xl),
         _SectionHeading(s.tr('about.whoTitle')),

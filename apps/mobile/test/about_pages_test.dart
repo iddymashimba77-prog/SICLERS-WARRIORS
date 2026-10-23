@@ -136,10 +136,17 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('public About menu wiring', () {
-    testWidgets('desktop mega-menu opens the About landing (EN)', (tester) =>
-        _openAboutFromDesktop(tester,
-            item: 'About Sickler\'s Warriors',
-            marker: 'More Than Support. A Community of Strength.'));
+    testWidgets('desktop mega-menu opens the About landing (EN)',
+        (tester) async {
+      await _openAboutFromDesktop(tester,
+          item: 'About Sickler\'s Warriors',
+          marker: 'More Than Support. A Community of Strength.');
+      expect(
+        find.textContaining('lifelong challenges'),
+        findsOneWidget,
+        reason: 'the About landing names the challenges the platform addresses',
+      );
+    });
 
     testWidgets('desktop mega-menu opens Our Mission (EN)', (tester) =>
         _openAboutFromDesktop(tester,
@@ -173,6 +180,11 @@ void main() {
         find.textContaining('Jukwaa linaloongozwa na jamii'),
         findsAtLeastNWidgets(1),
         reason: 'the About subtitle comes from the shared about.aboutBody key',
+      );
+      expect(
+        find.textContaining('changamoto za maisha yote'),
+        findsOneWidget,
+        reason: 'the Kiswahili About page also names the challenges',
       );
     });
 

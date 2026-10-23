@@ -153,6 +153,8 @@ const Map<String, String> _en = {
       'Sickler\'s Warriors is built around a simple belief: no one navigating sickle cell disease should have to face the journey alone.',
   'about.intro2':
       'We are developing a connected digital platform that brings people living with sickle cell disease, families, caregivers, healthcare professionals and support communities closer together. Through accessible education, coordinated support and practical digital tools, Sickler\'s Warriors aims to make reliable information and meaningful connections easier to access.',
+  'about.challenges':
+      'Sickle cell disease brings lifelong challenges — from finding reliable information and coordinated care to stigma, distance and the practical demands of ongoing treatment. Sickler\'s Warriors exists to make that journey lighter by bringing trusted education, connection and support within easier reach.',
   'about.intro3':
       'Our vision is a world where every sickle cell warrior feels informed, supported, connected, and empowered to take an active role in their wellbeing.',
   'about.whoTitle': 'Who we serve',
@@ -1441,7 +1443,9 @@ const Map<String, String> _sw = {
   'about.intro1':
       'Sickler\'s Warriors inajengwa kwa msingi mmoja rahisi: mtu yeyote anayeishi na ugonjwa wa seli mundu hafai kukabiliana na safari hii peke yake.',
   'about.intro2':
-      'Tunajenga jukwaa la kidijitali linalounganisha wanaoishi na ugonjwa wa seli mundu, familia, walezi, wataalamu wa afya na majimii ya msaada. Kwa kupitia elimu inayofikika, msaada uliopangwa na zana za kidijitali, Sickler\'s Warriors inalenga kufanya taarifa zinazotegemewa na maunganisho ya maana yawe rahisi kupatikana.',
+      'Tunajenga jukwaa la kidijitali linalounganisha wanaoishi na ugonjwa wa seli mundu, familia, walezi, wataalamu wa afya na jamii za msaada. Kwa kupitia elimu inayofikika, msaada uliopangwa na zana za kidijitali, Sickler\'s Warriors inalenga kufanya taarifa zinazotegemewa na maunganisho ya maana yawe rahisi kupatikana.',
+  'about.challenges':
+      'Ugonjwa wa seli mundu huleta changamoto za maisha yote — kuanzia kupata taarifa zinazotegemewa na huduma iliyoratibiwa hadi unyanyapaa, umbali na mahitaji halisi ya matibabu endelevu. Sickler\'s Warriors ipo ili kurahisisha safari hiyo kwa kuleta elimu inayoaminika, muunganiko na msaada karibu zaidi.',
   'about.intro3':
       'Ndoto yetu ni dunia ambayo kila shujaa wa seli mundu anapata taarifa, msaada, muunganiko na uwezo wa kushiriki kikamilifu katika masuala yake ya afya.',
   'about.whoTitle': 'Tunawatumia nani',
@@ -1452,7 +1456,7 @@ const Map<String, String> _sw = {
       'Wataalamu wa afya wanaotoa huduma, ushauri na matibabu.',
   'about.serveProviders':
       'Watoa msaada na mashirika yanayohusiana na huduma za seli mundu.',
-  'about.accessTitle': 'Kile jukwaa linalounganisha',
+  'about.accessTitle': 'Kile ambacho jukwaa linaunganisha',
   'about.accessEducation': 'Elimu na uelewa wa kuaminika kuhusu seli mundu.',
   'about.accessConnect':
       'Kuunganishana na wataalamu wa afya na huduma zinazofaa za msaada.',
@@ -1500,7 +1504,7 @@ const Map<String, String> _sw = {
       'Kamilisha taarifa za wasifu zinazohusu jukumu lako. Wagonjwa na walezi hutoa tu yale yanayowafaa, na wewe unabaki na udhibiti wa taarifa zako.',
   'about.step3T': 'Gundua Taarifa na Msaada',
   'about.step3B':
-      'Gundua rasilimali za elimu, huduma zinazopatikana za msaada na vipengele ambalo akaunti yako inaruhusiwa kutumia.',
+      'Gundua rasilimali za elimu, huduma zinazopatikana za msaada na vipengele ambavyo akaunti yako inaruhusiwa kutumia.',
   'about.step4T': 'Unganisha na Kupanga Matibabu',
   'about.step4B':
       'Pale inapowezekana, wasiliana na wataalamu walioruhusiwa au wanachama wa mtandao wako wa afya, omba miadi na simamia ufuatiliaji.',
@@ -1521,14 +1525,14 @@ const Map<String, String> _sw = {
       'Sehemu ya timu inayofanya kazi kwa mradi wa Sickler\'s Warriors, ikichangia maendeleo na mwelekeo wa jukwaa.',
   'about.collabTitle': 'Kukua Kwa Ushirikiano',
   'about.collabBody':
-      'Sickler\'s Warriors inalenga kushirikiana na wataalamu wa afya, majimii ya wagonjwa, familia na mashirika husika ili kuboresha uelewa na msaada wa seli mundu. Haya ni maeneo ya ushirikiano yanayolengwa — si ushirikiano uliothibitishwa.',
+      'Sickler\'s Warriors inalenga kushirikiana na wataalamu wa afya, jamii za wagonjwa, familia na mashirika husika ili kuboresha uelewa na msaada wa seli mundu. Haya ni maeneo ya ushirikiano yanayolengwa — si ushirikiano uliothibitishwa.',
   'about.collab1': 'Wataalamu wa afya na vituo vya afya',
-  'about.collab2': 'Majimii ya wagonjwa na vikundi vya msaada',
+  'about.collab2': 'Jamii za wagonjwa na vikundi vya msaada',
   'about.collab3': 'Familia na walezi',
   'about.collab4': 'Mashirika na mipango husika',
   'about.contactHeadline': 'Tuko Hapa Kuunganishana.',
   'about.contactIntro':
-      'Je, una swali, wazo au maoni kuhusu Sickler\'s Warriors? Karibu tuandikie. Wasiliana kupitia maelezo hapo chini na usaidie kujenga jamii yenye msaada zaidi ya seli mundu.',
+      'Je, una swali, wazo au maoni kuhusu Sickler\'s Warriors? Karibu uwasiliane nasi. Tumia maelezo ya mawasiliano hapo chini na usaidie kujenga jamii ya seli mundu yenye msaada zaidi.',
   'about.contactCallUs': 'Piga Simu',
   'nav.sos': 'SOS',
   // ------------------------------------------------------------ public home
