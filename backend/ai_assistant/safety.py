@@ -209,7 +209,7 @@ OFF_TOPIC_REFUSAL = (
     "mambo yanayohusiana na app yetu ya Sickler's Warriors pekee. Naweza "
     "kukusaidia na elimu, ushauri wa jumla kuhusu seli mundu, dawa "
     "zinazohusiana na seli mundu, au maswala ya afya yanayohusiana na seli "
-    "mundu. Tafadhali uliza swali linalohusiana na seli mundu. "
+    "mundu. Tafadhali uliza swali linalohusiana na seli mundu.\n\n"
     "(Sorry — I can only help with sickle cell disease and the Sickler's "
     "Warriors app. Please ask a sickle-cell related question.)"
 )
@@ -225,7 +225,7 @@ _SICKLE_CELL_TERMS = re.compile(
     r"osteomyelitis|leg ulcer|retinopath\w*|avascular necrosis|"
     r"priapism|dactylitis|sequestration|aplastic crisis|"
     r"hydrea|endari|voxelotor|oxbryta|adkveo|crizanlizumab|"
-    r"sickle disease|red (blood )?cell|blood disorder|haemoglobinopathy|"
+    r"sickle disease|seli[ -]?mundu|selimundu|red (blood )?cell|blood disorder|haemoglobinopathy|"
     r"hemoglobinopathy|genetic blood)\b",
     re.I,
 )
