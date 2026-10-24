@@ -242,6 +242,8 @@ _GENERAL_HEALTH_TERMS = re.compile(
     r"donor|donation|campaign|education|academy|patient|caregiver|"
     r"genetic|genetics|gene|inherit|hered|nutrition|diet|food|eat|meal|"
     r"mental|psycholog\w*|counsel\w*|stress|anxiety|depress\w*|support|family|"
+    r"charit\w*|humanitarian|ngo|foundation|volunteer|fundrais\w*|aid|"
+    r"msaada|kusaidia|mshirika|mwanajamii|community|"
     r"hello|hi|hey|habari|mambo|salaam|salam|thank\w*|asante|help)\b",
     re.I,
 )
