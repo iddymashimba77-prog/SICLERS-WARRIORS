@@ -552,18 +552,29 @@ class _NoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.lightAmber,
+        color: dark
+            ? AppColors.warning.withValues(alpha: .18)
+            : AppColors.lightAmber,
         borderRadius: AppShapes.tile,
-        border: Border.all(color: AppColors.warning.withValues(alpha: .45)),
+        border: Border.all(
+          color: dark
+              ? AppColors.warning.withValues(alpha: .60)
+              : AppColors.warning.withValues(alpha: .45),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.warning, size: 22),
+          Icon(
+            icon,
+            color: dark ? AppColors.warning.withValues(alpha: .90) : AppColors.warning,
+            size: 22,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
@@ -773,11 +784,12 @@ class _TeamMemberCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 32,
-                backgroundColor: AppColors.lightBlue,
+                backgroundColor:
+                    theme.colorScheme.primary.withValues(alpha: 0.14),
                 child: Text(
                   member.initials,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    color: AppColors.blue,
+                    color: theme.colorScheme.primary,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -801,16 +813,17 @@ class _TeamMemberCard extends StatelessWidget {
                         vertical: AppSpacing.xxs,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.lightBlue,
+                        color: theme.colorScheme.primary.withValues(alpha: 0.12),
                         borderRadius: AppShapes.pill,
                         border: Border.all(
-                          color: AppColors.blue.withValues(alpha: .35),
+                          color:
+                              theme.colorScheme.primary.withValues(alpha: .38),
                         ),
                       ),
                       child: Text(
                         role,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.blue,
+                          color: theme.colorScheme.primary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

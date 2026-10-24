@@ -371,7 +371,7 @@ class _ProfilePhotoHeaderState extends State<_ProfilePhotoHeader> {
                   : hasPhoto
                       ? CircleAvatar(
                           radius: 28,
-                          backgroundColor: AppColors.surface,
+                          backgroundColor: Theme.of(context).colorScheme.surface,
                           backgroundImage: NetworkImage(photoUrl),
                         )
                       : const CircleAvatar(
@@ -416,7 +416,7 @@ class _ProfilePhotoHeaderState extends State<_ProfilePhotoHeader> {
                     Chip(
                       label: Text(role),
                       visualDensity: VisualDensity.compact,
-                      backgroundColor: AppColors.surface,
+                      backgroundColor: Theme.of(context).colorScheme.surface,
                     ),
                 ],
               ),

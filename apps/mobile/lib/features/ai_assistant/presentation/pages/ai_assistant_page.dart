@@ -34,7 +34,9 @@ class AiAssistantPage extends StatelessWidget {
     if (token == null) {
       return const SignedOutGate();
     }
+    final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppTopBar(
         title: s.tr('act.aiCoach'),
         avatarName: session.displayName,
@@ -217,6 +219,8 @@ class _AiAssistantViewState extends State<AiAssistantView> {
   Widget _bubble(BuildContext context, _ChatEntry entry) {
     switch (entry.kind) {
       case _EntryKind.user:
+        final theme = Theme.of(context);
+        final dark = theme.brightness == Brightness.dark;
         return Align(
           alignment: Alignment.centerRight,
           child: Container(
@@ -225,34 +229,55 @@ class _AiAssistantViewState extends State<AiAssistantView> {
                 horizontal: AppSpacing.lg, vertical: AppSpacing.md),
             constraints: const BoxConstraints(maxWidth: 340),
             decoration: BoxDecoration(
-              color: AppColors.navy,
+              color: dark ? theme.colorScheme.primaryContainer : AppColors.navy,
               borderRadius: AppShapes.card,
+              border: Border.all(
+                color: dark
+                    ? theme.colorScheme.primary.withValues(alpha: 0.4)
+                    : Colors.transparent,
+              ),
             ),
             child: Text(
               entry.text,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.textOnDark, height: 1.4),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: dark
+                    ? theme.colorScheme.onPrimaryContainer
+                    : AppColors.textOnDark,
+                height: 1.4,
+              ),
             ),
           ),
         );
       case _EntryKind.error:
+        final theme = Theme.of(context);
+        final dark = theme.brightness == Brightness.dark;
         return Container(
           margin: const EdgeInsets.only(bottom: AppSpacing.md),
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: AppColors.lightRed,
+            color: dark
+                ? AppColors.emergency.withValues(alpha: .18)
+                : AppColors.lightRed,
             borderRadius: AppShapes.card,
+            border: Border.all(
+              color: dark
+                  ? AppColors.emergency.withValues(alpha: .60)
+                  : AppColors.emergency.withValues(alpha: .35),
+            ),
           ),
           child: Row(
             children: [
-              const Icon(Icons.error_outline, color: AppColors.emergency),
+              Icon(Icons.error_outline,
+                  color: dark
+                      ? AppColors.emergency.withValues(alpha: .90)
+                      : AppColors.emergency),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
                   entry.text,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
               ),
             ],
@@ -270,8 +295,8 @@ class _AiAssistantViewState extends State<AiAssistantView> {
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: theme.colorScheme.surface,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
         borderRadius: AppShapes.card,
       ),
       child: Column(
@@ -290,8 +315,13 @@ class _AiAssistantViewState extends State<AiAssistantView> {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(turn.message,
-              style: theme.textTheme.bodyMedium?.copyWith(height: 1.5)),
+          SelectableText(
+            turn.message,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              height: 1.5,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
           if (turn.emergencyAction) ...[
             const SizedBox(height: AppSpacing.lg),
             _emergencyCallout(context),
@@ -352,34 +382,43 @@ class _AiAssistantViewState extends State<AiAssistantView> {
 
   Widget _emergencyCallout(BuildContext context) {
     final s = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final accent = dark ? theme.colorScheme.error : AppColors.emergency;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.emergencyContainer,
+        color: dark
+            ? AppColors.emergency.withValues(alpha: .16)
+            : AppColors.emergencyContainer,
         borderRadius: AppShapes.tile,
+        border: Border.all(
+          color: accent.withValues(alpha: dark ? .60 : .30),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.warning_amber_rounded,
-                  color: AppColors.emergency),
+              Icon(Icons.warning_amber_rounded, color: accent),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   s.tr('ai.emergencyTitle'),
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(color: AppColors.darkRed),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: dark ? theme.colorScheme.onSurface : AppColors.darkRed,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(s.tr('ai.emergencyBody'),
-              style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            s.tr('ai.emergencyBody'),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurface),
+          ),
           const SizedBox(height: AppSpacing.md),
           FilledButton.icon(
             onPressed: () => Navigator.pushNamed(
@@ -387,7 +426,10 @@ class _AiAssistantViewState extends State<AiAssistantView> {
             icon: const Icon(Icons.emergency, size: 18),
             label: Text(s.tr('ai.openEmergency')),
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.emergency,
+              backgroundColor: accent,
+              foregroundColor: dark
+                  ? theme.colorScheme.onError
+                  : AppColors.textOnEmergency,
             ),
           ),
         ],
@@ -397,20 +439,31 @@ class _AiAssistantViewState extends State<AiAssistantView> {
 
   Widget _refusalCallout(BuildContext context) {
     final s = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.lightAmber,
+        color: dark
+            ? AppColors.warning.withValues(alpha: .18)
+            : AppColors.lightAmber,
         borderRadius: AppShapes.tile,
+        border: Border.all(
+          color: dark
+              ? AppColors.warning.withValues(alpha: .60)
+              : AppColors.warning.withValues(alpha: .35),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.block, size: 18, color: AppColors.warning),
+          Icon(Icons.block,
+              size: 18,
+              color: dark ? AppColors.warning.withValues(alpha: .90) : AppColors.warning),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               s.tr('ai.blockedTitle'),
-              style: Theme.of(context).textTheme.bodySmall,
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface),
             ),
           ),
         ],
@@ -422,27 +475,29 @@ class _AiAssistantViewState extends State<AiAssistantView> {
 
   Widget _disclaimer(BuildContext context) {
     final s = AppLocalizations.of(context);
+    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
-      color: AppColors.surfaceMuted,
+      color: theme.colorScheme.surfaceContainerLow,
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
       child: Text(
         '${s.tr('ai.disclaimerLabel')}: ${s.tr('ai.disclaimer')}',
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.4),
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          height: 1.4,
+        ),
       ),
     );
   }
 
   Widget _composer(BuildContext context) {
     final s = AppLocalizations.of(context);
+    final theme = Theme.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant)),
       ),
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.md),

@@ -148,10 +148,14 @@ class EmergencyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final accent = dark ? theme.colorScheme.error : AppColors.emergency;
     return AppCard(
       onTap: onTap,
-      color: AppColors.emergencyContainer,
-      borderColor: AppColors.emergency.withValues(alpha: 0.35),
+      color: dark
+          ? AppColors.emergency.withValues(alpha: .16)
+          : AppColors.emergencyContainer,
+      borderColor: accent.withValues(alpha: 0.35),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -159,7 +163,7 @@ class EmergencyCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.emergency,
+              color: dark ? AppColors.emergency.withValues(alpha: .85) : AppColors.emergency,
               borderRadius: AppShapes.tile,
             ),
             child: Icon(icon, color: AppColors.textOnEmergency, size: 24),
@@ -172,18 +176,22 @@ class EmergencyCard extends StatelessWidget {
                 Text(
                   title,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppColors.emergency,
+                    color: accent,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
-                Text(message, style: theme.textTheme.bodySmall),
+                Text(
+                  message,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurface),
+                ),
                 if (actionLabel != null) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     actionLabel!,
                     style: theme.textTheme.labelMedium?.copyWith(
-                      color: AppColors.emergency,
+                      color: accent,
                     ),
                   ),
                 ],

@@ -611,7 +611,12 @@ class _HandoutSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.secondary.withValues(alpha: 0.06),
         borderRadius: AppShapes.medium,
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.4)),
+        border: Border.all(
+          color: Theme.of(context)
+              .colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.6),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

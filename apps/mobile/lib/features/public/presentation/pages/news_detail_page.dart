@@ -131,7 +131,7 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
           ),
         ],
         const SizedBox(height: AppSpacing.lg),
-        const Divider(color: AppColors.border),
+        Divider(color: theme.colorScheme.outlineVariant),
         const SizedBox(height: AppSpacing.md),
         Text(
           hasBody ? detail.body : summary.excerpt,
@@ -142,7 +142,7 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
         ),
         if (hasBody) ...[
           const SizedBox(height: AppSpacing.xl),
-          const Divider(color: AppColors.border),
+          Divider(color: theme.colorScheme.outlineVariant),
           const SizedBox(height: AppSpacing.md),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,

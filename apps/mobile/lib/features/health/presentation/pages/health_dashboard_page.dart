@@ -444,7 +444,8 @@ class _AdherenceBar extends StatelessWidget {
             child: LinearProgressIndicator(
               value: value,
               minHeight: 10,
-              backgroundColor: AppColors.surface,
+              backgroundColor:
+                  Theme.of(context).colorScheme.surfaceContainerHighest,
               color: pct != null && pct! >= 80
                   ? AppColors.success
                   : AppColors.secondary,

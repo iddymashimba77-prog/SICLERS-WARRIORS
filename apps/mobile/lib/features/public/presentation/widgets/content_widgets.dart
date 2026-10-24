@@ -55,6 +55,8 @@ class _CoverFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return Container(
       height: double.infinity,
       decoration: const BoxDecoration(
@@ -64,11 +66,11 @@ class _CoverFallback extends StatelessWidget {
           colors: [AppColors.navy, AppColors.blue],
         ),
       ),
-      child: const Center(
+      child: Center(
         child: Icon(
           Icons.handshake_outlined,
           size: 44,
-          color: AppColors.lightRed,
+          color: dark ? AppColors.textOnDark : AppColors.lightRed,
         ),
       ),
     );
@@ -83,18 +85,25 @@ class PublicNewsCategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.lightBlue,
+        color: dark ? AppColors.blue.withValues(alpha: .28) : AppColors.lightBlue,
         borderRadius: AppShapes.pill,
+        border: Border.all(
+          color: dark
+              ? AppColors.blue.withValues(alpha: .60)
+              : AppColors.blue.withValues(alpha: .30),
+        ),
       ),
       child: Text(
         label.toUpperCase(),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: AppColors.blue,
+          color: theme.colorScheme.primary,
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: .4,

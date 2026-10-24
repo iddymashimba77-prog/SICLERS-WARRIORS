@@ -300,7 +300,7 @@ class _PublicHeader extends StatelessWidget {
                     goTo(context, '/emergency');
                   },
                 ),
-                const Divider(color: AppColors.border),
+                Divider(color: Theme.of(context).colorScheme.outlineVariant),
                 for (final entry in entries) ...[
                   _MobileMenuCategory(
                     title: entry.key,
@@ -1140,7 +1140,9 @@ class _NewsCarouselState extends State<_NewsCarousel> {
                       width: i == _page ? 22 : 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: i == _page ? AppColors.blue : AppColors.border,
+                        color: i == _page
+                            ? AppColors.blue
+                            : Theme.of(context).colorScheme.outlineVariant,
                         borderRadius: AppShapes.xs,
                       ),
                     ),
@@ -1167,8 +1169,11 @@ class _CarouselCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final s = AppLocalizations.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return Material(
-      color: AppColors.lightRed,
+      color: dark
+          ? AppColors.emergency.withValues(alpha: .16)
+          : AppColors.lightRed,
       borderRadius: AppShapes.large,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1181,7 +1186,7 @@ class _CarouselCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.headlineSmall?.copyWith(
-                color: AppColors.darkRed,
+                color: dark ? theme.colorScheme.onSurface : AppColors.darkRed,
                 fontWeight: FontWeight.w800,
                 height: 1.2,
               ),
@@ -1444,7 +1449,7 @@ class _WarriorNeedsSectionState extends State<_WarriorNeedsSection> {
           end: Alignment.bottomCenter,
           colors: dark
               ? [scheme.surfaceContainerLow, scheme.surfaceContainer]
-              : [AppColors.lightBlue, AppColors.surface],
+              : [scheme.primaryContainer.withValues(alpha: 0.28), AppColors.surface],
         ),
       ),
       padding: EdgeInsets.symmetric(
@@ -1479,7 +1484,7 @@ class _WarriorNeedsSectionState extends State<_WarriorNeedsSection> {
           end: Alignment.bottomRight,
           colors: dark
               ? [scheme.surfaceContainerHigh, scheme.surfaceContainer]
-              : [AppColors.surface, AppColors.lightBlue],
+              : [AppColors.surface, scheme.primaryContainer.withValues(alpha: 0.24)],
         ),
         borderRadius: AppShapes.hero,
         border: Border.all(
@@ -1965,13 +1970,13 @@ class _PhoneShowcaseState extends State<_PhoneShowcase>
     return Material(
       color: dark
           ? Colors.white.withValues(alpha: .06)
-          : AppColors.lightBlue,
+          : widget.theme.colorScheme.primaryContainer.withValues(alpha: 0.36),
       shape: RoundedRectangleBorder(
         borderRadius: AppShapes.small,
         side: BorderSide(
           color: dark
               ? AppColors.dividerOnDark
-              : AppColors.blue.withValues(alpha: .10),
+              : AppColors.blue.withValues(alpha: .16),
         ),
       ),
       child: InkWell(

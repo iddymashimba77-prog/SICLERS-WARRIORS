@@ -221,7 +221,7 @@ class _DonorSummaryCard extends StatelessWidget {
     final profile = this.profile;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: AppColors.surface,
+      color: Theme.of(context).colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: profile == null

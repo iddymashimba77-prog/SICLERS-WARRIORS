@@ -240,6 +240,8 @@ _GENERAL_HEALTH_TERMS = re.compile(
     r"vaccin\w*|fluids?|oxygen|headache|swelling|fatigue|tiredness|"
     r"app|account|profile|sign ?up|login|record|reminder|emergency|sos|"
     r"donor|donation|campaign|education|academy|patient|caregiver|"
+    r"genetic|genetics|gene|inherit|hered|nutrition|diet|food|eat|meal|"
+    r"mental|psycholog\w*|counsel\w*|stress|anxiety|depress\w*|support|family|"
     r"hello|hi|hey|habari|mambo|salaam|salam|thank\w*|asante|help)\b",
     re.I,
 )

@@ -253,7 +253,7 @@ class _EmptyDirectory extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppLocalizations.of(context);
     return Card(
-      color: AppColors.surface,
+      color: Theme.of(context).colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
