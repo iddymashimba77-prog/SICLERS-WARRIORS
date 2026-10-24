@@ -376,10 +376,9 @@ class GeminiProvider(BaseAIProvider):
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
             ],
         }
-        url = (
-            f"{getattr(settings, 'GEMINI_API_BASE', 'https://generativelanguage.googleapis.com/v1beta')}"
-            f"/models/{self._model}:generateContent"
-        )
+        api_base = getattr(settings, 'GEMINI_API_BASE', 'https://generativelanguage.googleapis.com/v1beta')
+        # Try v1beta with model name
+        url = f"{api_base}/models/{self._model}:generateContent"
         req = urllib.request.Request(
             url,
             data=json.dumps(body).encode("utf-8"),
@@ -398,7 +397,26 @@ class GeminiProvider(BaseAIProvider):
             # Keep the status only (never the body/key) for operator diagnosis:
             # 400/403 = bad key or model name, 429 = quota, 5xx = upstream.
             logger.error("ai.provider: Gemini HTTP status: %s", exc.code)
-            raise ProviderUnavailable(reason=f"upstream_http_{exc.code}") from exc
+            if exc.code == 404:
+                # Try alternative API versions
+                try:
+                    alt_url = f"https://generativelanguage.googleapis.com/v1/models/{self._model}:generateContent"
+                    alt_req = urllib.request.Request(
+                        alt_url,
+                        data=json.dumps(body).encode("utf-8"),
+                        headers={
+                            "Content-Type": "application/json",
+                            "x-goog-api-key": api_key,
+                        },
+                        method="POST",
+                    )
+                    with urllib.request.urlopen(alt_req, timeout=getattr(settings, "GEMINI_TIMEOUT_SECONDS", 30)) as resp:
+                        raw = resp.read().decode("utf-8")
+                except Exception as exc2:
+                    logger.error("ai.provider: Gemini HTTP status: %s", getattr(exc2, 'code', 'unknown'))
+                    raise ProviderUnavailable(reason="upstream_http_404") from exc
+            else:
+                raise ProviderUnavailable(reason=f"upstream_http_{exc.code}") from exc
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             logger.error("ai.provider: Gemini request failed: %s", type(exc).__name__)
             raise ProviderUnavailable(reason="upstream_error") from exc
