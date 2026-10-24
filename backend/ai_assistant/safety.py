@@ -243,8 +243,10 @@ _GENERAL_HEALTH_TERMS = re.compile(
     r"genetic|genetics|gene|inherit|hered|nutrition|diet|food|eat|meal|"
     r"mental|psycholog\w*|counsel\w*|stress|anxiety|depress\w*|support|family|"
     r"charit\w*|humanitarian|ngo|foundation|volunteer|fundrais\w*|aid|"
-    r"msaada|kusaidia|mshirika|mwanajamii|community|"
-    r"hello|hi|hey|habari|mambo|salaam|salam|thank\w*|asante|help)\b",
+    r"msaada|kusaid\w*|said\w*|mshirika|mwanajamii|community|jamii|"
+    r"mtu|mgonjwa|wagonjwa|mgonjwa|huyu|yeye|wake|wetu|njia|jinsi|namna|"
+    r"unamjuaje|nitamsaidiaje|kumsadia|kumsaidia|msaidi\w*|huruma|upendo|"
+    r"hello|hi|hey|habari|mambo|salaam|salam|thank\w*|asante|help|vipi|sawa)\b",
     re.I,
 )
 
