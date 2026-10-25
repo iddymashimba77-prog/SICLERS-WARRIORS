@@ -147,11 +147,13 @@ class AiAssistantService:
             metrics = self._adherence_metrics(user, metric, ctx)
 
         # -- provider ------------------------------------------------------
-        history = None
-        if request is not None:
+        # Persisted history (set by the conversation layer) wins over anything
+        # the client supplied; only fall back to the request body when this
+        # turn is not part of a stored conversation.
+        history = getattr(request, "ai_history", None) if request is not None else None
+        if history is None and request is not None:
             try:
-                # Try to get history from request data or session
-                history = request.data.get('history') or request.data.get('messages') or getattr(request, 'ai_history', None)
+                history = request.data.get("history") or request.data.get("messages")
             except Exception:
                 history = None
         payload = providers.ChatPayload(
@@ -442,3 +444,98 @@ def _window_start(window_days):
     from datetime import timedelta
 
     return timezone.localtime() - timedelta(days=window_days)
+
+from django.utils import timezone
+
+from .models import Conversation, Message
+
+
+# Persist every chat turn so the assistant can retain context and the client
+# can present a ChatGPT-style history sidebar. The wrapper keeps the original
+# ``handle_chat`` contract intact (same payload, same errors) and only adds
+# ``conversation_uid`` to the successful response.
+_orig_handle_chat = AiAssistantService.handle_chat
+
+
+def _handle_chat_with_persistence(self, user, data, request=None):
+    conversation_uid = data.pop("conversation_uid", None)
+    conversation = None
+    if conversation_uid:
+        conversation = Conversation.objects.filter(
+            user=user, uid=conversation_uid
+        ).first()
+    message_text = (data.get("message") or "").strip()
+    created_conversation = conversation is None
+    if conversation is None:
+        conversation = Conversation.objects.create(
+            user=user,
+            title=message_text[:80],
+            last_activity_at=timezone.now(),
+        )
+
+    # History must contain *prior* turns only: the provider appends the current
+    # user message itself, so including the row we are about to create would
+    # duplicate it in the prompt. Take the most recent window (not the first
+    # 50 rows) so long conversations keep recent context.
+    recent = list(
+        conversation.messages.order_by("-created_at", "-id")[:50]
+    )
+    history = [
+        {"role": m.role, "content": m.content} for m in reversed(recent)
+    ]
+    # The provider stage reads the authoritative history from the request
+    # attribute, so client-supplied context cannot override the stored thread.
+    if request is not None:
+        request.ai_history = history
+
+    user_message = Message.objects.create(
+        conversation=conversation,
+        role=Message.Role.USER,
+        content=message_text,
+    )
+
+    try:
+        result = _orig_handle_chat(self, user, data, request)
+    except Exception:
+        # Never leave a half-written turn behind: without an answer the user
+        # message would be duplicated when the client retries.
+        user_message.delete()
+        if created_conversation:
+            conversation.delete()
+        raise
+
+    assistant_text = result.get("message", "") if isinstance(result, dict) else ""
+    if assistant_text:
+        # Preserve the safety/provenance envelope so reopening a stored thread
+        # still shows emergency callouts, refusals and citations.
+        meta = {
+            "use_case": result.get("use_case"),
+            "emergency_action": result.get("emergency_action", False),
+            "emergency_categories": result.get("emergency_categories", []),
+            "safety": result.get("safety"),
+            "sources": result.get("sources", []),
+            "limitation": result.get("limitation"),
+            "context_used": result.get("context_used", False),
+        } if isinstance(result, dict) else {}
+        Message.objects.create(
+            conversation=conversation,
+            role=Message.Role.ASSISTANT,
+            content=assistant_text,
+            meta=meta,
+        )
+
+    now = timezone.now()
+    conversation.last_activity_at = now
+    conversation.updated_at = now
+    if not conversation.title and message_text:
+        conversation.title = message_text[:80]
+    conversation.save(
+        update_fields=["last_activity_at", "updated_at", "title"]
+    )
+
+    if isinstance(result, dict):
+        result["conversation_uid"] = str(conversation.uid)
+    return result
+
+
+AiAssistantService.handle_chat = _handle_chat_with_persistence

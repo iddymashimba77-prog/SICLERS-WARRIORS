@@ -352,7 +352,7 @@ class GeminiProvider(BaseAIProvider):
     model_id = "gemini"
 
     def __init__(self):
-        self._model = getattr(settings, "GEMINI_MODEL", "gemini-2.0-flash")
+        self._model = getattr(settings, "GEMINI_MODEL", "gemini-flash-lite-latest")
         self.model_id = f"gemini:{self._model}"
 
     def generate(self, payload: ChatPayload) -> AIResult:

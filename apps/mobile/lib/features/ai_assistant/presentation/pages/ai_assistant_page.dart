@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -106,59 +104,215 @@ class _AiAssistantViewState extends State<AiAssistantView> {
   final List<_ChatEntry> _entries = [];
   bool _sending = false;
   String _useCase = 'education';
-  static const String _prefsKey = 'ai_assistant_chat_history';
+
+  List<AiConversation> _conversations = [];
+  bool _loadingConversations = false;
+  bool _loadingConversation = false;
+  bool _sidebarOpen = true;
+  String? _currentConversationUid;
+  bool _restoredConversation = false;
+  static const String _currentConversationKey =
+      'ai_assistant_current_conversation';
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    _loadConversations();
   }
 
-  Future<void> _loadHistory() async {
+  Future<void> _loadConversations() async {
+    if (mounted) setState(() => _loadingConversations = true);
+    try {
+      final list = await widget.repository.listConversations(widget.accessToken);
+      if (!mounted) return;
+      setState(() {
+        _conversations = list;
+        _loadingConversations = false;
+      });
+      if (!_restoredConversation) {
+        _restoredConversation = true;
+        await _restoreLastConversation();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingConversations = false);
+    }
+  }
+
+  Future<void> _restoreLastConversation() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final data = prefs.getString(_prefsKey);
-      if (data == null || data.isEmpty) return;
-      final list = jsonDecode(data) as List<dynamic>;
+      final uid = prefs.getString(_currentConversationKey);
+      if (uid == null || uid.isEmpty) return;
+      final matches = _conversations.where((c) => c.uid == uid).toList();
+      if (matches.isEmpty) return;
+      await _openConversation(matches.first, closeSheet: false);
+    } catch (_) {}
+  }
+
+  Future<void> _rememberCurrentConversation(String? uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (uid == null || uid.isEmpty) {
+        await prefs.remove(_currentConversationKey);
+      } else {
+        await prefs.setString(_currentConversationKey, uid);
+      }
+    } catch (_) {}
+  }
+
+  void _startNewChat({bool closeSheet = true}) {
+    setState(() {
+      _entries.clear();
+      _currentConversationUid = null;
+      _loadingConversation = false;
+    });
+    _rememberCurrentConversation(null);
+    if (closeSheet && MediaQuery.of(context).size.width < 900) {
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  Future<void> _openConversation(AiConversation conversation,
+      {bool closeSheet = true}) async {
+    if (closeSheet && MediaQuery.of(context).size.width < 900) {
+      Navigator.of(context).maybePop();
+    }
+    setState(() => _loadingConversation = true);
+    try {
+      final full =
+          await widget.repository.getConversation(widget.accessToken, conversation.uid);
+      if (!mounted) return;
       final entries = <_ChatEntry>[];
-      for (final item in list) {
-        if (item is Map<String, dynamic>) {
-          final type = item['type'] as String?;
-          final text = item['text'] as String? ?? '';
-          if (type == 'user') {
-            entries.add(_ChatEntry.user(text));
-          } else if (type == 'assistant') {
-            entries.add(_ChatEntry.error(text.isEmpty ? '...' : text));
-            // skip complex turn reconstruction for now
-          } else if (type == 'error') {
-            entries.add(_ChatEntry.error(text));
-          }
+      for (final message in full.messages) {
+        if (message.isUser) {
+          entries.add(_ChatEntry.user(message.content));
+        } else {
+          entries.add(_ChatEntry.assistant(_turnFromStored(message)));
         }
       }
-      if (entries.isNotEmpty && mounted) {
-        setState(() {
-          _entries.clear();
-          _entries.addAll(entries);
-        });
-      }
+      setState(() {
+        _entries
+          ..clear()
+          ..addAll(entries);
+        _currentConversationUid = full.uid;
+        _loadingConversation = false;
+      });
+      _rememberCurrentConversation(full.uid);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingConversation = false);
+    }
+  }
+
+  AiChatTurn _turnFromStored(AiConversationMessage message) {
+    final meta = message.meta;
+    final safety = meta['safety'] as Map<String, dynamic>?;
+    final rawSources = meta['sources'] as List<dynamic>? ?? const [];
+    return AiChatTurn(
+      assistantId: message.uid,
+      useCase: (meta['use_case'] as String?) ?? 'education',
+      message: message.content,
+      disclaimer: '',
+      emergencyAction: meta['emergency_action'] == true,
+      emergencyCategories: [
+        for (final c in (meta['emergency_categories'] as List<dynamic>? ?? const []))
+          c.toString(),
+      ],
+      safetyBlocked: safety?['blocked'] == true,
+      safetyReason: safety?['reason'] as String?,
+      contextUsed: meta['context_used'] == true,
+      limitation: meta['limitation'] as String?,
+      sources: [
+        for (final s in rawSources)
+          AiSource.fromJson((s as Map<String, dynamic>?) ?? const {}),
+      ],
+    );
+  }
+
+  Future<void> _renameConversation(AiConversation conversation) async {
+    final s = AppLocalizations.of(context);
+    final currentTitle = conversation.displayTitle.isEmpty
+        ? s.tr('ai.newConversation')
+        : conversation.displayTitle;
+    final controller = TextEditingController(text: currentTitle);
+    final newTitle = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(s.tr('ai.renameConversation')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 200,
+          decoration: InputDecoration(labelText: s.tr('ai.titleLabel')),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(s.tr('ai.cancel')),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: Text(s.tr('ai.save')),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (newTitle == null || newTitle.isEmpty) return;
+    try {
+      final updated = await widget.repository.renameConversation(
+        widget.accessToken,
+        conversation.uid,
+        title: newTitle,
+      );
+      if (!mounted) return;
+      setState(() {
+        _conversations = [
+          for (final c in _conversations)
+            c.uid == updated.uid ? updated : c,
+        ];
+      });
     } catch (_) {}
   }
 
-  Future<void> _saveHistory() async {
+  Future<void> _deleteConversation(AiConversation conversation) async {
+    final s = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(s.tr('ai.deleteConversation')),
+        content: Text(s.tr('ai.deleteConversationBody')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(s.tr('ai.cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(s.tr('ai.delete')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final list = <Map<String, String>>[];
-      for (final e in _entries.take(100)) {
-        if (e.kind == _EntryKind.user) {
-          list.add({'type': 'user', 'text': e.text});
-        } else if (e.kind == _EntryKind.error) {
-          list.add({'type': 'error', 'text': e.text});
-        } else if (e.kind == _EntryKind.assistant && e.turn != null) {
-          list.add({'type': 'assistant', 'text': e.turn!.message});
+      await widget.repository
+          .deleteConversation(widget.accessToken, conversation.uid);
+      if (!mounted) return;
+      setState(() {
+        _conversations =
+            _conversations.where((c) => c.uid != conversation.uid).toList();
+        if (_currentConversationUid == conversation.uid) {
+          _entries.clear();
+          _currentConversationUid = null;
         }
+      });
+      if (_currentConversationUid == null) {
+        _rememberCurrentConversation(null);
       }
-      await prefs.setString(_prefsKey, jsonEncode(list));
-    } catch (_) {}
+      } catch (_) {}
   }
 
   @override
@@ -176,46 +330,245 @@ class _AiAssistantViewState extends State<AiAssistantView> {
       _input.clear();
       _sending = true;
     });
-    _saveHistory();
     try {
       final turn = await widget.repository.sendChat(
         access: widget.accessToken,
         message: text,
         useCase: _useCase,
         metric: _useCase == 'insight_explanation' ? 'medication_adherence' : null,
+        conversationUid: _currentConversationUid,
       );
       if (!mounted) return;
       setState(() {
         _entries.add(_ChatEntry.assistant(turn));
+        _currentConversationUid =
+            turn.conversationUid ?? _currentConversationUid;
         _sending = false;
       });
-      _saveHistory();
+      _rememberCurrentConversation(_currentConversationUid);
+        _loadConversations();
     } on AiRepositoryException catch (e) {
       if (!mounted) return;
       setState(() {
         _entries.add(_ChatEntry.error(e.isThrottled ? s.tr('ai.throttled') : e.message));
         _sending = false;
       });
-      _saveHistory();
-    } catch (_) {
+      } catch (_) {
       if (!mounted) return;
       setState(() {
         _entries.add(_ChatEntry.error(s.tr('err.generic')));
         _sending = false;
       });
-      _saveHistory();
-    }
+      }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final isWide = MediaQuery.of(context).size.width >= 900;
+    final chat = Column(
       children: [
-        Expanded(child: _entries.isEmpty ? _welcome(context) : _thread(context)),
+        _chatToolbar(context, isWide: isWide),
+        Expanded(
+          child: _loadingConversation
+              ? const Center(child: CircularProgressIndicator())
+              : _entries.isEmpty
+                  ? _welcome(context)
+                  : _thread(context),
+        ),
         if (_sending) const LinearProgressIndicator(minHeight: 2),
         _disclaimer(context),
         _composer(context),
       ],
+    );
+    return Row(
+      children: [
+        if (isWide && _sidebarOpen)
+          SizedBox(width: 280, child: _sidebar(context, embedded: true)),
+        Expanded(child: chat),
+      ],
+    );
+  }
+
+  Widget _chatToolbar(BuildContext context, {required bool isWide}) {
+    final s = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: s.tr('ai.newChat'),
+            onPressed: () => _startNewChat(closeSheet: false),
+            icon: const Icon(Icons.add_comment_outlined),
+          ),
+          if (!isWide)
+            IconButton(
+              tooltip: s.tr('ai.history'),
+              onPressed: () => _openSidebarSheet(context),
+              icon: const Icon(Icons.history),
+            ),
+          const Spacer(),
+          if (isWide)
+            IconButton(
+              tooltip: _sidebarOpen
+                  ? s.tr('ai.hideHistory')
+                  : s.tr('ai.showHistory'),
+              onPressed: () => setState(() => _sidebarOpen = !_sidebarOpen),
+              icon: Icon(
+                _sidebarOpen ? Icons.chevron_left : Icons.chevron_right,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openSidebarSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SizedBox(
+        height: MediaQuery.of(sheetContext).size.height * 0.75,
+        child: _sidebar(sheetContext, embedded: false),
+      ),
+    );
+  }
+
+  Widget _sidebar(BuildContext context, {required bool embedded}) {
+    final s = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        border: embedded
+            ? Border(
+                right: BorderSide(color: theme.colorScheme.outlineVariant),
+              )
+            : null,
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.forum_outlined,
+                    size: 18, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    s.tr('ai.conversations'),
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ),
+                IconButton(
+                  tooltip: s.tr('ai.newChat'),
+                  onPressed: () => _startNewChat(),
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: _loadingConversations
+                ? const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : _conversations.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          child: Text(
+                            s.tr('ai.noConversations'),
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.xs),
+                        itemCount: _conversations.length,
+                        itemBuilder: (context, i) => _conversationTile(
+                          context,
+                          _conversations[i],
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _conversationTile(BuildContext context, AiConversation conversation) {
+    final s = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final selected = conversation.uid == _currentConversationUid;
+    return Material(
+      color: selected
+          ? theme.colorScheme.secondaryContainer
+          : Colors.transparent,
+      child: ListTile(
+        dense: true,
+        selected: selected,
+        leading: Icon(
+          Icons.chat_bubble_outline,
+          size: 18,
+          color: selected
+              ? theme.colorScheme.onSecondaryContainer
+              : theme.colorScheme.onSurfaceVariant,
+        ),
+        title: Text(
+          conversation.displayTitle.isEmpty
+              ? s.tr('ai.newConversation')
+              : conversation.displayTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall,
+        ),
+        subtitle: conversation.messageCount > 0
+            ? Text(
+                s.tr('ai.messagesCount',
+                    args: {'count': '${conversation.messageCount}'}),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              )
+            : null,
+        onTap: () => _openConversation(conversation),
+        trailing: PopupMenuButton<String>(
+          tooltip: s.tr('ai.conversationOptions'),
+          onSelected: (value) {
+            if (value == 'rename') _renameConversation(conversation);
+            if (value == 'delete') _deleteConversation(conversation);
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(value: 'rename', child: Text(s.tr('ai.rename'))),
+            PopupMenuItem(value: 'delete', child: Text(s.tr('ai.delete'))),
+          ],
+        ),
+      ),
     );
   }
 

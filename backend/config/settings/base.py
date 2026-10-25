@@ -449,7 +449,9 @@ AI_DISCLAIMER = (
 # runs the offline rule-based sandbox; an explicit "gemini" with no key fails
 # honestly (503) instead of pretending to answer.
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+# ``gemini-flash-lite-latest`` is an alias that currently resolves to a
+# supported model; pinned names such as gemini-2.0-flash can return 404.
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-lite-latest")
 GEMINI_API_BASE = os.environ.get(
     "GEMINI_API_BASE", "https://generativelanguage.googleapis.com/v1beta"
 )

@@ -36,3 +36,15 @@ class AiTrendsThrottle(_UserScopedThrottle):
 
     rate = "30/hour"
     scope = "ai.trends"
+
+
+class AiConversationThrottle(_UserScopedThrottle):
+    """Conversation CRUD — cheap DB reads/writes, kept off the chat budget.
+
+    The chat endpoint is limited to 6 turns/min, and the client refreshes the
+    sidebar after every turn; sharing that budget would halve the usable chat
+    rate, so history management gets its own (generous) bucket.
+    """
+
+    rate = "120/min"
+    scope = "ai.conversations"

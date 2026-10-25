@@ -1,5 +1,10 @@
 """Initial ai_assistant migration (intentionally table-free).
 
+NOTE: the "persists NOTHING" decision below was superseded by the persistent
+conversation-history feature; see ``0003_conversation_message`` for the
+``Conversation``/``Message`` tables. This migration itself is unchanged and
+remains the stable, table-free base.
+
 The approved AI surface adds NO database entity: the database-design has no
 ``ai_*`` table, so there is nothing to create here. The stage introduces:
 
