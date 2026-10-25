@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -103,6 +106,60 @@ class _AiAssistantViewState extends State<AiAssistantView> {
   final List<_ChatEntry> _entries = [];
   bool _sending = false;
   String _useCase = 'education';
+  static const String _prefsKey = 'ai_assistant_chat_history';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final data = prefs.getString(_prefsKey);
+      if (data == null || data.isEmpty) return;
+      final list = jsonDecode(data) as List<dynamic>;
+      final entries = <_ChatEntry>[];
+      for (final item in list) {
+        if (item is Map<String, dynamic>) {
+          final type = item['type'] as String?;
+          final text = item['text'] as String? ?? '';
+          if (type == 'user') {
+            entries.add(_ChatEntry.user(text));
+          } else if (type == 'assistant') {
+            entries.add(_ChatEntry.error(text.isEmpty ? '...' : text));
+            // skip complex turn reconstruction for now
+          } else if (type == 'error') {
+            entries.add(_ChatEntry.error(text));
+          }
+        }
+      }
+      if (entries.isNotEmpty && mounted) {
+        setState(() {
+          _entries.clear();
+          _entries.addAll(entries);
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = <Map<String, String>>[];
+      for (final e in _entries.take(100)) {
+        if (e.kind == _EntryKind.user) {
+          list.add({'type': 'user', 'text': e.text});
+        } else if (e.kind == _EntryKind.error) {
+          list.add({'type': 'error', 'text': e.text});
+        } else if (e.kind == _EntryKind.assistant && e.turn != null) {
+          list.add({'type': 'assistant', 'text': e.turn!.message});
+        }
+      }
+      await prefs.setString(_prefsKey, jsonEncode(list));
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -119,6 +176,7 @@ class _AiAssistantViewState extends State<AiAssistantView> {
       _input.clear();
       _sending = true;
     });
+    _saveHistory();
     try {
       final turn = await widget.repository.sendChat(
         access: widget.accessToken,
@@ -131,18 +189,21 @@ class _AiAssistantViewState extends State<AiAssistantView> {
         _entries.add(_ChatEntry.assistant(turn));
         _sending = false;
       });
+      _saveHistory();
     } on AiRepositoryException catch (e) {
       if (!mounted) return;
       setState(() {
         _entries.add(_ChatEntry.error(e.isThrottled ? s.tr('ai.throttled') : e.message));
         _sending = false;
       });
+      _saveHistory();
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _entries.add(_ChatEntry.error(s.tr('err.generic')));
         _sending = false;
       });
+      _saveHistory();
     }
   }
 

@@ -147,6 +147,13 @@ class AiAssistantService:
             metrics = self._adherence_metrics(user, metric, ctx)
 
         # -- provider ------------------------------------------------------
+        history = None
+        if request is not None:
+            try:
+                # Try to get history from request data or session
+                history = request.data.get('history') or request.data.get('messages') or getattr(request, 'ai_history', None)
+            except Exception:
+                history = None
         payload = providers.ChatPayload(
             request_id=request_id,
             use_case=use_case,
@@ -155,6 +162,7 @@ class AiAssistantService:
             sources=sources,
             metrics=metrics,
             personalized=can_personalize,
+            history=history,
         )
         try:
             result = providers.get_ai_provider().generate(payload)

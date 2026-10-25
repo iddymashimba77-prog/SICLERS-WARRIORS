@@ -79,6 +79,7 @@ class ChatPayload:
     sources: list  # approved-knowledge snippets with citations
     metrics: dict | None = None
     personalized: bool = False
+    history: list | None = None  # conversation history for context retention
 
 
 @dataclass
@@ -360,13 +361,24 @@ class GeminiProvider(BaseAIProvider):
             logger.error("ai.provider: GEMINI_API_KEY is not configured")
             raise ProviderUnavailable(reason="missing_api_key")
 
+        # Build contents with history for better context retention
+        contents = []
+        history = payload.history or []
+        for h in history[-10:]:
+            role = h.get('role', 'user')
+            content = h.get('content', '') or h.get('message', '') or ''
+            if not content.strip():
+                continue
+            if role == 'user' or role == 'human':
+                contents.append({"role": "user", "parts": [{"text": content.strip()}]})
+            elif role == 'assistant' or role == 'ai':
+                contents.append({"role": "model", "parts": [{"text": content.strip()}]})
+        contents.append({"role": "user", "parts": [{"text": self._user_text(payload)}]})
         body = {
             "system_instruction": {
                 "parts": [{"text": GEMINI_SYSTEM_INSTRUCTION}],
             },
-            "contents": [
-                {"role": "user", "parts": [{"text": self._user_text(payload)}]},
-            ],
+            "contents": contents,
             "generationConfig": {
                 "temperature": getattr(settings, "GEMINI_TEMPERATURE", 0.30),
                 "maxOutputTokens": getattr(settings, "GEMINI_MAX_OUTPUT_TOKENS", 800),
@@ -437,7 +449,22 @@ class GeminiProvider(BaseAIProvider):
 
     @staticmethod
     def _user_text(payload: ChatPayload) -> str:
-        parts = [payload.message.strip()]
+        parts = []
+        history = payload.history or []
+        if history:
+            hist = []
+            for h in history[-10:]:  # keep last 10 turns
+                role = h.get('role', 'user')
+                content = h.get('content', '') or h.get('message', '') or ''
+                if not content.strip():
+                    continue
+                if role == 'user' or role == 'human':
+                    hist.append(f"User: {content.strip()}")
+                else:
+                    hist.append(f"Assistant: {content.strip()}")
+            if hist:
+                parts.append("Previous conversation (for context):\n" + "\n".join(hist))
+        parts.append(payload.message.strip())
         sources = payload.sources or []
         if sources:
             snippets = "\n".join(

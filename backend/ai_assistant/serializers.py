@@ -52,6 +52,8 @@ class AiChatSerializer(serializers.Serializer):
     metric = serializers.ChoiceField(
         choices=KNOWN_METRICS, required=False, allow_null=True
     )
+    history = serializers.ListField(required=False, allow_null=True)
+    messages = serializers.ListField(required=False, allow_null=True)
 
     def validate(self, attrs):
         if attrs["use_case"] == "insight_explanation" and not attrs.get("metric"):
