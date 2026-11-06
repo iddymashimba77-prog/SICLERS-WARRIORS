@@ -15,6 +15,7 @@ Privacy posture (AD-7 / database-design §19):
 import logging
 
 from django.contrib.auth import get_user_model
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiTypes, extend_schema
@@ -98,12 +99,23 @@ class ConversationViewSet(viewsets.GenericViewSet):
         return super().get_throttles()
 
     def get_queryset(self):
-        return Conversation.objects.filter(user=self.request.user).prefetch_related(
-            "messages"
-        )
+        # Owner-scoped by construction: a caller can never address another
+        # user's conversation, even by guessing its UUID.
+        return Conversation.objects.filter(user=self.request.user)
 
     def list(self, request):
         qs = self.get_queryset().filter(archived=False)
+        # Search title OR message content, owner-scoped. ``distinct`` collapses
+        # the message-content join so a thread appears once even when several
+        # of its messages match. ``Count`` supplies the sidebar badge without
+        # shipping every message body to the client.
+        search = (request.query_params.get("search") or "").strip()
+        if search:
+            qs = qs.filter(
+                Q(title__icontains=search)
+                | Q(messages__content__icontains=search)
+            ).distinct()
+        qs = qs.annotate(message_count=Count("messages", distinct=True))
         return Response(ConversationListSerializer(qs, many=True).data)
 
     def create(self, request):
@@ -123,7 +135,9 @@ class ConversationViewSet(viewsets.GenericViewSet):
         )
 
     def retrieve(self, request, pk=None):
-        conversation = get_object_or_404(self.get_queryset(), uid=pk)
+        conversation = get_object_or_404(
+            self.get_queryset().prefetch_related("messages"), uid=pk
+        )
         return Response(ConversationDetailSerializer(conversation).data)
 
     def partial_update(self, request, pk=None):

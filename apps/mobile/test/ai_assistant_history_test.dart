@@ -5,8 +5,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sicklers_warriors/core/l10n/app_localizations.dart';
+import 'package:sicklers_warriors/core/theme/app_theme.dart';
 import 'package:sicklers_warriors/features/ai_assistant/data/ai_repository.dart';
 import 'package:sicklers_warriors/features/ai_assistant/presentation/pages/ai_assistant_page.dart';
 import 'package:sicklers_warriors/features/auth/data/auth_repository.dart';
@@ -23,17 +25,22 @@ Map<String, dynamic> _conversation(
   String title, {
   int messageCount = 2,
   List<Map<String, dynamic>> messages = const [],
-}) =>
-    {
-      'uid': uid,
-      'title': title,
-      'created_at': '2026-10-01T10:00:00Z',
-      'updated_at': '2026-10-01T10:05:00Z',
-      'last_activity_at': '2026-10-01T10:05:00Z',
-      'archived': false,
-      'message_count': messageCount,
-      'messages': messages,
-    };
+  DateTime? lastActivity,
+}) {
+  final stamp = (lastActivity ?? DateTime.parse('2026-10-01T10:05:00Z'))
+      .toUtc()
+      .toIso8601String();
+  return {
+    'uid': uid,
+    'title': title,
+    'created_at': stamp,
+    'updated_at': stamp,
+    'last_activity_at': stamp,
+    'archived': false,
+    'message_count': messageCount,
+    'messages': messages,
+  };
+}
 
 Map<String, dynamic> _turn({String? conversationUid}) => {
       'assistant_id': 'req-1',
@@ -73,8 +80,14 @@ Future<AuthController> _authenticated() async {
   return controller;
 }
 
-Widget _page(AuthController auth, AiRepository repo) => MaterialApp(
+Widget _page(
+  AuthController auth,
+  AiRepository repo, {
+  ThemeData? theme,
+}) =>
+    MaterialApp(
       locale: const Locale('en'),
+      theme: theme ?? AppTheme.light,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -86,14 +99,23 @@ Widget _page(AuthController auth, AiRepository repo) => MaterialApp(
       routes: {EmergencyPage.routeName: (_) => const EmergencyPage()},
     );
 
-Future<void> _viewport(WidgetTester tester) async {
-  tester.view.physicalSize = const Size(1000, 1500);
+Future<void> _viewport(
+  WidgetTester tester, {
+  Size size = const Size(1000, 1500),
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    // Persisted last-opened threads are per account; isolate every widget test
+    // so one case cannot auto-restore a conversation created by another.
+    SharedPreferences.setMockInitialValues({});
+  });
 
   testWidgets('history sidebar lists stored conversations', (tester) async {
     final repo = AiRepository(
@@ -284,11 +306,182 @@ void main() {
     await tester.pumpAndSettle();
     expect(listCalls, 1);
 
-    await tester.enterText(find.byType(TextField), 'What is sickle cell?');
+    await tester.enterText(find.byKey(const ValueKey('ai-composer-input')), 'What is sickle cell?');
     await tester.tap(find.byTooltip('Send'));
     await tester.pumpAndSettle();
 
     expect(listCalls, greaterThan(1));
     expect(find.text('What is sickle cell?'), findsWidgets);
   });
+
+  testWidgets('history groups conversations by recency', (tester) async {
+    final now = DateTime.now();
+    final repo = AiRepository(
+      client: MockClient((request) async {
+        if (request.url.path == '/api/ai-assistant/conversations/') {
+          return _json([
+            _conversation('c1', 'Today chat', lastActivity: now),
+            _conversation('c2', 'Yesterday chat',
+                lastActivity: now.subtract(const Duration(days: 1))),
+            _conversation('c3', 'Week chat',
+                lastActivity: now.subtract(const Duration(days: 3))),
+            _conversation('c4', 'Month chat',
+                lastActivity: now.subtract(const Duration(days: 15))),
+            _conversation('c5', 'Old chat',
+                lastActivity: now.subtract(const Duration(days: 60))),
+          ]);
+        }
+        return _json({'data': _turn()});
+      }),
+    );
+
+    await _viewport(tester);
+    await tester.pumpWidget(_page(await _authenticated(), repo));
+    await tester.pumpAndSettle();
+
+    expect(find.text('TODAY'), findsOneWidget);
+    expect(find.text('YESTERDAY'), findsOneWidget);
+    expect(find.text('PREVIOUS 7 DAYS'), findsOneWidget);
+    expect(find.text('PREVIOUS 30 DAYS'), findsOneWidget);
+    expect(find.text('OLDER'), findsOneWidget);
+  });
+
+  testWidgets('search queries the server and clear restores the history',
+      (tester) async {
+    final searches = <String?>[];
+    final all = [
+      _conversation('c1', 'Pain crisis plan'),
+      _conversation('c2', 'Clinic visit'),
+    ];
+    final repo = AiRepository(
+      client: MockClient((request) async {
+        if (request.url.path == '/api/ai-assistant/conversations/') {
+          final search = request.url.queryParameters['search'];
+          searches.add(search);
+          if (search == 'pain') return _json([all.first]);
+          return _json(all);
+        }
+        return _json({'data': _turn()});
+      }),
+    );
+
+    await _viewport(tester);
+    await tester.pumpWidget(_page(await _authenticated(), repo));
+    await tester.pumpAndSettle();
+    expect(find.text('Clinic visit'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('ai-search-input')),
+      'pain',
+    );
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(searches.contains('pain'), isTrue);
+    expect(find.text('Pain crisis plan'), findsOneWidget);
+    expect(find.text('Clinic visit'), findsNothing);
+
+    await tester.tap(find.byTooltip('Clear search'));
+    await tester.pumpAndSettle();
+    expect(find.text('Clinic visit'), findsOneWidget);
+  });
+
+  testWidgets('rename updates the API and the sidebar immediately',
+      (tester) async {
+    String? receivedTitle;
+    final repo = AiRepository(
+      client: MockClient((request) async {
+        if (request.method == 'PATCH' &&
+            request.url.path == '/api/ai-assistant/conversations/c1/') {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          receivedTitle = body['title'] as String?;
+          return _json(_conversation('c1', receivedTitle!));
+        }
+        if (request.url.path == '/api/ai-assistant/conversations/') {
+          return _json([_conversation('c1', 'Conversation one')]);
+        }
+        return _json({'data': _turn()});
+      }),
+    );
+
+    await _viewport(tester);
+    await tester.pumpWidget(_page(await _authenticated(), repo));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Conversation options').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rename'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      ),
+      'Renamed chat',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    expect(receivedTitle, 'Renamed chat');
+    expect(find.text('Renamed chat'), findsOneWidget);
+    expect(find.text('Conversation one'), findsNothing);
+  });
+
+  testWidgets('mobile history is a slide-out panel that closes on selection',
+      (tester) async {
+    final repo = AiRepository(
+      client: MockClient((request) async {
+        if (request.url.path == '/api/ai-assistant/conversations/') {
+          return _json([_conversation('c1', 'Conversation one')]);
+        }
+        if (request.url.path == '/api/ai-assistant/conversations/c1/') {
+          return _json(_conversation('c1', 'Conversation one', messages: [
+            {'uid': 'm1', 'role': 'user', 'content': 'earlier question'},
+          ]));
+        }
+        return _json({'data': _turn()});
+      }),
+    );
+
+    await _viewport(tester, size: const Size(400, 900));
+    await tester.pumpWidget(_page(await _authenticated(), repo));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('ai-search-input')), findsNothing);
+    await tester.tap(find.byTooltip('History'));
+    await tester.pumpAndSettle();
+    expect(find.text('Conversation one'), findsOneWidget);
+
+    await tester.tap(find.text('Conversation one'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('earlier question'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ai-search-input')), findsNothing);
+  });
+
+  for (final entry in {
+    'light': AppTheme.light,
+    'dark': AppTheme.dark,
+  }.entries) {
+    testWidgets('history renders in ${entry.key} theme', (tester) async {
+      final repo = AiRepository(
+        client: MockClient((request) async {
+          if (request.url.path == '/api/ai-assistant/conversations/') {
+            return _json([_conversation('c1', 'Conversation one')]);
+          }
+          return _json({'data': _turn()});
+        }),
+      );
+
+      await _viewport(tester);
+      await tester.pumpWidget(
+        _page(await _authenticated(), repo, theme: entry.value),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Conversation one'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

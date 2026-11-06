@@ -110,6 +110,11 @@ class ConversationListSerializer(serializers.ModelSerializer):
         fields = ["uid", "title", "created_at", "updated_at", "last_activity_at", "archived", "message_count"]
 
     def get_message_count(self, obj):
+        # ``list`` annotates this; detail views omit it and fall back to a
+        # single count query rather than shipping the bodies.
+        annotated = getattr(obj, "message_count", None)
+        if annotated is not None:
+            return annotated
         try:
             return obj.messages.count()
         except Exception:
@@ -131,5 +136,7 @@ class ConversationCreateSerializer(serializers.Serializer):
 
 
 class ConversationUpdateSerializer(serializers.Serializer):
-    title = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    # A manual rename must be a real, meaningful title: blank/whitespace-only
+    # values are rejected instead of wiping the conversation name.
+    title = serializers.CharField(max_length=200, required=False, allow_blank=False)
     archived = serializers.BooleanField(required=False)

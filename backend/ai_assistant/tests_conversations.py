@@ -283,3 +283,118 @@ class ConversationTurnPersistenceTests(TestCase):
         self.assertEqual(resp.status_code, 503)
         self.assertTrue(Conversation.objects.filter(uid=conv.uid).exists())
         self.assertEqual(conv.messages.count(), 0)
+
+
+class ConversationSearchTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = _user()
+        self.other = _user()
+        self.client = _client(self.user)
+
+        self.title_match = Conversation.objects.create(
+            user=self.user, title="Pain crisis plan"
+        )
+        self.body_match = Conversation.objects.create(
+            user=self.user, title="Nutrition notes"
+        )
+        Message.objects.create(
+            conversation=self.body_match,
+            role=Message.Role.USER,
+            content="Which foods help with sickle cell anaemia?",
+        )
+        self.unrelated = Conversation.objects.create(
+            user=self.user, title="Clinic visit"
+        )
+        self.theirs = Conversation.objects.create(
+            user=self.other, title="Pain crisis secret"
+        )
+        Message.objects.create(
+            conversation=self.theirs,
+            role=Message.Role.USER,
+            content="Private sickle cell question",
+        )
+
+    def _titles(self, search):
+        resp = self.client.get(LIST_URL, {"search": search})
+        self.assertEqual(resp.status_code, 200, resp.data)
+        return [row["title"] for row in resp.data]
+
+    def test_search_matches_title(self):
+        titles = self._titles("pain")
+        self.assertIn(self.title_match.title, titles)
+        self.assertNotIn(self.unrelated.title, titles)
+        self.assertNotIn(self.theirs.title, titles)
+
+    def test_search_matches_message_content(self):
+        titles = self._titles("anaemia")
+        self.assertEqual(titles, [self.body_match.title])
+
+    def test_search_is_owner_scoped(self):
+        titles = self._titles("Private")
+        self.assertEqual(titles, [])
+
+    def test_search_does_not_duplicate_a_thread_with_many_matches(self):
+        Message.objects.create(
+            conversation=self.body_match,
+            role=Message.Role.ASSISTANT,
+            content="Foods rich in folate help. Sickle cell nutrition matters.",
+        )
+        titles = self._titles("sickle cell")
+        self.assertEqual(titles.count(self.body_match.title), 1)
+        self.assertNotIn(self.theirs.title, titles)
+
+    def test_list_omits_message_bodies(self):
+        resp = self.client.get(LIST_URL)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data)
+        self.assertNotIn("messages", resp.data[0])
+        self.assertIn("message_count", resp.data[0])
+
+
+class ConversationTitleTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = _user()
+        self.client = _client(self.user)
+
+    def test_first_message_generates_title_when_blank(self):
+        conv = Conversation.objects.create(user=self.user, title="")
+        resp = self.client.post(
+            _messages_url(conv.uid),
+            {"message": "How do I manage a pain crisis?"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        conv.refresh_from_db()
+        self.assertEqual(conv.title, "How do I manage a pain crisis?")
+
+    def test_manual_title_is_never_overwritten_by_later_turns(self):
+        conv = Conversation.objects.create(user=self.user, title="Original")
+        self.client.post(
+            _messages_url(conv.uid),
+            {"message": "What is sickle cell disease?"},
+            format="json",
+        )
+        renamed = self.client.patch(
+            _detail_url(conv.uid), {"title": "My careful title"}, format="json"
+        )
+        self.assertEqual(renamed.status_code, 200, renamed.data)
+        self.client.post(
+            _messages_url(conv.uid),
+            {"message": "What foods help?"},
+            format="json",
+        )
+        conv.refresh_from_db()
+        self.assertEqual(conv.title, "My careful title")
+
+    def test_rename_rejects_blank_and_whitespace_titles(self):
+        conv = Conversation.objects.create(user=self.user, title="Keep me")
+        for bad in ("", "   "):
+            with self.subTest(title=bad):
+                resp = self.client.patch(
+                    _detail_url(conv.uid), {"title": bad}, format="json"
+                )
+                self.assertEqual(resp.status_code, 400, resp.data)
+        conv.refresh_from_db()
+        self.assertEqual(conv.title, "Keep me")

@@ -176,6 +176,28 @@ class AiConversation {
   final List<AiConversationMessage> messages;
 
   String get displayTitle => title.trim();
+
+  /// Local, lossless update used after a rename so the sidebar keeps the
+  /// already-loaded message count instead of dropping to the detail payload's
+  /// empty list.
+  AiConversation copyWith({
+    String? title,
+    DateTime? updatedAt,
+    DateTime? lastActivityAt,
+    bool? archived,
+    int? messageCount,
+    List<AiConversationMessage>? messages,
+  }) =>
+      AiConversation(
+        uid: uid,
+        title: title ?? this.title,
+        createdAt: createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        lastActivityAt: lastActivityAt ?? this.lastActivityAt,
+        archived: archived ?? this.archived,
+        messageCount: messageCount ?? this.messageCount,
+        messages: messages ?? this.messages,
+      );
 }
 
 /// Backend error in the project's `{"error": {...}}` envelope.
@@ -272,9 +294,19 @@ class AiRepository {
   }
 
   /// GET /api/ai-assistant/conversations/ — newest activity first.
-  Future<List<AiConversation>> listConversations(String access) async {
+  ///
+  /// [search] filters by conversation title or message content on the server
+  /// (owner-scoped), so large histories never have to be downloaded to search.
+  Future<List<AiConversation>> listConversations(
+    String access, {
+    String? search,
+  }) async {
+    final query = (search ?? '').trim();
+    final uri = query.isEmpty
+        ? _conversationsUri
+        : _conversationsUri.replace(queryParameters: {'search': query});
     final res = await _client
-        .get(_conversationsUri, headers: _headers(access))
+        .get(uri, headers: _headers(access))
         .timeout(_timeout);
     if (res.statusCode >= 400) throw _errorFrom(res);
     final decoded = jsonDecode(res.body);

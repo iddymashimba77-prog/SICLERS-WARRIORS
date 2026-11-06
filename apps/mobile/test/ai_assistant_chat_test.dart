@@ -155,7 +155,7 @@ void main() {
       await tester.pumpWidget(_page(auth: await _authenticated(), repo: repo));
       await tester.pump();
 
-      await tester.enterText(find.byType(TextField), 'Severe chest pain now');
+      await tester.enterText(find.byKey(const ValueKey('ai-composer-input')), 'Severe chest pain now');
       await tester.tap(find.byTooltip('Send'));
       await tester.pumpAndSettle();
 
@@ -185,7 +185,7 @@ void main() {
       await tester.pumpWidget(_page(auth: await _authenticated(), repo: repo));
       await tester.pump();
 
-      await tester.enterText(find.byType(TextField), 'Write me a prescription');
+      await tester.enterText(find.byKey(const ValueKey('ai-composer-input')), 'Write me a prescription');
       await tester.tap(find.byTooltip('Send'));
       await tester.pumpAndSettle();
 
@@ -209,7 +209,7 @@ void main() {
       await tester.pumpWidget(_page(auth: await _authenticated(), repo: repo));
       await tester.pump();
 
-      await tester.enterText(find.byType(TextField), 'Anything at all');
+      await tester.enterText(find.byKey(const ValueKey('ai-composer-input')), 'Anything at all');
       await tester.tap(find.byTooltip('Send'));
       await tester.pumpAndSettle();
 

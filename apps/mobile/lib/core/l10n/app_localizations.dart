@@ -364,6 +364,18 @@ const Map<String, String> _en = {
   'ai.deleteConversationBody':
       'This permanently removes this conversation and its messages.',
   'ai.newConversation': 'New conversation',
+  'ai.searchConversations': 'Search conversations',
+  'ai.noSearchResults': 'No conversations match your search.',
+  'ai.clearSearch': 'Clear search',
+  'ai.today': 'Today',
+  'ai.yesterday': 'Yesterday',
+  'ai.previous7Days': 'Previous 7 days',
+  'ai.previous30Days': 'Previous 30 days',
+  'ai.older': 'Older',
+  'ai.brandName': "Sickler's Warriors AI",
+  'ai.brandSubtitle': 'Sickle cell support',
+  'ai.loadConversationsFailed': 'Could not load your conversations.',
+  'ai.renameEmpty': 'Enter a title for this conversation.',
   // ------------------------------------------------------- service sections
   'srv.healthTitle': 'Health Management',
   'srv.healthSubtitle':
@@ -1670,6 +1682,18 @@ const Map<String, String> _sw = {
   'ai.deleteConversationBody':
       'Hii itaondoa kabisa mazungumzo haya na jumbe zake.',
   'ai.newConversation': 'Mazungumzo mapya',
+  'ai.searchConversations': 'Tafuta mazungumzo',
+  'ai.noSearchResults': 'Hakuna mazungumzo yanayolingana na utafutaji wako.',
+  'ai.clearSearch': 'Futa utafutaji',
+  'ai.today': 'Leo',
+  'ai.yesterday': 'Jana',
+  'ai.previous7Days': 'Siku 7 zilizopita',
+  'ai.previous30Days': 'Siku 30 zilizopita',
+  'ai.older': 'Zamani',
+  'ai.brandName': "Sickler's Warriors AI",
+  'ai.brandSubtitle': 'Msaada wa seli mundu',
+  'ai.loadConversationsFailed': 'Imeshindikana kupakia mazungumzo yako.',
+  'ai.renameEmpty': 'Weka jina la mazungumzo haya.',
   // ------------------------------------------------------- service sections
   'srv.healthTitle': 'Udhibiti wa Afya',
   'srv.healthSubtitle':
