@@ -16,6 +16,8 @@ import 'package:sicklers_warriors/features/auth/data/token_store.dart';
 import 'package:sicklers_warriors/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:sicklers_warriors/features/education/data/education_repository.dart';
 import 'package:sicklers_warriors/features/education/presentation/pages/education_page.dart';
+import 'package:sicklers_warriors/features/home/data/home_dashboard_loader.dart';
+import 'package:sicklers_warriors/features/home/presentation/pages/home_page.dart';
 import 'package:sicklers_warriors/features/public/data/content_repository.dart';
 import 'package:sicklers_warriors/features/public/presentation/pages/public_home_page.dart';
 import 'package:sicklers_warriors/shared/widgets/banners/animated_page_banner.dart';
@@ -223,6 +225,139 @@ void main() {
     await tester.pumpWidget(_app(_banner(animate: false)));
     await tester.pump();
     expect(tester.getSize(find.byType(AnimatedPageBanner)).height, 154);
+  });
+
+  testWidgets('remains visible without overflow across phone widths', (
+    tester,
+  ) async {
+    for (final width in [320.0, 360.0, 375.0, 390.0, 430.0]) {
+      await _size(tester, Size(width, 700));
+      await tester.pumpWidget(_app(_banner(animate: false)));
+      await tester.pump();
+
+      final banner = find.byType(AnimatedPageBanner);
+      expect(banner, findsOneWidget, reason: 'banner missing at ${width}px');
+      final rect = tester.getRect(banner);
+      expect(rect.width, greaterThan(0), reason: 'zero width at ${width}px');
+      expect(rect.height, greaterThan(0), reason: 'zero height at ${width}px');
+      expect(rect.left, greaterThanOrEqualTo(0));
+      expect(rect.right, lessThanOrEqualTo(width));
+      expect(tester.takeException(), isNull, reason: 'overflow at ${width}px');
+    }
+  });
+
+  testWidgets('all nine catalogue banners stay visible across phone widths', (
+    tester,
+  ) async {
+    for (final width in [320.0, 360.0, 375.0, 390.0, 430.0]) {
+      for (final page in BannerPage.values) {
+        final key = ValueKey<String>('page-banner-${page.name}');
+        await _size(tester, Size(width, 700));
+        await tester.pumpWidget(
+          _app(PageBanner(page: page, margin: EdgeInsets.zero, animate: false)),
+        );
+        await tester.pump();
+
+        expect(
+          find.byKey(key),
+          findsOneWidget,
+          reason: '${page.name} banner missing at ${width}px',
+        );
+        expect(
+          find.byKey(const ValueKey<String>('banner-art-static')),
+          findsOneWidget,
+          reason: '${page.name} illustration missing at ${width}px',
+        );
+        final rect = tester.getRect(find.byKey(key));
+        expect(
+          rect.width,
+          greaterThan(0),
+          reason: '${page.name} has zero width at ${width}px',
+        );
+        expect(
+          rect.height,
+          greaterThan(0),
+          reason: '${page.name} has zero height at ${width}px',
+        );
+        expect(
+          rect.right,
+          lessThanOrEqualTo(width),
+          reason: '${page.name} overflows at ${width}px',
+        );
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${page.name} threw at ${width}px',
+        );
+      }
+    }
+  });
+
+  testWidgets('education page keeps its banner at 320px', (tester) async {
+    await _size(tester, const Size(320, 640));
+    await tester.pumpWidget(
+      _app(
+        EducationPage(
+          authController: await _auth(signedIn: true),
+          repository: _educationRepo(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PageBanner), findsOneWidget);
+    final rect = tester.getRect(find.byType(PageBanner));
+    expect(rect.width, greaterThan(0));
+    expect(rect.height, greaterThan(0));
+    expect(rect.right, lessThanOrEqualTo(320));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('main dashboard keeps its banner visible at 390px', (
+    tester,
+  ) async {
+    final client = MockClient((request) async {
+      if (request.url.path == '/api/patients/me/dashboard/') {
+        return _json({
+          'data': {
+            'generated_at': '2026-09-26T10:00:00Z',
+            'medications': {
+              'active_count': 0,
+              'doses_today': <String, Object>{},
+              'list': <Object>[],
+            },
+            'adherence_last_7_days': <String, Object>{},
+            'recent_symptoms': <Object>[],
+            'recent_timeline': <Object>[],
+          },
+        });
+      }
+      if (request.url.path == '/api/notifications/unread-count/') {
+        return _json({
+          'data': {'unread': 0},
+        });
+      }
+      return _json({'data': <String, Object>{}});
+    });
+    await _size(tester, const Size(390, 844));
+    await tester.pumpWidget(
+      _app(
+        HomePage(
+          controller: await _auth(signedIn: true),
+          loader: HomeDashboardLoader(client: client),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final banner = find.byType(PageBanner);
+    expect(banner, findsOneWidget);
+    final rect = tester.getRect(banner);
+    expect(rect.width, greaterThan(0));
+    expect(rect.height, greaterThan(0));
+    expect(rect.top, lessThan(844));
+    expect(rect.right, lessThanOrEqualTo(390));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('renders in light and dark themes', (tester) async {
