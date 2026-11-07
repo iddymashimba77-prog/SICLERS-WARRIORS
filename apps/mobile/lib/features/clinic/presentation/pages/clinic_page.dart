@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/banners/page_banner_catalog.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/domain/auth_types.dart';
@@ -159,6 +160,10 @@ class _ClinicViewState extends State<ClinicView> {
       ),
       body: Column(
         children: [
+          const PageBanner(
+            page: BannerPage.appointments,
+            margin: EdgeInsets.fromLTRB(16, 12, 16, 4),
+          ),
           SizedBox(
             height: 52,
             child: ListView(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../shared/widgets/banners/page_banner_catalog.dart';
 import '../../../../shared/widgets/dashboard_widgets.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -48,9 +49,19 @@ class HealthDashboardPage extends StatelessWidget {
       return Scaffold(
         appBar: AppBar(title: Text(AppStrings.healthTracking)),
         body: SafeArea(
-          child: CaregiverHealthView(
-            accessToken: token,
-            repository: caregiverRepository,
+          child: Column(
+            children: [
+              const PageBanner(
+                page: BannerPage.healthDashboard,
+                margin: EdgeInsets.fromLTRB(16, 12, 16, 8),
+              ),
+              Expanded(
+                child: CaregiverHealthView(
+                  accessToken: token,
+                  repository: caregiverRepository,
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -58,10 +69,20 @@ class HealthDashboardPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(AppStrings.healthTracking)),
       body: SafeArea(
-        child: HealthDashboardView(
-          accessToken: token,
-          repository:
-              healthRepository ?? HealthRepository(tokenStore: EphemeralTokenStore()),
+        child: Column(
+          children: [
+            const PageBanner(
+              page: BannerPage.healthDashboard,
+              margin: EdgeInsets.fromLTRB(16, 12, 16, 8),
+            ),
+            Expanded(
+              child: HealthDashboardView(
+                accessToken: token,
+                repository:
+                    healthRepository ?? HealthRepository(tokenStore: EphemeralTokenStore()),
+              ),
+            ),
+          ],
         ),
       ),
     );

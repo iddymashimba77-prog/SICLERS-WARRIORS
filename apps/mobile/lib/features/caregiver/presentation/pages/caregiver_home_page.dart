@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_top_bar.dart';
+import '../../../../shared/widgets/banners/page_banner_catalog.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
@@ -156,6 +157,11 @@ class _CaregiverHomeBodyState extends State<_CaregiverHomeBody> {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
+        const PageBanner(
+          page: BannerPage.familyNetwork,
+          margin: EdgeInsets.zero,
+        ),
+        const SizedBox(height: AppSpacing.lg),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),

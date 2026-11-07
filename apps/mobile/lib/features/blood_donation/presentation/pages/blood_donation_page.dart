@@ -5,6 +5,7 @@ import 'blood_decision_history_page.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../shared/widgets/banners/page_banner_catalog.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/domain/auth_types.dart';
@@ -115,7 +116,15 @@ class _BloodHomeViewState extends State<BloodHomeView> {
         icon: const Icon(Icons.add),
         label: Text(AppStrings.requestBlood),
       ),
-      body: _buildBody(),
+      body: Column(
+        children: [
+          const PageBanner(
+            page: BannerPage.bloodDonation,
+            margin: EdgeInsets.fromLTRB(16, 8, 16, 8),
+          ),
+          Expanded(child: _buildBody()),
+        ],
+      ),
     );
   }
 

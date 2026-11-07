@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/banners/page_banner_catalog.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -128,6 +129,11 @@ class _DoctorDirectoryViewState extends State<DoctorDirectoryView> {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
+            const PageBanner(
+              page: BannerPage.doctorNetwork,
+              margin: EdgeInsets.zero,
+            ),
+            const SizedBox(height: AppSpacing.lg),
             if (_loading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),

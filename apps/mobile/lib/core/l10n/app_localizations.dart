@@ -1395,6 +1395,52 @@ const Map<String, String> _en = {
       'Support the warrior community — through blood or verified campaigns. Every contribution is tracked transparently.',
   'changia.bloodSubtitle': 'Request, donate or match blood',
   'changia.donationsSubtitle': 'Support verified campaigns securely',
+  // ------------------------------------------------------------ page banners
+  'banner.dashboard.title': 'Your Health, Our Priority',
+  'banner.dashboard.description':
+      'Your journey matters. We\'re here to support you every step of the way.',
+  'banner.dashboard.semantics':
+      'An African doctor, nurse, child patient and friendly healthcare robot standing together.',
+  'banner.ai.title': 'Your AI Health Companion',
+  'banner.ai.description':
+      'Get reliable sickle cell health information and guidance whenever you need it.',
+  'banner.ai.semantics':
+      'A friendly healthcare robot beside an African doctor with a tablet.',
+  'banner.doctors.title': 'Connect With Healthcare Professionals',
+  'banner.doctors.description':
+      'Discover healthcare professionals and access the support you need.',
+  'banner.doctors.semantics':
+      'Three African doctors from different backgrounds, including women wearing a head wrap and hijab.',
+  'banner.blood.title': 'Every Donation Matters',
+  'banner.blood.description':
+      'Be part of a community helping save lives through blood donation.',
+  'banner.blood.semantics':
+      'An African blood donor, nurse and child patient beside a blood drop and heart.',
+  'banner.education.title': 'Knowledge Empowers Your Health',
+  'banner.education.description':
+      'Explore trusted learning resources and understand sickle cell disease better.',
+  'banner.education.semantics':
+      'An African doctor with a book teaching an adult patient, with learning symbols.',
+  'banner.health.title': 'Stay Informed About Your Health',
+  'banner.health.description':
+      'Monitor your health information and stay connected with your care journey.',
+  'banner.health.semantics':
+      'An African nurse and patient reviewing health information beside a heartbeat line.',
+  'banner.community.title': 'Stronger Together',
+  'banner.community.description':
+      'Connect, share experiences, and support others in the sickle cell community.',
+  'banner.community.semantics':
+      'African patients, a caregiver and a doctor standing together around a heart.',
+  'banner.family.title': 'Care Starts With Family',
+  'banner.family.description':
+      'Stay connected with the people who matter throughout your healthcare journey.',
+  'banner.family.semantics':
+      'A multigenerational African family supporting a child patient with a heart.',
+  'banner.appointments.title': 'Your Care, Better Coordinated',
+  'banner.appointments.description':
+      'Stay informed about your medical appointments and consultations.',
+  'banner.appointments.semantics':
+      'An African doctor with a clipboard consulting a patient beside a calendar.',
 };
 
 const Map<String, String> _sw = {
@@ -2714,6 +2760,52 @@ const Map<String, String> _sw = {
       'Ongeza ngazi kwa jamii ya wapiganaji — kupitia damu au kampeni zilizothibitishwa. Kila mchango unafuatiliwa kwa uwazi.',
   'changia.bloodSubtitle': 'Omba, toa au lingana damu',
   'changia.donationsSubtitle': 'Kuunga mkono kampeni zilizothibitishwa kwa usalama',
+  // ------------------------------------------------------------ page banners
+  'banner.dashboard.title': 'Afya Yako, Kipaumbele Chetu',
+  'banner.dashboard.description':
+      'Safari yako ni muhimu. Tuko hapa kukuunga mkono kila hatua.',
+  'banner.dashboard.semantics':
+      'Daktari wa Kiafrika, muuguzi, mtoto mgonjwa na roboti rafiki wa afya wakiwa pamoja.',
+  'banner.ai.title': 'Mwenza Wako wa Afya wa AI',
+  'banner.ai.description':
+      'Pata taarifa na mwongozo wa kuaminika kuhusu afya ya seli-mundu wakati wowote unaouhitaji.',
+  'banner.ai.semantics':
+      'Roboti rafiki wa afya kando ya daktari wa Kiafrika aliye na kompyuta kibao.',
+  'banner.doctors.title': 'Ungana na Wataalamu wa Afya',
+  'banner.doctors.description':
+      'Gundua wataalamu wa afya na upate msaada unaouhitaji.',
+  'banner.doctors.semantics':
+      'Madaktari watatu wa Kiafrika kutoka asili tofauti, wakiwemo wanawake waliovaa kitambaa cha kichwa na hijabu.',
+  'banner.blood.title': 'Kila Mchango ni Muhimu',
+  'banner.blood.description':
+      'Kuwa sehemu ya jamii inayosaidia kuokoa maisha kupitia uchangiaji wa damu.',
+  'banner.blood.semantics':
+      'Mtoa damu wa Kiafrika, muuguzi na mtoto mgonjwa kando ya tone la damu na moyo.',
+  'banner.education.title': 'Maarifa Huimarisha Afya Yako',
+  'banner.education.description':
+      'Chunguza rasilimali za kujifunza zinazoaminika na uelewe vyema ugonjwa wa seli-mundu.',
+  'banner.education.semantics':
+      'Daktari wa Kiafrika aliye na kitabu akimfundisha mgonjwa mzima, pamoja na alama za kujifunza.',
+  'banner.health.title': 'Endelea Kufahamu Afya Yako',
+  'banner.health.description':
+      'Fuatilia taarifa zako za afya na uendelee kuunganishwa na safari yako ya huduma.',
+  'banner.health.semantics':
+      'Muuguzi wa Kiafrika na mgonjwa wakikagua taarifa za afya kando ya mstari wa mapigo ya moyo.',
+  'banner.community.title': 'Tukiwa Pamoja Tuna Nguvu Zaidi',
+  'banner.community.description':
+      'Ungana, shiriki uzoefu, na saidia wengine katika jamii ya seli-mundu.',
+  'banner.community.semantics':
+      'Wagonjwa wa Kiafrika, mlezi na daktari wakiwa pamoja kuzunguka moyo.',
+  'banner.family.title': 'Huduma Huanza na Familia',
+  'banner.family.description':
+      'Endelea kuwasiliana na watu muhimu katika safari yako ya huduma ya afya.',
+  'banner.family.semantics':
+      'Familia ya Kiafrika ya vizazi mbalimbali ikimuunga mkono mtoto mgonjwa kwa moyo.',
+  'banner.appointments.title': 'Huduma Yako, Iliyoratibiwa Vizuri',
+  'banner.appointments.description':
+      'Endelea kufahamu miadi na ushauri wako wa matibabu.',
+  'banner.appointments.semantics':
+      'Daktari wa Kiafrika aliye na kipande cha kuandikia akishauriana na mgonjwa kando ya kalenda.',
 };
 
 /// Convenience helper that keeps expressions short: `s.tr('nav.home')`.

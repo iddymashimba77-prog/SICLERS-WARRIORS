@@ -25,6 +25,7 @@ import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_emergency.dart';
 import '../../../../shared/widgets/app_top_bar.dart';
+import '../../../../shared/widgets/banners/page_banner_catalog.dart';
 import '../../../../shared/widgets/dashboard_widgets.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../data/home_dashboard_loader.dart';
@@ -154,6 +155,18 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
                   Navigator.of(context).pushNamed(ProfilePage.routeName),
               avatarName: _personName,
               avatarImageUrl: _session.photoUrl,
+            ),
+            ResponsiveBuilder(
+              builder: (context, size) {
+                final edge = AppLayout.edgePadding(size);
+                return Padding(
+                  padding: EdgeInsets.fromLTRB(edge, AppSpacing.md, edge, 0),
+                  child: const PageBanner(
+                    page: BannerPage.dashboard,
+                    margin: EdgeInsets.zero,
+                  ),
+                );
+              },
             ),
             _buildBody(context),
           ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../shared/widgets/banners/page_banner_catalog.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/data/token_store.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -157,6 +158,10 @@ class _EducationLibraryViewState extends State<EducationLibraryView> {
       ),
       body: Column(
         children: [
+          const PageBanner(
+            page: BannerPage.education,
+            margin: EdgeInsets.fromLTRB(12, 12, 12, 0),
+          ),
           _SearchBar(
             controller: _searchController,
             onSubmitted: _search,

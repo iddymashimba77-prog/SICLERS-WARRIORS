@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_avatar.dart';
 import '../../../../shared/widgets/app_top_bar.dart';
+import '../../../../shared/widgets/banners/page_banner_catalog.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../../emergency/presentation/pages/emergency_page.dart';
@@ -506,6 +507,15 @@ class _AiAssistantViewState extends State<AiAssistantView> {
     final chat = Column(
       children: [
         _chatToolbar(context, isWide: isWide),
+        PageBanner(
+          page: BannerPage.aiAssistant,
+          margin: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            0,
+          ),
+        ),
         Expanded(
           child: _loadingConversation
               ? const Center(child: CircularProgressIndicator())
