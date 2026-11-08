@@ -272,18 +272,6 @@ const Map<String, String> _en = {
   'home.journeyStep3Title': 'Stay supported',
   'home.journeyStep3Body':
       'Keep your care history close, learn from trusted resources and remain connected to a community that understands.',
-  'home.impactTitle': 'Built for the real life of a Warrior',
-  'home.impactBody':
-      'Sickle cell care is bigger than a single appointment. The platform is designed around the everyday moments between visits — the questions, the urgent nights, the small wins and the people who make them possible.',
-  'home.impactOneTitle': 'Less fragmented care',
-  'home.impactOneBody':
-      'Bring health tracking, medication, clinics, blood and emergency support into one consistent experience.',
-  'home.impactTwoTitle': 'Privacy with purpose',
-  'home.impactTwoBody':
-      'Consent, secure access and transparent data practices sit at the centre of how the platform works.',
-  'home.impactThreeTitle': 'No one carries it alone',
-  'home.impactThreeBody':
-      'Families, caregivers, clinicians, donors and the Warrior community stay connected around the person at the centre.',
   'home.sos': 'SOS',
   'home.sosHint': 'Emergency SOS',
   'home.tagline': 'Community · Care · Courage',
@@ -294,17 +282,6 @@ const Map<String, String> _en = {
   'home.servicesDetailTitle': 'All services, one tap away',
   'home.phoneQuickActions': 'Quick actions',
   'home.phoneSubtitle': 'Your care at a glance',
-  'home.trustTitle': 'Trust, Privacy & Consent',
-  'home.trustBody':
-      "Your health data is yours. We are transparent about what we collect, why we collect it, and your control over it — with consent at the centre of every decision.",
-  'home.trustEncrypted': 'Encrypted & Secure',
-  'home.trustConsent': 'Consent-Based',
-  'home.trustPrivacy': 'Privacy First',
-  'home.trustAccess': 'Authorized Access Only',
-  'home.finalCtaTitle': 'Ready to Join Our Community?',
-  'home.finalCtaBody':
-      "Create your account today and start your journey with Sickler's Warriors.",
-  'home.sosFooter': 'Emergency? Sign in to reach the SOS pathway.',
   'home.signedInOnly': 'Available in the app for signed-in members.',
   'home.explore': 'Explore',
   'home.newsLatest': 'Latest News',
@@ -313,7 +290,6 @@ const Map<String, String> _en = {
   'home.newsFeatured': 'Featured Stories',
   'home.newsViewAll': 'View all news',
   'home.newsLatestUpdate': 'Latest Update',
-  'home.footerRights': '© 2026 Sickler\'s Warriors. All rights reserved.',
   // ------------------------------------------------------------ hydration
   'hydration.title': 'Hydration',
   'hydration.intro':
@@ -359,23 +335,6 @@ const Map<String, String> _en = {
   'common.lightMode': 'Light mode',
   'common.darkMode': 'Dark mode',
   'common.menuSuffix': 'menu',
-  // ---------------------------------------------------------------- footer
-  'footer.privacy': 'Privacy',
-  'footer.terms': 'Terms',
-  'footer.consent': 'Consent',
-  'footer.contact': 'Contact',
-  'footer.privacyTitle': 'Privacy & Data Protection',
-  'footer.privacyBody':
-      'How Sickler\'s Warriors handles your personal and health information with care, transparency and your consent.',
-  'footer.termsTitle': 'Terms of Service',
-  'footer.termsBody':
-      'The rules and responsibilities that keep the community safe and fair for everyone.',
-  'footer.consentTitle': 'Consent & Control',
-  'footer.consentBody':
-      'Choose what you share, who can see it, and withdraw consent at any time.',
-  'footer.contactTitle': 'Contact the Team',
-  'footer.contactBody':
-      'Reach out for support, partnership or feedback — the Warrior community is listening.',
   // ------------------------------------------------------- ai assistant
   'ai.welcomeTitle': 'Your sickle cell AI coach',
   'ai.welcomeBody':
@@ -1701,18 +1660,6 @@ const Map<String, String> _sw = {
   'home.journeyStep3Title': 'Baki na msaada',
   'home.journeyStep3Body':
       'Weka historia yako ya huduma karibu, jifunze kutoka vyanzo vinavyoaminika na uendelee kuwa sehemu ya jamii inayokuelewa.',
-  'home.impactTitle': 'Imejengwa kwa maisha halisi ya Shujaa',
-  'home.impactBody':
-      'Huduma ya seli mundu ni zaidi ya miadi moja. Jukwaa limeundwa kuzunguka nyakati za kila siku kati ya ziara — maswali, usiku wa dharura, ushindi mdogo na watu wanaouwezekanisha.',
-  'home.impactOneTitle': 'Huduma isiyogawanyika',
-  'home.impactOneBody':
-      'Leta ufuatiliaji wa afya, dawa, kliniki, damu na msaada wa dharura katika uzoefu mmoja thabiti.',
-  'home.impactTwoTitle': 'Usiri wenye kusudi',
-  'home.impactTwoBody':
-      'Idhini, ufikiaji salama na mbinu wazi za data ni kitovu cha jinsi jukwaa linavyofanya kazi.',
-  'home.impactThreeTitle': 'Hakuna anayebeba peke yake',
-  'home.impactThreeBody':
-      'Familia, walezi, wataalamu, wachangiaji damu na jamii ya Mashujaa wanabaki wameunganishwa kuzunguka mtu aliye kitovu.',
   'home.sos': 'SOS',
   'home.sosHint': 'SOS ya dharura',
   'home.tagline': 'Jamii · Utunzaji · Ujasiri',
@@ -1723,16 +1670,6 @@ const Map<String, String> _sw = {
   'home.servicesDetailTitle': 'Huduma zote, umbali wa mguso mmoja',
   'home.phoneQuickActions': 'Vitendo vya haraka',
   'home.phoneSubtitle': 'Huduma yako kwa machoni pako',
-  'home.trustTitle': 'Amani, Usiri na Idhini',
-  'home.trustBody':
-      'Data yako ya afya ni yako. Tuko wazi kuhusu kile tunachokusanya, kwanini tunakikusanya, na udhibiti wako juu yake — kwa idhini kuwa kitovu cha kila uamuzi.',
-  'home.trustEncrypted': 'Imesimbwa na Salama',
-  'home.trustConsent': 'Kwa Idhini',
-  'home.trustPrivacy': 'Usiri Kwanza',
-  'home.trustAccess': 'Wanaoidhinishwa Pekee',
-  'home.finalCtaTitle': 'Tayari Kujiunga na Jamii Yetu?',
-  'home.finalCtaBody': 'Unda akaunti yako leo na uanze safari yako na Sickler\'s Warriors.',
-  'home.sosFooter': 'Dharura? Ingia ili kufikia njia ya SOS.',
   'home.signedInOnly': 'Inapatikana kwenye programu kwa wanachama walioingia.',
   'home.explore': 'Chunguza',
   'home.newsLatest': 'Habari za Hivi Punde',
@@ -1741,7 +1678,6 @@ const Map<String, String> _sw = {
   'home.newsFeatured': 'Hadithi Zilizochaguliwa',
   'home.newsViewAll': 'Ona habari zote',
   'home.newsLatestUpdate': 'Taarifa ya Hivi Punde',
-  'home.footerRights': '© 2026 Sickler\'s Warriors. Haki zote zimehifadhiwa.',
   // ------------------------------------------------------------ hydration
   'hydration.title': 'Unyevu',
   'hydration.intro':
@@ -1787,23 +1723,6 @@ const Map<String, String> _sw = {
   'common.lightMode': 'Hali ya mwanga',
   'common.darkMode': 'Hali ya giza',
   'common.menuSuffix': 'menyu',
-  // ---------------------------------------------------------------- footer
-  'footer.privacy': 'Usiri',
-  'footer.terms': 'Masharti',
-  'footer.consent': 'Idhini',
-  'footer.contact': 'Wasiliana',
-  'footer.privacyTitle': 'Usiri na Ulinzi wa Taarifa',
-  'footer.privacyBody':
-      'Jinsi Sickler\'s Warriors inavyoshughulikia taarifa zako binafsi na za afya kwa uangalifu, uwazi na idhini yako.',
-  'footer.termsTitle': 'Masharti ya Huduma',
-  'footer.termsBody':
-      'Sheria na majukumu yanayofanya jamii iwe salama na haki kwa kila mtu.',
-  'footer.consentTitle': 'Idhini na Udhibiti',
-  'footer.consentBody':
-      'Chagua unachoshiriki, nani anaona, na ujihuishe idhini wakati wowote.',
-  'footer.contactTitle': 'Wasiliana na Timu',
-  'footer.contactBody':
-      'Wasiliana kwa msaada, ushirikiano au maoni — jamii ya Mashujaa inasikiliza.',
   // ------------------------------------------------------- ai assistant
   'ai.welcomeTitle': 'Mshauri wako wa seli mundu',
   'ai.welcomeBody':

@@ -173,18 +173,15 @@ void main() {
       );
     });
 
-    testWidgets('the footer Contact link reaches the contact page (EN)',
+    testWidgets('the public home no longer renders footer links',
         (tester) async {
       await tester.pumpWidget(_publicHome('en'));
       await _settleRouteTransition(tester);
 
-      await tester.ensureVisible(find.text('Contact'));
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.tap(find.text('Contact'));
-      await _settleRouteTransition(tester);
-
-      expect(find.byType(ContactUsPage), findsOneWidget);
-      expect(find.text('We\'re Here to Connect.'), findsOneWidget);
+      expect(find.text('Privacy'), findsNothing);
+      expect(find.text('Terms'), findsNothing);
+      expect(find.text('Consent'), findsNothing);
+      expect(find.text('Contact'), findsNothing);
     });
   });
 

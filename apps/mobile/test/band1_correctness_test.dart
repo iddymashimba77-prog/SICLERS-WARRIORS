@@ -186,32 +186,36 @@ void main() {
     });
   });
 
-  group('public home footer localizes (Band 1 correctness)', () {
-    testWidgets('English footer labels resolve from the EN table',
+  group('public home removed sections (Band 1 correctness)', () {
+    testWidgets('impact, trust, final CTA and footer stay absent',
         (tester) async {
       await tester.pumpWidget(_publicHome('en'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Privacy'), findsOneWidget);
-      expect(find.text('Terms'), findsOneWidget);
-      expect(find.text('Consent'), findsOneWidget);
-      expect(find.text('Contact'), findsOneWidget);
+      expect(find.text('Built for the real life of a Warrior'), findsNothing);
+      expect(find.text('Trust, Privacy & Consent'), findsNothing);
+      expect(find.text('Ready to Join Our Community?'), findsNothing);
+      expect(find.text('Privacy'), findsNothing);
+      expect(find.text('Terms'), findsNothing);
+      expect(find.text('Consent'), findsNothing);
+      expect(find.text('Contact'), findsNothing);
       await tester.pumpWidget(const SizedBox());
     });
 
-    testWidgets('Kiswahili footer labels resolve from the SW table',
+    testWidgets('removed sections stay absent under Kiswahili',
         (tester) async {
       await tester.pumpWidget(_publicHome('sw'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Privacy'), findsNothing,
-          reason: 'the footer must not stay English under the SW locale');
-      expect(find.text('Usiri'), findsOneWidget);
-      expect(find.text('Masharti'), findsOneWidget);
-      expect(find.text('Idhini'), findsOneWidget);
-      expect(find.text('Wasiliana'), findsOneWidget);
+      expect(find.text('Imejengwa kwa maisha halisi ya Shujaa'), findsNothing);
+      expect(find.text('Amani, Usiri na Idhini'), findsNothing);
+      expect(find.text('Tayari Kujiunga na Jamii Yetu?'), findsNothing);
+      expect(find.text('Usiri'), findsNothing);
+      expect(find.text('Masharti'), findsNothing);
+      expect(find.text('Idhini'), findsNothing);
+      expect(find.text('Wasiliana'), findsNothing);
       await tester.pumpWidget(const SizedBox());
     });
   });

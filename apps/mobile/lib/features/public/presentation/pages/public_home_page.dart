@@ -10,7 +10,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/theme_controller.dart';
 import '../../../../shared/widgets/app_logo.dart';
-import '../../../../shared/widgets/module_placeholder_page.dart';
 import 'about_pages.dart';
 import '../../../../core/theme/app_shapes.dart';
 
@@ -18,8 +17,7 @@ import '../../../../core/theme/app_shapes.dart';
 ///
 /// A public brand experience built around a calm, premium care journey:
 /// pinned header with mega-menus, an editorial hero, the three-step care path,
-/// the seven service pillars with the signed-in app showcase, a consent-led
-/// impact band, trust/privacy, a final CTA and a real footer. News and
+/// and the seven service pillars with the signed-in app showcase. News and
 /// announcements are deliberately absent from the public surface.
 class PublicHomePage extends StatefulWidget {
   const PublicHomePage({super.key});
@@ -118,10 +116,6 @@ class _PublicHomePageState extends State<PublicHomePage> {
                     ),
                   ],
                 ),
-                _ImpactSection(theme: theme),
-                _TrustSection(theme: theme),
-                _FinalCTASection(theme: theme),
-                _Footer(theme: theme),
               ],
             ),
           ),
@@ -933,130 +927,6 @@ class _JourneyCard extends StatelessWidget {
   }
 }
 
-// =================================================================== impact
-
-class _ImpactSection extends StatelessWidget {
-  const _ImpactSection({required this.theme});
-
-  final ThemeData theme;
-
-  static const _cards = <({String title, String body, IconData icon})>[
-    (
-      title: 'home.impactOneTitle',
-      body: 'home.impactOneBody',
-      icon: Icons.route_outlined,
-    ),
-    (
-      title: 'home.impactTwoTitle',
-      body: 'home.impactTwoBody',
-      icon: Icons.shield_outlined,
-    ),
-    (
-      title: 'home.impactThreeTitle',
-      body: 'home.impactThreeBody',
-      icon: Icons.diversity_3_outlined,
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    final wide = MediaQuery.of(context).size.width > 1024;
-    return Container(
-      color: theme.colorScheme.surfaceContainerLow,
-      padding: EdgeInsets.symmetric(
-        vertical: AppSpacing.xxxl,
-        horizontal: wide ? AppSpacing.xxxl : AppSpacing.lg,
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: AppSpacing.contentMaxWidth),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                s.tr('home.impactTitle'),
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurface,
-                  height: 1.15,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: Text(
-                  s.tr('home.impactBody'),
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.55,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final columns = constraints.maxWidth >= 900 ? 3 : 1;
-                  final gap = AppSpacing.lg;
-                  final width = columns == 1
-                      ? constraints.maxWidth
-                      : (constraints.maxWidth - gap * (columns - 1)) / columns;
-                  return Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
-                    children: [
-                      for (final card in _cards)
-                        SizedBox(
-                          width: width,
-                          child: Container(
-                            padding: const EdgeInsets.all(AppSpacing.xl),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface,
-                              borderRadius: AppShapes.large,
-                              border: Border.all(
-                                color: theme.colorScheme.outlineVariant,
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(
-                                  card.icon,
-                                  color: AppColors.emergency,
-                                  size: 26,
-                                ),
-                                const SizedBox(height: AppSpacing.md),
-                                Text(
-                                  s.tr(card.title),
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: theme.colorScheme.onSurface,
-                                  ),
-                                ),
-                                const SizedBox(height: AppSpacing.xs),
-                                Text(
-                                  s.tr(card.body),
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ==================================================== service area sections
 
 /// One public service area: localized copy, icon, priority action routes.
@@ -1087,7 +957,7 @@ class _ServiceSpec {
 /// the signed-in app surrounded by floating healthcare icons. The CTA scrolls
 /// to the full service cards (with their real route actions) that render
 /// directly beneath the container inside the same band. The care journey above
-/// and the impact/trust/CTA/footer block below stay visually separate.
+/// stays visually separate from this band.
 class _WarriorNeedsSection extends StatefulWidget {
   const _WarriorNeedsSection({
     super.key,
@@ -1732,231 +1602,6 @@ class _SectionAction {
   final String route;
 }
 
-// ==================================================================== trust
-
-class _TrustSection extends StatelessWidget {
-  const _TrustSection({required this.theme});
-
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    return Container(
-      color: AppColors.navy,
-      padding: EdgeInsets.symmetric(
-        vertical: AppSpacing.xxxl,
-        horizontal: AppSpacing.xl,
-      ),
-      child: Column(
-        children: [
-          Text(
-            s.tr('home.trustTitle'),
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            s.tr('home.trustBody'),
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: .85),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          Wrap(
-            spacing: AppSpacing.lg,
-            runSpacing: AppSpacing.lg,
-            alignment: WrapAlignment.center,
-            children: [
-              _TrustItem(icon: Icons.lock_outline, label: s.tr('home.trustEncrypted')),
-              _TrustItem(icon: Icons.verified_user_outlined, label: s.tr('home.trustConsent')),
-              _TrustItem(icon: Icons.privacy_tip_outlined, label: s.tr('home.trustPrivacy')),
-              _TrustItem(icon: Icons.shield_outlined, label: s.tr('home.trustAccess')),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TrustItem extends StatelessWidget {
-  const _TrustItem({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .1),
-            borderRadius: AppShapes.tile,
-          ),
-          child: Icon(icon, size: 26, color: Colors.white),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: Colors.white.withValues(alpha: .9),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ============================================================== final CTA
-
-class _FinalCTASection extends StatelessWidget {
-  const _FinalCTASection({required this.theme});
-
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    return Container(
-      color: theme.colorScheme.surface,
-      padding: EdgeInsets.symmetric(
-        vertical: AppSpacing.xxxl,
-        horizontal: AppSpacing.xl,
-      ),
-      child: Column(
-        children: [
-          Text(
-            s.tr('home.finalCtaTitle'),
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: AppColors.darkRed,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            s.tr('home.finalCtaBody'),
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          FilledButton(
-            onPressed: () => Navigator.pushNamed(context, '/signup'),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.emergency,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xl,
-                vertical: AppSpacing.md,
-              ),
-            ),
-            child: Text(s.tr('common.createAccount')),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// =================================================================== footer
-
-class _Footer extends StatelessWidget {
-  const _Footer({required this.theme});
-
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    return Container(
-      color: theme.colorScheme.surfaceContainerLow,
-      padding: EdgeInsets.symmetric(
-        vertical: AppSpacing.xl,
-        horizontal: AppSpacing.xl,
-      ),
-      child: Column(
-        children: [
-          const AppBrand(markHeight: 40, showSubtitle: true),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            s.tr('home.footerRights'),
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            alignment: WrapAlignment.center,
-            children: [
-              for (final link in <_MenuLink>[
-                _MenuLink(s.tr('footer.privacy'), icon: Icons.privacy_tip_outlined,
-                    page: _infoPage(s.tr('footer.privacyTitle'),
-                        s.tr('footer.privacyBody'))),
-                _MenuLink(s.tr('footer.terms'), icon: Icons.description_outlined,
-                    page: _infoPage(s.tr('footer.termsTitle'),
-                        s.tr('footer.termsBody'))),
-                _MenuLink(s.tr('footer.consent'), icon: Icons.how_to_reg_outlined,
-                    page: _infoPage(s.tr('footer.consentTitle'),
-                        s.tr('footer.consentBody'))),
-                _MenuLink(s.tr('footer.contact'), icon: Icons.mail_outline,
-                    page: const ContactUsPage()),
-              ])
-                _FooterLink(link: link),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            s.tr('home.sosFooter'),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FooterLink extends StatelessWidget {
-  const _FooterLink({required this.link});
-
-  final _MenuLink link;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: () {
-        if (link.route.isNotEmpty) {
-          Navigator.pushNamed(context, link.route);
-        } else if (link.page != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => link.page!),
-          );
-        }
-      },
-      child: Text(
-        link.label,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-      ),
-    );
-  }
-}
-
 // ========================================================= mega menu model
 
 class _MenuLink {
@@ -1966,15 +1611,9 @@ class _MenuLink {
   final IconData icon;
   final String route;
 
-  /// Page for destinations without a named route (About/footer info pages).
+  /// Page for destinations without a named route (About pages).
   final Widget? page;
 }
-
-Widget _infoPage(String title, String description) => ModulePlaceholderPage(
-      title: title,
-      description: description,
-      icon: Icons.info_outline,
-    );
 
 Map<String, List<_MenuLink>> _megaMenusFor(AppLocalizations s) {
   return {
