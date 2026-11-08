@@ -81,6 +81,7 @@ const Map<String, String> _en = {
   'app.name': "Sickler's Warriors",
   'common.loading': 'Loading…',
   'common.retry': 'Retry',
+  'common.add': 'Add',
   'common.close': 'Close',
   'common.cancel': 'Cancel',
   'common.confirm': 'Confirm',
@@ -251,6 +252,38 @@ const Map<String, String> _en = {
   'home.heroBody':
       'A digital health, blood and support platform for people living with sickle cell, their families, caregivers, healthcare providers and donors.',
   'home.readLatest': 'Read the latest updates',
+  'home.heroBadge': 'Care, community and courage — together',
+  'home.heroPrimaryCta': 'Join the community',
+  'home.heroProofOne': 'Patient-first by design',
+  'home.heroProofTwo': 'Consent-led health data',
+  'home.heroProofThree': 'Care that stays connected',
+  'home.heroPanelOne': 'One home for health, blood and support',
+  'home.heroPanelTwo': 'Your data, your consent, your control',
+  'home.heroPanelThree': 'Built with warriors, families and clinicians',
+  'home.journeyTitle': 'A clearer path from first tap to lasting care',
+  'home.journeySubtitle':
+      'Sickler\'s Warriors connects the moments that matter — understanding your health, reaching the right support, and staying connected to people who understand.',
+  'home.journeyStep1Title': 'Join with confidence',
+  'home.journeyStep1Body':
+      'Create a secure account for yourself, your family or the person you care for, with clear consent at every step.',
+  'home.journeyStep2Title': 'Reach the right care',
+  'home.journeyStep2Body':
+      'Find health tools, clinics, blood support and emergency pathways without piecing the system together alone.',
+  'home.journeyStep3Title': 'Stay supported',
+  'home.journeyStep3Body':
+      'Keep your care history close, learn from trusted resources and remain connected to a community that understands.',
+  'home.impactTitle': 'Built for the real life of a Warrior',
+  'home.impactBody':
+      'Sickle cell care is bigger than a single appointment. The platform is designed around the everyday moments between visits — the questions, the urgent nights, the small wins and the people who make them possible.',
+  'home.impactOneTitle': 'Less fragmented care',
+  'home.impactOneBody':
+      'Bring health tracking, medication, clinics, blood and emergency support into one consistent experience.',
+  'home.impactTwoTitle': 'Privacy with purpose',
+  'home.impactTwoBody':
+      'Consent, secure access and transparent data practices sit at the centre of how the platform works.',
+  'home.impactThreeTitle': 'No one carries it alone',
+  'home.impactThreeBody':
+      'Families, caregivers, clinicians, donors and the Warrior community stay connected around the person at the centre.',
   'home.sos': 'SOS',
   'home.sosHint': 'Emergency SOS',
   'home.tagline': 'Community · Care · Courage',
@@ -281,6 +314,35 @@ const Map<String, String> _en = {
   'home.newsViewAll': 'View all news',
   'home.newsLatestUpdate': 'Latest Update',
   'home.footerRights': '© 2026 Sickler\'s Warriors. All rights reserved.',
+  // ------------------------------------------------------------ hydration
+  'hydration.title': 'Hydration',
+  'hydration.intro':
+      'Track what you drink through the day. Your care team can help you set a personal fluid goal.',
+  'hydration.today': 'Today',
+  'hydration.noGoal': 'No goal set',
+  'hydration.noGoalBody':
+      'Hydration needs vary from person to person. Set a goal only if your care team has advised one, or start by simply tracking your intake.',
+  'hydration.setGoal': 'Set goal',
+  'hydration.editGoal': 'Edit goal',
+  'hydration.goalDialogBody':
+      'Enter the daily fluid goal advised by your care team (250–6000 ml). You can change it at any time.',
+  'hydration.amountLabel': 'Daily goal',
+  'hydration.intakeAmount': 'Amount',
+  'hydration.ml': 'ml',
+  'hydration.addIntake': 'Add intake',
+  'hydration.customAmount': 'Custom amount',
+  'hydration.invalidAmount': 'Enter an amount between 1 and 3000 ml.',
+  'hydration.invalidGoal': 'Enter a goal between 250 and 6000 ml.',
+  'hydration.saved': 'Intake saved.',
+  'hydration.goalSaved': 'Hydration goal saved.',
+  'hydration.loadFailed': 'Unable to load your hydration. Check your connection.',
+  'hydration.disclaimer':
+      'This tracker records what you log and does not replace medical advice. Follow the fluid guidance given by your care team.',
+  'hydration.todayEntries': 'Today\'s entries',
+  'hydration.empty': 'No intake logged yet',
+  'hydration.emptyBody': 'Add a drink above to start today\'s record.',
+  'hydration.consumed': 'consumed',
+  'hydration.remaining': 'remaining',
   // ------------------------------------------------------------ public news
   'news.title': 'Article',
   'news.listTitle': 'Latest News & Updates',
@@ -587,6 +649,7 @@ const Map<String, String> _en = {
       'Your data stays yours. Review what you share and with whom, and withdraw consent at any time.',
   'profile.preferences': 'Preferences',
   'profile.appearanceLanguage': 'Appearance & language',
+  'profile.newsSubtitle': 'Stories and updates for signed-in Warriors',
   'profile.adaptExperience': 'Theme and language follow your device or your choice.',
   'settings.themeLight': 'Light',
   'settings.themeDark': 'Dark',
@@ -1448,6 +1511,7 @@ const Map<String, String> _sw = {
   'app.name': "Sickler's Warriors",
   'common.loading': 'Inapakia…',
   'common.retry': 'Jaribu tena',
+  'common.add': 'Ongeza',
   'common.close': 'Funga',
   'common.cancel': 'Ghairi',
   'common.confirm': 'Thibitisha',
@@ -1617,6 +1681,38 @@ const Map<String, String> _sw = {
   'home.heroBody':
       'Jukwaa la kidijitali la afya, damu na msaada kwa watu wanaoishi na ugonjwa wa seli mundu, familia zao, walezi, watoa huduma za afya na wachangiaji damu.',
   'home.readLatest': 'Soma habari za hivi punde',
+  'home.heroBadge': 'Huduma, jamii na ujasiri — pamoja',
+  'home.heroPrimaryCta': 'Jiunge na jamii',
+  'home.heroProofOne': 'Mgonjwa kwanza kwa muundo',
+  'home.heroProofTwo': 'Data ya afya kwa idhini',
+  'home.heroProofThree': 'Huduma inayobaki karibu',
+  'home.heroPanelOne': 'Mahali pamoja pa afya, damu na msaada',
+  'home.heroPanelTwo': 'Data yako, idhini yako, udhibiti wako',
+  'home.heroPanelThree': 'Imejengwa na mashujaa, familia na wataalamu',
+  'home.journeyTitle': 'Njia iliyo wazi kutoka mguso wa kwanza hadi huduma endelevu',
+  'home.journeySubtitle':
+      'Sickler\'s Warriors inaunganisha nyakati muhimu — kuelewa afya yako, kufikia msaada sahihi, na kubaki karibu na watu wanaokuelewa.',
+  'home.journeyStep1Title': 'Jiunge kwa uhakika',
+  'home.journeyStep1Body':
+      'Unda akaunti salama kwa ajili yako, familia yako au mtu unayemlea, kwa idhini iliyo wazi katika kila hatua.',
+  'home.journeyStep2Title': 'Fikia huduma sahihi',
+  'home.journeyStep2Body':
+      'Pata zana za afya, kliniki, msaada wa damu na njia za dharura bila kukusanya mfumo peke yako.',
+  'home.journeyStep3Title': 'Baki na msaada',
+  'home.journeyStep3Body':
+      'Weka historia yako ya huduma karibu, jifunze kutoka vyanzo vinavyoaminika na uendelee kuwa sehemu ya jamii inayokuelewa.',
+  'home.impactTitle': 'Imejengwa kwa maisha halisi ya Shujaa',
+  'home.impactBody':
+      'Huduma ya seli mundu ni zaidi ya miadi moja. Jukwaa limeundwa kuzunguka nyakati za kila siku kati ya ziara — maswali, usiku wa dharura, ushindi mdogo na watu wanaouwezekanisha.',
+  'home.impactOneTitle': 'Huduma isiyogawanyika',
+  'home.impactOneBody':
+      'Leta ufuatiliaji wa afya, dawa, kliniki, damu na msaada wa dharura katika uzoefu mmoja thabiti.',
+  'home.impactTwoTitle': 'Usiri wenye kusudi',
+  'home.impactTwoBody':
+      'Idhini, ufikiaji salama na mbinu wazi za data ni kitovu cha jinsi jukwaa linavyofanya kazi.',
+  'home.impactThreeTitle': 'Hakuna anayebeba peke yake',
+  'home.impactThreeBody':
+      'Familia, walezi, wataalamu, wachangiaji damu na jamii ya Mashujaa wanabaki wameunganishwa kuzunguka mtu aliye kitovu.',
   'home.sos': 'SOS',
   'home.sosHint': 'SOS ya dharura',
   'home.tagline': 'Jamii · Utunzaji · Ujasiri',
@@ -1646,6 +1742,35 @@ const Map<String, String> _sw = {
   'home.newsViewAll': 'Ona habari zote',
   'home.newsLatestUpdate': 'Taarifa ya Hivi Punde',
   'home.footerRights': '© 2026 Sickler\'s Warriors. Haki zote zimehifadhiwa.',
+  // ------------------------------------------------------------ hydration
+  'hydration.title': 'Unyevu',
+  'hydration.intro':
+      'Fuatilia unachokunywa katika siku. Timu yako ya huduma inaweza kukusaidia kuweka lengo la maji la kibinafsi.',
+  'hydration.today': 'Leo',
+  'hydration.noGoal': 'Hakuna lengo lililowekwa',
+  'hydration.noGoalBody':
+      'Mahitaji ya unyevu hutofautiana kwa kila mtu. Weka lengo tu ikiwa timu yako ya huduma imeshauri hivyo, au anza kwa kufuatilia tu unachokunywa.',
+  'hydration.setGoal': 'Weka lengo',
+  'hydration.editGoal': 'Badilisha lengo',
+  'hydration.goalDialogBody':
+      'Weka lengo la maji la kila siku lililoshauriwa na timu yako ya huduma (250–6000 ml). Unaweza kulibadilisha wakati wowote.',
+  'hydration.amountLabel': 'Lengo la kila siku',
+  'hydration.intakeAmount': 'Kiasi',
+  'hydration.ml': 'ml',
+  'hydration.addIntake': 'Ongeza ulichokunywa',
+  'hydration.customAmount': 'Kiasi kingine',
+  'hydration.invalidAmount': 'Weka kiasi kati ya 1 na 3000 ml.',
+  'hydration.invalidGoal': 'Weka lengo kati ya 250 na 6000 ml.',
+  'hydration.saved': 'Ulichokunywa kimehifadhiwa.',
+  'hydration.goalSaved': 'Lengo la unyevu limehifadhiwa.',
+  'hydration.loadFailed': 'Imeshindikana kupakia unyevu wako. Angalia mtandao wako.',
+  'hydration.disclaimer':
+      'Kifuatilia hiki kinarekodi unachoweka na hakichukui nafasi ya ushauri wa matibabu. Fuata mwongozo wa maji uliotolewa na timu yako ya huduma.',
+  'hydration.todayEntries': 'Maingizo ya leo',
+  'hydration.empty': 'Hakuna ulichokunywa kilichorekodiwa bado',
+  'hydration.emptyBody': 'Ongeza kinywaji hapo juu kuanza rekodi ya leo.',
+  'hydration.consumed': 'zimekunywa',
+  'hydration.remaining': 'zimesalia',
   // ------------------------------------------------------------ public news
   'news.title': 'Makala',
   'news.listTitle': 'Habari na Masasisho ya Hivi Karibuni',
@@ -1950,6 +2075,7 @@ const Map<String, String> _sw = {
       'Data yako inabaki yako. Kagua unachoshiriki na cha nani, na utengue idhini wakati wowote.',
   'profile.preferences': 'Mapendeleo',
   'profile.appearanceLanguage': 'Muonekano na lugha',
+  'profile.newsSubtitle': 'Hadithi na masasisho kwa Mashujaa walioingia',
   'profile.adaptExperience': 'Mandhari na lugha vinafuata kifaa chako au chaguo lako.',
   'settings.themeLight': 'Mwangaza',
   'settings.themeDark': 'Giza',

@@ -23,8 +23,12 @@ Rules enforced here and at the API layer:
   beyond the approved row-162 set.
 """
 
+import uuid
+
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 
 class Patient(models.Model):
@@ -67,6 +71,14 @@ class Patient(models.Model):
         help_text="Clinic/hospital where the patient receives treatment.",
     )
     notes = models.TextField(blank=True)  # private — never surfaced beyond owner
+    # Optional, patient/clinician-guided daily fluid goal. Deliberately nullable:
+    # there is no universal water target, and the app must never imply one.
+    hydration_goal_ml = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(250), MaxValueValidator(6000)],
+        help_text="Optional personal daily fluid goal in millilitres.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)  # soft delete (§20)
@@ -90,6 +102,40 @@ class Patient(models.Model):
 
     def __str__(self):
         return f"Patient({self.user.email})"
+
+
+class HydrationEntry(models.Model):
+    """A single patient-owned fluid-intake record.
+
+    The tracker records what the patient logs; it is not a prescription and
+    carries no assumed target. Goals live on ``Patient.hydration_goal_ml`` and
+    remain optional so care teams can guide them individually.
+    """
+
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    patient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="hydration_entries",
+    )
+    amount_ml = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(3000)],
+    )
+    recorded_at = models.DateTimeField(default=timezone.now, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "hydration_entries"
+        ordering = ["-recorded_at"]
+        indexes = [
+            models.Index(
+                fields=["patient", "-recorded_at"],
+                name="hydration_patient_ts_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.patient.email} {self.amount_ml}ml {self.recorded_at:%Y-%m-%d}"
 
 
 class CaregiverRelationship(models.Model):

@@ -19,18 +19,11 @@ import 'package:sicklers_warriors/features/auth/data/token_store.dart';
 import 'package:sicklers_warriors/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:sicklers_warriors/features/auth/presentation/pages/reset_password_page.dart';
 import 'package:sicklers_warriors/features/blood_donation/presentation/pages/donor_home_page.dart';
-import 'package:sicklers_warriors/features/public/data/content_repository.dart';
 import 'package:sicklers_warriors/features/public/presentation/pages/public_home_page.dart';
 
 http.Response _json(Map<String, dynamic> body, [int status = 200]) =>
     http.Response(jsonEncode(body), status,
         headers: {'content-type': 'application/json'});
-
-/// Content client that never invents copy — every endpoint answers with an
-/// empty envelope so the public page renders its honest empty states.
-ContentRepository get _emptyContent => ContentRepository(
-      client: MockClient((_) async => _json({'data': {}}, 404)),
-    );
 
 /// Bare [MaterialApp] pumps fall back to the Kiswahili-first brand default;
 /// auth copy assertions below are English, so pin the EN table.
@@ -59,7 +52,7 @@ Widget _publicHome(String language) {
         locale: Locale(language),
         localizationsDelegates: materialLocalizationsDelegates(locale),
         supportedLocales: AppLocalizationsDelegate.supportedLocales,
-        home: PublicHomePage(content: _emptyContent),
+        home: const PublicHomePage(),
       ),
     ),
   );

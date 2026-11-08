@@ -44,6 +44,7 @@ import 'features/emergency/presentation/pages/emergency_page.dart';
 import 'features/education/presentation/pages/doctor_education_page.dart';
 import 'features/education/presentation/pages/education_page.dart';
 import 'features/health/presentation/pages/health_dashboard_page.dart';
+import 'features/hydration/presentation/pages/hydration_page.dart';
 import 'features/medical/presentation/pages/medical_profile_page.dart';
 import 'features/medical/presentation/pages/medical_records_page.dart';
 import 'features/medication/presentation/pages/medication_page.dart';
@@ -220,6 +221,7 @@ class _MaterialAppView extends StatelessWidget {
         MedicationPage.routeName: (_) => const MedicationPage(),
         HealthDashboardPage.routeName: (_) =>
             const HealthDashboardPage(),
+        HydrationPage.routeName: (_) => const HydrationPage(),
         BloodDonationPage.routeName: (_) => const BloodDonationPage(),
         DonorHomePage.routeName: (_) => const DonorHomePage(),
         DoctorNetworkPage.routeName: (_) => const DoctorNetworkPage(),

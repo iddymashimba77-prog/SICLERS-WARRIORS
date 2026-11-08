@@ -4,17 +4,19 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/signed_out_gate.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../data/content_repository.dart';
 import '../../domain/content_models.dart';
 import '../widgets/content_widgets.dart';
 import 'news_detail_page.dart';
 import '../../../../core/theme/app_shapes.dart';
 
-/// Public news archive: category filter + paginated "load more" list.
+/// Member news archive: category filter + paginated "load more" list.
 ///
-/// Reachable directly from the public home header/sections. Reads the same
-/// unauthenticated `/api/content/news/` surface as the home page.
+/// Reached from signed-in surfaces only. The app gates the screen on a live
+/// member session; the public home no longer links to news or announcements.
 class NewsListPage extends StatefulWidget {
   const NewsListPage({super.key, ContentRepository? repository})
       : _repository = repository;
@@ -38,10 +40,24 @@ class _NewsListPageState extends State<NewsListPage> {
   bool _hasNext = false;
   bool _loading = true;
   bool _error = false;
+  bool _started = false;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _maybeLoad();
+  }
+
+  /// Only members with a live session may fetch the member archive. Waiting
+  /// for dependencies also means a signed-out visitor sees the gate without
+  /// issuing a content request first.
+  void _maybeLoad() {
+    if (_started) return;
+    if (SessionScope.maybeOf(context)?.accessToken == null) {
+      _loading = false;
+      return;
+    }
+    _started = true;
     _load();
   }
 
@@ -99,6 +115,10 @@ class _NewsListPageState extends State<NewsListPage> {
   @override
   Widget build(BuildContext context) {
     final s = AppLocalizations.of(context);
+    final session = SessionScope.controllerOf(context);
+    if (session.accessToken == null) {
+      return SignedOutGate(title: s.tr('nav.news'));
+    }
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(

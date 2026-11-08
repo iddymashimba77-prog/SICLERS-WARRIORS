@@ -14,5 +14,11 @@ app_name = "patients"
 urlpatterns = [
     path("me/", views.PatientMeView.as_view(), name="me"),
     path("me/dashboard/", PatientDashboardView.as_view({"get": "list"}), name="dashboard"),
+    path("me/hydration/", views.HydrationTodayView.as_view(), name="hydration"),
+    path(
+        "me/hydration/goal/",
+        views.HydrationGoalView.as_view(),
+        name="hydration-goal",
+    ),
     path("directory/", views.PatientDirectoryView.as_view(), name="directory"),
 ]

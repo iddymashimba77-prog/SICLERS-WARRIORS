@@ -1,28 +1,14 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 
 import 'package:sicklers_warriors/core/l10n/app_localizations.dart';
 import 'package:sicklers_warriors/core/l10n/locale_controller.dart';
 import 'package:sicklers_warriors/core/prefs/app_preferences.dart';
 import 'package:sicklers_warriors/core/theme/theme_controller.dart';
-import 'package:sicklers_warriors/features/public/data/content_repository.dart';
 import 'package:sicklers_warriors/features/public/presentation/pages/about_pages.dart';
 import 'package:sicklers_warriors/features/public/presentation/pages/public_home_page.dart';
 import 'package:sicklers_warriors/shared/widgets/module_placeholder_page.dart';
-
-http.Response _json(Map<String, dynamic> body, [int status = 200]) =>
-    http.Response(jsonEncode(body), status,
-        headers: {'content-type': 'application/json'});
-
-/// Empty envelope content so the public home renders without inventing copy.
-ContentRepository get _emptyContent => ContentRepository(
-      client: MockClient((_) async => _json({'data': {}}, 404)),
-    );
 
 Widget _localizedApp(String language, {required Widget home}) {
   final locale = LocaleController(AppPreferences.memory())
@@ -38,7 +24,6 @@ Widget _localizedApp(String language, {required Widget home}) {
         home: home,
         routes: <String, WidgetBuilder>{
           '/signup': (_) => const _RouteProbe('signup-destination'),
-          '/news': (_) => const _RouteProbe('news-destination'),
         },
       ),
     ),
@@ -46,7 +31,7 @@ Widget _localizedApp(String language, {required Widget home}) {
 }
 
 Widget _publicHome(String language) =>
-    _localizedApp(language, home: PublicHomePage(content: _emptyContent));
+    _localizedApp(language, home: const PublicHomePage());
 
 class _RouteProbe extends StatelessWidget {
   const _RouteProbe(this.label);
@@ -370,22 +355,6 @@ void main() {
       await _settleRouteTransition(tester);
 
       expect(find.text('signup-destination'), findsOneWidget);
-    });
-
-    testWidgets('the Explore CTA reaches the real news route (EN)',
-        (tester) async {
-      await tester
-          .pumpWidget(_localizedApp('en', home: const AboutWarriorsPage()));
-      await _settleRouteTransition(tester);
-
-      final explore =
-          find.widgetWithText(OutlinedButton, 'Explore the Platform');
-      await tester.ensureVisible(explore);
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.tap(explore);
-      await _settleRouteTransition(tester);
-
-      expect(find.text('news-destination'), findsOneWidget);
     });
   });
 }

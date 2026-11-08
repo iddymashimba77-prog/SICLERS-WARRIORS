@@ -13,6 +13,7 @@ import '../../../auth/presentation/pages/change_password_page.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../../medical/presentation/pages/medical_profile_page.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
+import '../../../public/presentation/pages/news_list_page.dart';
 import '../../../public/presentation/pages/public_home_page.dart';
 import '../../data/profile_repository.dart';
 import '../widgets/profile_view.dart';
@@ -74,6 +75,13 @@ class ProfilePage extends StatelessWidget {
               title: s.tr('profile.appearanceLanguage'),
               subtitle: s.tr('profile.adaptExperience'),
               onTap: () => showSettingsSheet(context),
+            ),
+            _SettingTile(
+              icon: Icons.newspaper_outlined,
+              title: s.tr('nav.news'),
+              subtitle: s.tr('profile.newsSubtitle'),
+              onTap: () =>
+                  Navigator.pushNamed(context, NewsListPage.routeName),
             ),
             const Divider(height: 32),
             Text(

@@ -300,6 +300,7 @@ class AppStrings {
 
   // ------------------------------------------------------- health tracking
   static String get healthTracking => _t('Health Tracking', 'Ufuatiliaji wa Afya');
+  static String get hydration => _t('Hydration', 'Unyevu');
   static String get dashboardLoadFailed => _t(
       'Unable to load your health dashboard.',
       'Imeshindikana kupakia dashibodi yako ya afya.');

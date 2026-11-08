@@ -19,13 +19,19 @@ Audit (§21): changes (create + update) record a SecurityEvent with the event
 type only — never the medical payload.
 """
 
-from rest_framework import generics
+import datetime
+
+from django.db.models import Sum
+from django.utils import timezone
+from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from accounts.models import SecurityEvent, User
 from accounts.permissions import (
-    IsAuthenticatedRespectStatus, PatientDirectoryAccess,
+    IsAuthenticatedRespectStatus, IsPatient, PatientDirectoryAccess,
 )
 from patients import models, serializers
 
@@ -119,3 +125,97 @@ class PatientDirectoryView(generics.ListAPIView):
             .distinct()
             .order_by("first_name", "email")
         )
+
+# ---------------------------------------------------------------------------
+# Patient hydration tracker
+# ---------------------------------------------------------------------------
+
+
+def _hydration_profile(user):
+    profile, _ = models.Patient.objects.get_or_create(user=user)
+    return profile
+
+
+def _require_hydration_code(user, code):
+    if not user.has_perm_code(code):
+        raise PermissionDenied(
+            "You do not have permission to manage hydration records."
+        )
+
+
+class HydrationTodayView(APIView):
+    """GET/POST `/patients/me/hydration/` — own hydration summary and intake.
+
+    The response intentionally carries no default goal: ``goal_ml`` is null
+    until the patient (with their care team) sets one. Records are append-only
+    in this surface so history stays honest.
+    """
+
+    permission_classes = [IsAuthenticatedRespectStatus, IsPatient]
+    parser_classes = [JSONParser]
+
+    def get(self, request):
+        user = request.user
+        _require_hydration_code(user, "hydration.view")
+        profile = _hydration_profile(user)
+
+        raw_date = request.query_params.get("date")
+        if raw_date:
+            try:
+                day = datetime.date.fromisoformat(raw_date)
+            except ValueError:
+                raise ValidationError({"date": "Use an ISO date (YYYY-MM-DD)."})
+        else:
+            day = timezone.localdate()
+
+        entries = models.HydrationEntry.objects.filter(
+            patient=user, recorded_at__date=day
+        )
+        consumed = entries.aggregate(total=Sum("amount_ml"))["total"] or 0
+        goal = profile.hydration_goal_ml
+        remaining = max(goal - consumed, 0) if goal is not None else None
+        progress = (
+            min(round(consumed / goal * 100), 100)
+            if goal and goal > 0
+            else None
+        )
+        return Response(
+            {
+                "date": day.isoformat(),
+                "goal_ml": goal,
+                "consumed_ml": consumed,
+                "remaining_ml": remaining,
+                "progress_pct": progress,
+                "entries": serializers.HydrationEntrySerializer(
+                    entries, many=True
+                ).data,
+            }
+        )
+
+    def post(self, request):
+        user = request.user
+        _require_hydration_code(user, "hydration.create")
+        serializer = serializers.HydrationEntrySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        entry = serializer.save(patient=user)
+        return Response(
+            serializers.HydrationEntrySerializer(entry).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class HydrationGoalView(APIView):
+    """PATCH `/patients/me/hydration/goal/` — set or clear the personal goal."""
+
+    permission_classes = [IsAuthenticatedRespectStatus, IsPatient]
+    parser_classes = [JSONParser]
+
+    def patch(self, request):
+        user = request.user
+        _require_hydration_code(user, "hydration.update")
+        serializer = serializers.HydrationGoalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = _hydration_profile(user)
+        profile.hydration_goal_ml = serializer.validated_data["hydration_goal_ml"]
+        profile.save(update_fields=["hydration_goal_ml", "updated_at"])
+        return Response({"hydration_goal_ml": profile.hydration_goal_ml})

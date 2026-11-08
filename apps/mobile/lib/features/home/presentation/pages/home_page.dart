@@ -17,6 +17,7 @@ import '../../../education/presentation/pages/education_page.dart';
 import '../../../emergency/presentation/pages/emergency_page.dart';
 import '../../../health/data/health_repository.dart';
 import '../../../health/presentation/pages/health_dashboard_page.dart';
+import '../../../hydration/presentation/pages/hydration_page.dart';
 import '../../../health/presentation/pages/symptom_form_page.dart';
 import '../../../medical/presentation/pages/medical_profile_page.dart';
 import '../../../medication/presentation/pages/medication_page.dart';
@@ -310,6 +311,12 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
         label: AppStrings.healthTracking,
         accent: AppColors.blue,
         onTap: () => go(HealthDashboardPage.routeName),
+      ),
+      QuickAction(
+        icon: Icons.water_drop_outlined,
+        label: AppStrings.hydration,
+        accent: AppColors.blue,
+        onTap: () => go(HydrationPage.routeName),
       ),
       QuickAction(
         icon: Icons.medical_services_outlined,

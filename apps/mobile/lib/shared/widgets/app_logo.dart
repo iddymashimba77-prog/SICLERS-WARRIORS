@@ -98,31 +98,37 @@ class AppBrand extends StatelessWidget {
       children: [
         mark,
         const SizedBox(width: 10),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Sickler's Warriors",
-              style: TextStyle(
-                color: titleColor,
-                fontSize: markHeight * .62,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -.2,
-                height: 1.05,
-              ),
-            ),
-            if (showSubtitle)
+        Flexible(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                'Community · Care · Courage',
+                "Sickler's Warriors",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: subtitleColor,
-                  fontSize: markHeight * .34,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: .3,
+                  color: titleColor,
+                  fontSize: markHeight * .62,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -.2,
+                  height: 1.05,
                 ),
               ),
-          ],
+              if (showSubtitle)
+                Text(
+                  'Community · Care · Courage',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: subtitleColor,
+                    fontSize: markHeight * .34,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: .3,
+                  ),
+                ),
+            ],
+          ),
         ),
       ],
     );

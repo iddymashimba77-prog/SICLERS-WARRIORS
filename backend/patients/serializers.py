@@ -14,7 +14,7 @@ Field-level handling:
 from rest_framework import serializers
 
 from accounts.models import User
-from patients.models import CaregiverRelationship, Patient
+from patients.models import CaregiverRelationship, HydrationEntry, Patient
 
 
 def _name(user) -> str:
@@ -205,3 +205,42 @@ class CaregiverPatientBasicsSerializer(serializers.Serializer):
     first_name = serializers.CharField()
     last_name = serializers.CharField()
     relationship_type = serializers.CharField()
+
+# ---------------------------------------------------------------------------
+# Patient hydration tracker
+# ---------------------------------------------------------------------------
+
+
+class HydrationEntrySerializer(serializers.ModelSerializer):
+    """One patient-owned fluid-intake record (append-only in the app)."""
+
+    class Meta:
+        model = HydrationEntry
+        fields = ["uid", "amount_ml", "recorded_at", "created_at"]
+        read_only_fields = ["uid", "created_at"]
+
+    def validate_amount_ml(self, value):
+        if not 1 <= value <= 3000:
+            raise serializers.ValidationError(
+                "Enter an amount between 1 and 3000 ml."
+            )
+        return value
+
+    def validate_recorded_at(self, value):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        if value and value > timezone.now() + timedelta(hours=1):
+            raise serializers.ValidationError(
+                "Cannot be more than one hour in the future."
+            )
+        return value
+
+
+class HydrationGoalSerializer(serializers.Serializer):
+    """Optional personal daily goal; null clears it, never assumes a target."""
+
+    hydration_goal_ml = serializers.IntegerField(
+        required=True, allow_null=True, min_value=250, max_value=6000,
+    )

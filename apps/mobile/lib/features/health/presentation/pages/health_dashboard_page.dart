@@ -10,6 +10,7 @@ import '../../../auth/presentation/widgets/role_gate.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../../caregiver/data/caregiver_health_repository.dart';
 import '../../../caregiver/presentation/pages/caregiver_health_page.dart';
+import '../../../hydration/presentation/pages/hydration_page.dart';
 import '../../../medical/presentation/pages/medical_records_page.dart';
 import '../../../medication/presentation/pages/medication_page.dart';
 import '../../data/health_repository.dart';
@@ -185,6 +186,14 @@ class _HealthDashboardViewState extends State<HealthDashboardView> {
                 icon: Icons.health_and_safety_outlined,
                 label: AppStrings.logSymptomShort,
                 onTap: () => _openLogSymptom(context),
+              ),
+              QuickAction(
+                icon: Icons.water_drop_outlined,
+                label: AppStrings.hydration,
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  HydrationPage.routeName,
+                ),
               ),
               QuickAction(
                 icon: Icons.timeline_outlined,

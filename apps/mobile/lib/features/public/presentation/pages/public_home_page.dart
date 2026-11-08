@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -12,36 +11,26 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/theme_controller.dart';
 import '../../../../shared/widgets/app_logo.dart';
 import '../../../../shared/widgets/module_placeholder_page.dart';
-import '../../data/content_repository.dart';
-import '../../domain/content_models.dart';
-import '../widgets/content_widgets.dart';
 import 'about_pages.dart';
-import 'news_detail_page.dart';
-import 'news_list_page.dart';
 import '../../../../core/theme/app_shapes.dart';
 
 /// Public landing page for Sickler's Warriors (FINALIZE public home).
 ///
-/// A full public brand experience: pinned header with mega-menus, the admin
-/// top-ticker, an editorial news hub (latest + featured), the seven core
-/// service areas, trust/privacy/consent, a final CTA and a real footer.
-/// Everything the visitor can tap navigates somewhere real.
+/// A public brand experience built around a calm, premium care journey:
+/// pinned header with mega-menus, an editorial hero, the three-step care path,
+/// the seven service pillars with the signed-in app showcase, a consent-led
+/// impact band, trust/privacy, a final CTA and a real footer. News and
+/// announcements are deliberately absent from the public surface.
 class PublicHomePage extends StatefulWidget {
-  const PublicHomePage({super.key, ContentRepository? content})
-      : _content = content;
+  const PublicHomePage({super.key});
 
   static const String routeName = '/';
-
-  final ContentRepository? _content;
 
   @override
   State<PublicHomePage> createState() => _PublicHomePageState();
 }
 
 class _PublicHomePageState extends State<PublicHomePage> {
-  late final ContentRepository _content =
-      widget._content ?? ContentRepository();
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -53,16 +42,12 @@ class _PublicHomePageState extends State<PublicHomePage> {
       body: CustomScrollView(
         slivers: [
           _PublicHeader(isDesktop: isDesktop),
-          _TopTickerBanner(content: _content),
           SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _HeroSection(isDesktop: isDesktop, theme: theme),
-                NewsSections(
-                  content: _content,
-                  onOpenArticle: _openArticle,
-                ),
+                _JourneySection(theme: theme),
                 _WarriorNeedsSection(
                   key: const ValueKey('warrior-needs-section'),
                   theme: theme,
@@ -133,6 +118,7 @@ class _PublicHomePageState extends State<PublicHomePage> {
                     ),
                   ],
                 ),
+                _ImpactSection(theme: theme),
                 _TrustSection(theme: theme),
                 _FinalCTASection(theme: theme),
                 _Footer(theme: theme),
@@ -140,14 +126,6 @@ class _PublicHomePageState extends State<PublicHomePage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _openArticle(PublicNewsArticle article) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => NewsDetailPage(uid: article.uid, intro: article),
       ),
     );
   }
@@ -210,6 +188,8 @@ class _PublicHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppLocalizations.of(context);
     final menus = _megaMenusFor(s);
+    final compactHeader = !isDesktop &&
+        MediaQuery.sizeOf(context).width < 720;
     return SliverAppBar(
       backgroundColor: Theme.of(context).colorScheme.surface,
       elevation: 0,
@@ -248,21 +228,33 @@ class _PublicHeader extends StatelessWidget {
                 ),
               ),
             ]
-          : [
-              const _HeaderSosButton(compact: true),
-              const _PublicThemeToggle(),
-              const _PublicLanguageToggle(),
-              TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/login'),
-                child: Text(s.tr('common.signIn')),
-              ),
-              IconButton(
-                tooltip: s.tr('home.explore'),
-                onPressed: () => _showMobileMenu(context),
-                icon: const Icon(Icons.menu),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-            ],
+          : compactHeader
+              ? [
+                  const _HeaderSosButton(compact: true),
+                  const _PublicThemeToggle(),
+                  const _PublicLanguageToggle(),
+                  IconButton(
+                    tooltip: s.tr('home.explore'),
+                    onPressed: () => _showMobileMenu(context),
+                    icon: const Icon(Icons.menu),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                ]
+              : [
+                  const _HeaderSosButton(compact: true),
+                  const _PublicThemeToggle(),
+                  const _PublicLanguageToggle(),
+                  TextButton(
+                    onPressed: () => Navigator.pushNamed(context, '/login'),
+                    child: Text(s.tr('common.signIn')),
+                  ),
+                  IconButton(
+                    tooltip: s.tr('home.explore'),
+                    onPressed: () => _showMobileMenu(context),
+                    icon: const Icon(Icons.menu),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
     );
   }
 
@@ -312,6 +304,14 @@ class _PublicHeader extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                 ],
+                ListTile(
+                  leading: const Icon(Icons.login),
+                  title: Text(s.tr('common.signIn')),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    Navigator.pushNamed(context, '/login');
+                  },
+                ),
                 ListTile(
                   leading: const Icon(Icons.person_add_alt_1),
                   title: Text(s.tr('common.createAccount')),
@@ -466,265 +466,6 @@ class _MobileMenuCategory extends StatelessWidget {
   }
 }
 
-// ============================================================== admin ticker
-
-/// The admin top-ticker: every active announcement plays as a continuous
-/// scrolling marquee so the band is always visibly alive, even with a single
-/// announcement. Hidden entirely when the platform has no active announcement
-/// so no empty band ever appears.
-class _TopTickerBanner extends StatefulWidget {
-  const _TopTickerBanner({required this.content});
-
-  final ContentRepository content;
-
-  @override
-  State<_TopTickerBanner> createState() => _TopTickerBannerState();
-}
-
-class _TopTickerBannerState extends State<_TopTickerBanner> {
-  List<TickerAnnouncement> _items = const [];
-  bool _loaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    List<TickerAnnouncement> items;
-    try {
-      items = await widget.content.listTicker();
-    } catch (_) {
-      items = const [];
-    }
-    if (!mounted) return;
-        setState(() {
-      _items = items;
-      _loaded = true;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_loaded || _items.isEmpty) {
-      return const SliverToBoxAdapter(child: SizedBox.shrink());
-    }
-    final urgent = _items.first.isUrgent;
-    final text = _items.map((e) => e.message).join('        •        ');
-    // Pinned so the announcement stays on screen while the page scrolls. As a
-    // plain SliverToBoxAdapter it was the first thing to scroll away, which is
-    // the opposite of what an urgent announcement must do.
-    return SliverPersistentHeader(
-      pinned: true,
-      delegate: _TickerHeaderDelegate(
-        background: urgent ? AppColors.emergency : AppColors.navy,
-        text: text,
-        urgent: urgent,
-        showLinkIcon: _items.first.linkUrl.isNotEmpty,
-        imageUrl: _items.first.hasImage ? _items.first.imageUrl : '',
-      ),
-    );
-  }
-}
-
-/// Fixed height of the pinned ticker band (icon row + vertical padding).
-const double _kTickerExtent = 40.0;
-
-/// Header delegate for the always-visible announcement band.
-class _TickerHeaderDelegate extends SliverPersistentHeaderDelegate {
-  const _TickerHeaderDelegate({
-    required this.background,
-    required this.text,
-    required this.urgent,
-    required this.showLinkIcon,
-    this.imageUrl = '',
-  });
-
-  final Color background;
-  final String text;
-  final bool urgent;
-  final bool showLinkIcon;
-  final String imageUrl;
-
-  @override
-  double get minExtent => _kTickerExtent;
-
-  @override
-  double get maxExtent => _kTickerExtent;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Material(
-      color: background,
-      // A pinned header must paint exactly `maxExtent`, otherwise the sliver
-      // geometry is invalid. Pinning the SizedBox to the extent keeps the band
-      // a fixed height whatever the text length or font scale.
-      child: SizedBox(
-        height: maxExtent,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              if (imageUrl.isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: AppShapes.pill,
-                  child: Image.network(
-                    imageUrl,
-                    width: 26,
-                    height: 26,
-                    fit: BoxFit.cover,
-                    // Ticker art can be an external URL; fall back to an <img>
-                    // element on web so CORS-less hosts still render.
-                    webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
-                    errorBuilder: (_, __, ___) => const SizedBox(
-                      width: 26,
-                      height: 26,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-              ],
-              Icon(
-                urgent ? Icons.emergency : Icons.campaign_outlined,
-                size: 18,
-                color: Colors.white,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _TickerMarquee(
-                  text: text,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              if (showLinkIcon)
-                const Icon(Icons.open_in_new, size: 14, color: Colors.white70),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_TickerHeaderDelegate oldDelegate) =>
-      oldDelegate.background != background ||
-      oldDelegate.text != text ||
-      oldDelegate.urgent != urgent ||
-      oldDelegate.showLinkIcon != showLinkIcon ||
-      oldDelegate.imageUrl != imageUrl;
-}
-
-/// Seamless horizontal crawl used by the top ticker band.
-///
-/// The message always crawls (short messages are repeated enough to fill the
-/// band edge to edge) so the ticker never sits still, and the loop has no
-/// visible jump. Respects the platform "disable animations" setting.
-class _TickerMarquee extends StatefulWidget {
-  const _TickerMarquee({required this.text, required this.style});
-
-  final String text;
-  final TextStyle style;
-
-  @override
-  State<_TickerMarquee> createState() => _TickerMarqueeState();
-}
-
-class _TickerMarqueeState extends State<_TickerMarquee>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  bool _started = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this);
-    _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) _controller.repeat();
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const gap = 80.0;
-    const speed = 42.0;
-
-    Widget staticText() => Text(
-          widget.text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: widget.style,
-        );
-
-    if (MediaQuery.disableAnimationsOf(context)) return staticText();
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final painter = TextPainter(
-          text: TextSpan(text: widget.text, style: widget.style),
-          maxLines: 1,
-          textDirection: TextDirection.ltr,
-        )..layout();
-        final contentWidth = painter.width;
-        if (contentWidth <= 0) return staticText();
-
-        final loopDistance = contentWidth + gap;
-        // Repeat the message until the band is always covered edge to edge,
-        // so even a one-word ticker crawls instead of sitting still.
-        final copies = math.max(
-          2,
-          (constraints.maxWidth / loopDistance).ceil() + 1,
-        );
-        final durationMs = (loopDistance / speed * 1000).round();
-        if (_controller.duration?.inMilliseconds != durationMs) {
-          _controller.duration = Duration(milliseconds: durationMs);
-        }
-        if (!_started) {
-          _started = true;
-          _controller.forward();
-        }
-        return SizedBox(
-          height: 22,
-          child: ClipRect(
-            child: OverflowBox(
-              alignment: Alignment.centerLeft,
-              maxWidth: double.infinity,
-              child: AnimatedBuilder(
-                animation: _controller,
-                builder: (context, _) => Transform.translate(
-                  offset: Offset(-(_controller.value * loopDistance), 0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (var i = 0; i < copies; i++) ...[
-                        if (i > 0) const SizedBox(width: gap),
-                        Text(widget.text, maxLines: 1, style: widget.style),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
 // ====================================================================== hero
 
 class _HeroSection extends StatelessWidget {
@@ -736,40 +477,70 @@ class _HeroSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = AppLocalizations.of(context);
-    final headline = s.tr('home.heroTitle');
-    final subtitle = s.tr('home.heroSubtitle');
-    final body = s.tr('home.heroBody');
-
     final content = Column(
       crossAxisAlignment: isDesktop
           ? CrossAxisAlignment.start
           : CrossAxisAlignment.center,
       children: [
-        Text(
-          headline,
-          textAlign: isDesktop ? TextAlign.start : TextAlign.center,
-          style: theme.textTheme.displaySmall?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            height: 1.1,
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs + 2,
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          subtitle,
-          textAlign: isDesktop ? TextAlign.start : TextAlign.center,
-          style: theme.textTheme.headlineSmall?.copyWith(
-            color: AppColors.lightRed,
-            fontWeight: FontWeight.w600,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .10),
+            borderRadius: AppShapes.pill,
+            border: Border.all(color: Colors.white.withValues(alpha: .18)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.verified_outlined, size: 16, color: Colors.white),
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
+                child: Text(
+                  s.tr('home.heroBadge'),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
         Text(
-          body,
+          s.tr('home.heroTitle'),
           textAlign: isDesktop ? TextAlign.start : TextAlign.center,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: Colors.white.withValues(alpha: .85),
-            height: 1.55,
+          style: theme.textTheme.displaySmall?.copyWith(
+            color: Colors.white,
+            fontSize: isDesktop ? 52 : 38,
+            fontWeight: FontWeight.w800,
+            height: 1.05,
+            letterSpacing: -0.8,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          s.tr('home.heroSubtitle'),
+          textAlign: isDesktop ? TextAlign.start : TextAlign.center,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            color: AppColors.lightRed,
+            fontWeight: FontWeight.w600,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620),
+          child: Text(
+            s.tr('home.heroBody'),
+            textAlign: isDesktop ? TextAlign.start : TextAlign.center,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: .82),
+              height: 1.6,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -779,7 +550,7 @@ class _HeroSection extends StatelessWidget {
           alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            FilledButton(
+            FilledButton.icon(
               onPressed: () => Navigator.pushNamed(context, '/signup'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.emergency,
@@ -789,7 +560,8 @@ class _HeroSection extends StatelessWidget {
                   vertical: AppSpacing.md,
                 ),
               ),
-              child: Text(s.tr('common.createAccount')),
+              icon: const Icon(Icons.arrow_forward, size: 18),
+              label: Text(s.tr('home.heroPrimaryCta')),
             ),
             OutlinedButton(
               onPressed: () => Navigator.pushNamed(context, '/login'),
@@ -803,11 +575,17 @@ class _HeroSection extends StatelessWidget {
               ),
               child: Text(s.tr('common.signIn')),
             ),
-            TextButton(
-              onPressed: () => Navigator.pushNamed(context, NewsListPage.routeName),
-              style: TextButton.styleFrom(foregroundColor: Colors.white),
-              child: Text(s.tr('home.readLatest')),
-            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        Wrap(
+          spacing: AppSpacing.lg,
+          runSpacing: AppSpacing.sm,
+          alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
+          children: [
+            _HeroProof(label: s.tr('home.heroProofOne')),
+            _HeroProof(label: s.tr('home.heroProofTwo')),
+            _HeroProof(label: s.tr('home.heroProofThree')),
           ],
         ),
       ],
@@ -821,35 +599,90 @@ class _HeroSection extends StatelessWidget {
           colors: [AppColors.navy, AppColors.navyDeep, AppColors.blue],
         ),
       ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            vertical: isDesktop ? AppSpacing.xxxl : AppSpacing.xxl,
-            horizontal: isDesktop ? AppSpacing.xxxl : AppSpacing.lg,
+      child: Stack(
+        children: [
+          Positioned(
+            top: -120,
+            right: -80,
+            child: Container(
+              width: 360,
+              height: 360,
+              decoration: BoxDecoration(
+                color: AppColors.blue.withValues(alpha: .22),
+                shape: BoxShape.circle,
+              ),
+            ),
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (isDesktop) {
-                return Row(
-                  children: [
-                    Expanded(flex: 3, child: content),
-                    const SizedBox(width: AppSpacing.xxxl),
-                    const Expanded(flex: 2, child: _HeroBrandPanel()),
-                  ],
-                );
-              }
-              return Column(
-                children: [
-                  const _HeroBrandPanel(),
-                  const SizedBox(height: AppSpacing.xl),
-                  content,
-                ],
-              );
-            },
+          Positioned(
+            bottom: -140,
+            left: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                color: AppColors.emergency.withValues(alpha: .10),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                vertical: isDesktop ? AppSpacing.huge : AppSpacing.xxl,
+                horizontal: isDesktop ? AppSpacing.xxxl : AppSpacing.lg,
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (isDesktop) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(flex: 6, child: content),
+                        const SizedBox(width: AppSpacing.xxxl),
+                        const Expanded(flex: 4, child: _HeroBrandPanel()),
+                      ],
+                    );
+                  }
+                  return Column(
+                    children: [
+                      content,
+                      const SizedBox(height: AppSpacing.xl),
+                      const _HeroBrandPanel(),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroProof extends StatelessWidget {
+  const _HeroProof({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.check_circle_outline, size: 16, color: Colors.white70),
+        const SizedBox(width: AppSpacing.xs),
+        Flexible(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.white.withValues(alpha: .82),
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -859,12 +692,21 @@ class _HeroBrandPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .06),
+        color: Colors.white.withValues(alpha: .07),
         borderRadius: AppShapes.hero,
-        border: Border.all(color: Colors.white.withValues(alpha: .14)),
+        border: Border.all(color: Colors.white.withValues(alpha: .15)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withValues(alpha: .24),
+            offset: const Offset(0, 24),
+            blurRadius: 48,
+            spreadRadius: -16,
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -876,510 +718,337 @@ class _HeroBrandPanel extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            AppLocalizations.of(context).tr('home.tagline'),
+            s.tr('home.tagline'),
+            textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-// ==================================================================== news
-
-/// Live news hub: latest article hero card + featured rows + archive link.
-/// Degrades gracefully to a compact "updates" band when the content service
-/// is unavailable, keeping the layout truthful and the CTAs functional.
-class NewsSections extends StatefulWidget {
-  const NewsSections({
-    super.key,
-    required this.content,
-    required this.onOpenArticle,
-  });
-
-  final ContentRepository content;
-  final ValueChanged<PublicNewsArticle> onOpenArticle;
-
-  @override
-  State<NewsSections> createState() => _NewsSectionsState();
-}
-
-class _NewsSectionsState extends State<NewsSections> {
-  PublicNewsDetail? _latest;
-  List<PublicNewsArticle> _featured = const [];
-  List<PublicNewsArticle> _recent = const [];
-  bool _loading = true;
-  bool _error = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = false;
-    });
-    try {
-      final latest = await widget.content.latestArticle();
-      final featured = await widget.content.listNews(featured: true);
-      final recent = await widget.content.listNews(page: 1);
-      if (!mounted) return;
-      setState(() {
-        _latest = latest;
-        _featured = featured.items;
-        _recent = recent.items;
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = true;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final s = AppLocalizations.of(context);
-    if (_loading) {
-      return _Band(
-        background: theme.colorScheme.surface,
-        child: _BandHeader(
-          title: s.tr('home.newsLatest'),
-          theme: theme,
-          trailing: _GhostButton(label: s.tr('home.newsViewAll')),
-        ),
-      );
-    }
-    if (_error || (_latest == null && _featured.isEmpty && _recent.isEmpty)) {
-      return _Band(
-        background: theme.colorScheme.surface,
-        child: _BandHeader(
-          title: s.tr('home.newsLatest'),
-          theme: theme,
-          subtitle: s.tr('home.newsEmpty'),
-          trailing: FilledButton.tonal(
-            onPressed: () => Navigator.pushNamed(context, NewsListPage.routeName),
-            child: Text(s.tr('home.newsViewAll')),
-          ),
-        ),
-      );
-    }
-
-    final latest = _latest;
-    final slides = <PublicNewsArticle>[];
-    final seen = <String>{};
-    for (final a in [if (latest != null) latest, ..._featured, ..._recent]) {
-      if (seen.add(a.uid)) slides.add(a);
-      if (slides.length >= 5) break;
-    }
-    return _Band(
-      background: theme.colorScheme.surface,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _BandHeader(
-            title: s.tr('home.newsLatest'),
-            theme: theme,
-            subtitle: s.tr('home.newsSubtitle'),
-            trailing: FilledButton.tonal(
-              onPressed: () => Navigator.pushNamed(context, NewsListPage.routeName),
-              child: Text(s.tr('home.newsViewAll')),
-            ),
-          ),
           const SizedBox(height: AppSpacing.lg),
-          if (slides.isNotEmpty) ...[
-            _NewsCarousel(
-              articles: slides,
-              onSelect: widget.onOpenArticle,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-          if (_featured.isNotEmpty) ...[
-            Text(
-              s.tr('home.newsFeatured'),
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final width = constraints.maxWidth;
-                return Wrap(
-                  spacing: AppSpacing.lg,
-                  runSpacing: AppSpacing.lg,
-                  children: [
-                    for (final article in _featured.take(4))
-                      SizedBox(
-                        width: width > 900
-                            ? (width - AppSpacing.lg * 3) / 4
-                            : width > 560
-                                ? (width - AppSpacing.lg) / 2
-                                : width,
-                        child: _CompactNewsCard(
-                          article: article,
-                          onTap: () => widget.onOpenArticle(article),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-          if (_recent.isNotEmpty) ...[
-            for (final article in _recent.where((a) => a.uid != latest?.uid).take(3))
-              _CompactNewsRow(
-                article: article,
-                onTap: () => widget.onOpenArticle(article),
-              ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Auto-rotating editorial slideshow: the top news stories play as full-width
-/// slides with a 5 s autoplay, pausing while the visitor drags, and a dot
-/// indicator. Tapping a slide opens the article.
-class _NewsCarousel extends StatefulWidget {
-  const _NewsCarousel({required this.articles, required this.onSelect});
-
-  final List<PublicNewsArticle> articles;
-  final ValueChanged<PublicNewsArticle> onSelect;
-
-  @override
-  State<_NewsCarousel> createState() => _NewsCarouselState();
-}
-
-class _NewsCarouselState extends State<_NewsCarousel> {
-  final PageController _controller = PageController();
-  Timer? _timer;
-  int _page = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _startAutoPlay();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _startAutoPlay() {
-    _timer?.cancel();
-    if (widget.articles.length <= 1) return;
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted) return;
-      final next = (_page + 1) % widget.articles.length;
-      _controller.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 550),
-        curve: Curves.easeOutCubic,
-      );
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final count = widget.articles.length;
-    if (count == 0) return const SizedBox.shrink();
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth > 720;
-        final height = wide ? 320.0 : 420.0;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              height: height,
-              child: PageView.builder(
-                controller: _controller,
-                itemCount: count,
-                onPageChanged: (i) => setState(() => _page = i),
-                itemBuilder: (context, index) => Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.md),
-                  child: _CarouselCard(
-                    article: widget.articles[index],
-                    onTap: () => widget.onSelect(widget.articles[index]),
-                  ),
-                ),
-              ),
-            ),
-            if (count > 1) ...[
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (var i = 0; i < count; i++)
-                    AnimatedContainer(
-                      key: ValueKey(
-                        'carousel-dot-${i == _page ? 'active' : 'inactive'}-$i',
-                      ),
-                      duration: const Duration(milliseconds: 250),
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: i == _page ? 22 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: i == _page
-                            ? AppColors.blue
-                            : Theme.of(context).colorScheme.outlineVariant,
-                        borderRadius: AppShapes.xs,
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// Single carousel slide: the top story with cover art, category, title and
-/// metadata, laid out as a two-column "wide" row on desktop and a stacked
-/// cover-over-text column on narrow screens.
-class _CarouselCard extends StatelessWidget {
-  const _CarouselCard({required this.article, required this.onTap});
-
-  final PublicNewsArticle article;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final s = AppLocalizations.of(context);
-    final dark = theme.brightness == Brightness.dark;
-    return Material(
-      color: dark
-          ? AppColors.emergency.withValues(alpha: .16)
-          : AppColors.lightRed,
-      borderRadius: AppShapes.large,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = constraints.maxWidth > 720;
-            final title = Text(
-              article.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                color: dark ? theme.colorScheme.onSurface : AppColors.darkRed,
-                fontWeight: FontWeight.w800,
-                height: 1.2,
-              ),
-            );
-            final meta = PublicNewsMetaRow(
-              publishedAt: article.publishedAt,
-              author: article.authorName,
-            );
-            if (!wide) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  PublicNewsCover(
-                    url: article.coverUrl,
-                    alt: article.coverAlt,
-                    height: 220,
-                    borderRadius: 0,
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          PublicNewsCategoryChip(
-                            label: s.tr('home.newsLatestUpdate'),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          title,
-                          const Spacer(),
-                          meta,
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
-            return Row(
+          Divider(color: Colors.white.withValues(alpha: .16), height: 1),
+          const SizedBox(height: AppSpacing.lg),
+          for (final (index, item) in <({String label, IconData icon})>[
+            (label: s.tr('home.heroPanelOne'), icon: Icons.favorite_outline),
+            (label: s.tr('home.heroPanelTwo'), icon: Icons.lock_outline),
+            (label: s.tr('home.heroPanelThree'), icon: Icons.groups_outlined),
+          ].indexed) ...[
+            Row(
               children: [
-                SizedBox(
-                  width: 360,
-                  child: PublicNewsCover(
-                    url: article.coverUrl,
-                    alt: article.coverAlt,
-                    height: 260,
-                    borderRadius: 20,
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .10),
+                    borderRadius: AppShapes.small,
                   ),
+                  child: Icon(item.icon, size: 17, color: Colors.white),
                 ),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        PublicNewsCategoryChip(
-                          label: s.tr('home.newsLatestUpdate'),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        title,
-                        if (article.excerpt.isNotEmpty) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          Expanded(
-                            child: Text(
-                              article.excerpt,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
-                        meta,
-                      ],
+                  child: Text(
+                    item.label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _CompactNewsCard extends StatelessWidget {
-  const _CompactNewsCard({required this.article, required this.onTap});
-
-  final PublicNewsArticle article;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surfaceContainerLow,
-      borderRadius: AppShapes.large,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PublicNewsCover(url: article.coverUrl, alt: article.coverAlt, height: 160, borderRadius: 0),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (article.categoryLabel.isNotEmpty)
-                    PublicNewsCategoryChip(label: article.categoryLabel),
-                  if (article.categoryLabel.isNotEmpty) const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    article.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  PublicNewsMetaRow(publishedAt: article.publishedAt),
-                ],
-              ),
             ),
+            if (index < 2) const SizedBox(height: AppSpacing.sm),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================== care journey
+
+class _JourneySection extends StatelessWidget {
+  const _JourneySection({required this.theme});
+
+  final ThemeData theme;
+
+  static const _steps = <({String title, String body, IconData icon})>[
+    (
+      title: 'home.journeyStep1Title',
+      body: 'home.journeyStep1Body',
+      icon: Icons.person_add_alt_1_outlined,
+    ),
+    (
+      title: 'home.journeyStep2Title',
+      body: 'home.journeyStep2Body',
+      icon: Icons.medical_services_outlined,
+    ),
+    (
+      title: 'home.journeyStep3Title',
+      body: 'home.journeyStep3Body',
+      icon: Icons.monitor_heart_outlined,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final wide = MediaQuery.of(context).size.width > 1024;
+    return Container(
+      color: theme.colorScheme.surface,
+      padding: EdgeInsets.symmetric(
+        vertical: AppSpacing.xxxl,
+        horizontal: wide ? AppSpacing.xxxl : AppSpacing.lg,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: AppSpacing.contentMaxWidth),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                s.tr('home.journeyTitle'),
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface,
+                  height: 1.15,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: Text(
+                  s.tr('home.journeySubtitle'),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.55,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 900 ? 3 : 1;
+                  final gap = AppSpacing.lg;
+                  final width = columns == 1
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - gap * (columns - 1)) / columns;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (final (index, step) in _steps.indexed)
+                        SizedBox(
+                          width: width,
+                          child: _JourneyCard(
+                            index: index + 1,
+                            icon: step.icon,
+                            title: s.tr(step.title),
+                            body: s.tr(step.body),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _CompactNewsRow extends StatelessWidget {
-  const _CompactNewsRow({required this.article, required this.onTap});
+class _JourneyCard extends StatelessWidget {
+  const _JourneyCard({
+    required this.index,
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
 
-  final PublicNewsArticle article;
-  final VoidCallback onTap;
+  final int index;
+  final IconData icon;
+  final String title;
+  final String body;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppShapes.tile,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-          child: Row(
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: AppShapes.large,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              SizedBox(
-                width: 112,
-                child: PublicNewsCover(
-                  url: article.coverUrl,
-                  alt: article.coverAlt,
-                  height: 88,
-                  borderRadius: 12,
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: AppColors.lightBlue,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppColors.blue, size: 23),
+              ),
+              const Spacer(),
+              Text(
+                index.toString().padLeft(2, '0'),
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  color: AppColors.blue.withValues(alpha: .28),
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      article.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (article.excerpt.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        article.excerpt,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            body,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =================================================================== impact
+
+class _ImpactSection extends StatelessWidget {
+  const _ImpactSection({required this.theme});
+
+  final ThemeData theme;
+
+  static const _cards = <({String title, String body, IconData icon})>[
+    (
+      title: 'home.impactOneTitle',
+      body: 'home.impactOneBody',
+      icon: Icons.route_outlined,
+    ),
+    (
+      title: 'home.impactTwoTitle',
+      body: 'home.impactTwoBody',
+      icon: Icons.shield_outlined,
+    ),
+    (
+      title: 'home.impactThreeTitle',
+      body: 'home.impactThreeBody',
+      icon: Icons.diversity_3_outlined,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final wide = MediaQuery.of(context).size.width > 1024;
+    return Container(
+      color: theme.colorScheme.surfaceContainerLow,
+      padding: EdgeInsets.symmetric(
+        vertical: AppSpacing.xxxl,
+        horizontal: wide ? AppSpacing.xxxl : AppSpacing.lg,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: AppSpacing.contentMaxWidth),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                s.tr('home.impactTitle'),
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface,
+                  height: 1.15,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Text(
+                  s.tr('home.impactBody'),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.55,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 900 ? 3 : 1;
+                  final gap = AppSpacing.lg;
+                  final width = columns == 1
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - gap * (columns - 1)) / columns;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (final card in _cards)
+                        SizedBox(
+                          width: width,
+                          child: Container(
+                            padding: const EdgeInsets.all(AppSpacing.xl),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface,
+                              borderRadius: AppShapes.large,
+                              border: Border.all(
+                                color: theme.colorScheme.outlineVariant,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  card.icon,
+                                  color: AppColors.emergency,
+                                  size: 26,
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+                                Text(
+                                  s.tr(card.title),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  s.tr(card.body),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
                     ],
-                  ],
-                ),
+                  );
+                },
               ),
-              const SizedBox(width: AppSpacing.sm),
-              const Icon(Icons.chevron_right, color: AppColors.blue, size: 20),
             ],
           ),
         ),
@@ -1417,8 +1086,8 @@ class _ServiceSpec {
 /// services and the "Explore All Services" CTA; on the right a phone mockup of
 /// the signed-in app surrounded by floating healthcare icons. The CTA scrolls
 /// to the full service cards (with their real route actions) that render
-/// directly beneath the container inside the same band. News above and the
-/// trust/CTA/footer block below are untouched.
+/// directly beneath the container inside the same band. The care journey above
+/// and the impact/trust/CTA/footer block below stay visually separate.
 class _WarriorNeedsSection extends StatefulWidget {
   const _WarriorNeedsSection({
     super.key,
@@ -2288,92 +1957,6 @@ class _FooterLink extends StatelessWidget {
   }
 }
 
-// ==================================================================== band
-
-class _Band extends StatelessWidget {
-  const _Band({required this.background, required this.child});
-
-  final Color background;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width > 1024;
-    return Container(
-      color: background,
-      padding: EdgeInsets.symmetric(
-        vertical: AppSpacing.xxxl,
-        horizontal: isDesktop ? AppSpacing.xxxl : AppSpacing.lg,
-      ),
-      child: child,
-    );
-  }
-}
-
-class _BandHeader extends StatelessWidget {
-  const _BandHeader({
-    required this.title,
-    required this.theme,
-    this.subtitle,
-    this.trailing,
-  });
-
-  final String title;
-  final ThemeData theme;
-  final String? subtitle;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  subtitle!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        if (trailing != null) ...[
-          const SizedBox(width: AppSpacing.md),
-          trailing!,
-        ],
-      ],
-    );
-  }
-}
-
-class _GhostButton extends StatelessWidget {
-  const _GhostButton({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: null,
-      child: Text(label),
-    );
-  }
-}
-
 // ========================================================= mega menu model
 
 class _MenuLink {
@@ -2430,10 +2013,6 @@ Map<String, List<_MenuLink>> _megaMenusFor(AppLocalizations s) {
       _MenuLink(s.tr('act.emergencySos'), icon: Icons.emergency_outlined, route: '/emergency'),
       _MenuLink(s.tr('nav.records'), icon: Icons.event_note_outlined, route: '/records'),
       _MenuLink(s.tr('nav.supportDonations'), icon: Icons.volunteer_activism_outlined, route: '/donations'),
-    ],
-    s.tr('nav.news'): [
-      _MenuLink(s.tr('home.newsLatest'), icon: Icons.article_outlined, route: '/news'),
-      _MenuLink(s.tr('news.readMore'), icon: Icons.newspaper_outlined, route: '/news'),
     ],
   };
 }

@@ -181,11 +181,6 @@ class AboutWarriorsPage extends StatelessWidget {
         _NoteCard(icon: Icons.info_outline, text: s.tr('about.availabilityNote')),
         const SizedBox(height: AppSpacing.xl),
         _JoinCtaRow(joinLabel: s.tr('about.ctaJoin')),
-        const SizedBox(height: AppSpacing.md),
-        OutlinedButton(
-          onPressed: () => Navigator.pushNamed(context, '/news'),
-          child: Text(s.tr('about.ctaExplore')),
-        ),
       ],
     );
   }

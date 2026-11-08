@@ -18,7 +18,6 @@ import 'package:sicklers_warriors/features/education/data/education_repository.d
 import 'package:sicklers_warriors/features/education/presentation/pages/education_page.dart';
 import 'package:sicklers_warriors/features/home/data/home_dashboard_loader.dart';
 import 'package:sicklers_warriors/features/home/presentation/pages/home_page.dart';
-import 'package:sicklers_warriors/features/public/data/content_repository.dart';
 import 'package:sicklers_warriors/features/public/presentation/pages/public_home_page.dart';
 import 'package:sicklers_warriors/shared/widgets/banners/animated_page_banner.dart';
 import 'package:sicklers_warriors/shared/widgets/banners/healthcare_banner_art.dart';
@@ -116,7 +115,7 @@ EducationRepository _educationRepo() => EducationRepository(
   }),
 );
 
-Widget _publicApp(ContentRepository content) {
+Widget _publicApp() {
   final themeController = ThemeController(AppPreferences.memory());
   final localeController = LocaleController(AppPreferences.memory());
   return LocaleScope(
@@ -129,31 +128,12 @@ Widget _publicApp(ContentRepository content) {
         ),
         supportedLocales: AppLocalizationsDelegate.supportedLocales,
         theme: ThemeData(useMaterial3: true),
-        home: PublicHomePage(content: content),
+        home: const PublicHomePage(),
       ),
     ),
   );
 }
 
-ContentRepository _publicRepo() => ContentRepository(
-  client: MockClient((request) async {
-    final path = request.url.path;
-    if (path.endsWith('/news/latest/')) {
-      return _json({
-        'data': {'article': null},
-      });
-    }
-    if (path.endsWith('/news/')) {
-      return _json({
-        'data': {'count': 0, 'next': null, 'results': <Object>[]},
-      });
-    }
-    if (path.endsWith('/ticker/')) {
-      return _json({'data': <Object>[]});
-    }
-    return _json({'data': <String, Object>{}}, 404);
-  }),
-);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -432,7 +412,7 @@ void main() {
 
   testWidgets('the public home page remains banner-free', (tester) async {
     await _size(tester, const Size(900, 1400));
-    await tester.pumpWidget(_publicApp(_publicRepo()));
+    await tester.pumpWidget(_publicApp());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
