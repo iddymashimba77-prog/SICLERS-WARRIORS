@@ -8,6 +8,7 @@ import 'package:sicklers_warriors/core/prefs/app_preferences.dart';
 import 'package:sicklers_warriors/core/theme/theme_controller.dart';
 import 'package:sicklers_warriors/features/public/presentation/pages/about_pages.dart';
 import 'package:sicklers_warriors/features/public/presentation/pages/public_home_page.dart';
+import 'package:sicklers_warriors/features/public/presentation/widgets/care_journey_section.dart';
 import 'package:sicklers_warriors/shared/widgets/module_placeholder_page.dart';
 
 Widget _localizedApp(String language, {required Widget home}) {
@@ -319,7 +320,8 @@ void main() {
       );
     });
 
-    testWidgets('the mission page shows mission, vision and six values',
+    testWidgets(
+        'the mission page shows mission, vision, six values and the care journey',
         (tester) async {
       await tester.pumpWidget(_localizedApp('en', home: const MissionPage()));
       await _settleRouteTransition(tester);
@@ -337,6 +339,19 @@ void main() {
       ]) {
         expect(find.text(value), findsOneWidget, reason: 'value: $value');
       }
+      expect(find.byType(CareJourneySection), findsOneWidget);
+      expect(
+        find.text('A clearer path from first tap to lasting care'),
+        findsOneWidget,
+      );
+      expect(find.text('Join with confidence'), findsOneWidget);
+      expect(find.text('Reach the right care'), findsOneWidget);
+      expect(find.text('Stay supported'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byType(CareJourneySection)).dy,
+        greaterThan(tester.getTopLeft(find.text('Our Core Values')).dy),
+        reason: 'the care journey follows all existing mission content',
+      );
     });
 
     testWidgets('the Join CTA reaches the real signup route (EN)',

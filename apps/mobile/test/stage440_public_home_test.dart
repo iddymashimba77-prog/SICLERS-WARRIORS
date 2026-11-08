@@ -30,7 +30,7 @@ Widget _app({ThemeController? theme, LocaleController? locale}) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('renders the member care journey and not public news',
+  testWidgets('renders the public home without the mission care journey',
       (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();
@@ -39,7 +39,7 @@ void main() {
     expect(find.text('Empowering Every Warrior.'), findsOneWidget);
     expect(
       find.text('A clearer path from first tap to lasting care'),
-      findsOneWidget,
+      findsNothing,
     );
     expect(find.text('Today\'s entries'), findsNothing);
     expect(find.text('Latest News'), findsNothing);

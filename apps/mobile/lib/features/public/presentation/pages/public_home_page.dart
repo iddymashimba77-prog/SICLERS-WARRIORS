@@ -16,8 +16,8 @@ import '../../../../core/theme/app_shapes.dart';
 /// Public landing page for Sickler's Warriors (FINALIZE public home).
 ///
 /// A public brand experience built around a calm, premium care journey:
-/// pinned header with mega-menus, an editorial hero, the three-step care path,
-/// and the seven service pillars with the signed-in app showcase. News and
+/// pinned header with mega-menus, an editorial hero, and the seven service
+/// pillars with the signed-in app showcase. News and
 /// announcements are deliberately absent from the public surface.
 class PublicHomePage extends StatefulWidget {
   const PublicHomePage({super.key});
@@ -45,7 +45,6 @@ class _PublicHomePageState extends State<PublicHomePage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _HeroSection(isDesktop: isDesktop, theme: theme),
-                _JourneySection(theme: theme),
                 _WarriorNeedsSection(
                   key: const ValueKey('warrior-needs-section'),
                   theme: theme,
@@ -763,170 +762,6 @@ class _HeroBrandPanel extends StatelessWidget {
   }
 }
 
-// =============================================================== care journey
-
-class _JourneySection extends StatelessWidget {
-  const _JourneySection({required this.theme});
-
-  final ThemeData theme;
-
-  static const _steps = <({String title, String body, IconData icon})>[
-    (
-      title: 'home.journeyStep1Title',
-      body: 'home.journeyStep1Body',
-      icon: Icons.person_add_alt_1_outlined,
-    ),
-    (
-      title: 'home.journeyStep2Title',
-      body: 'home.journeyStep2Body',
-      icon: Icons.medical_services_outlined,
-    ),
-    (
-      title: 'home.journeyStep3Title',
-      body: 'home.journeyStep3Body',
-      icon: Icons.monitor_heart_outlined,
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    final wide = MediaQuery.of(context).size.width > 1024;
-    return Container(
-      color: theme.colorScheme.surface,
-      padding: EdgeInsets.symmetric(
-        vertical: AppSpacing.xxxl,
-        horizontal: wide ? AppSpacing.xxxl : AppSpacing.lg,
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: AppSpacing.contentMaxWidth),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                s.tr('home.journeyTitle'),
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurface,
-                  height: 1.15,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Text(
-                  s.tr('home.journeySubtitle'),
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.55,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final columns = constraints.maxWidth >= 900 ? 3 : 1;
-                  final gap = AppSpacing.lg;
-                  final width = columns == 1
-                      ? constraints.maxWidth
-                      : (constraints.maxWidth - gap * (columns - 1)) / columns;
-                  return Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
-                    children: [
-                      for (final (index, step) in _steps.indexed)
-                        SizedBox(
-                          width: width,
-                          child: _JourneyCard(
-                            index: index + 1,
-                            icon: step.icon,
-                            title: s.tr(step.title),
-                            body: s.tr(step.body),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _JourneyCard extends StatelessWidget {
-  const _JourneyCard({
-    required this.index,
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
-
-  final int index;
-  final IconData icon;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: AppShapes.large,
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: AppColors.lightBlue,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: AppColors.blue, size: 23),
-              ),
-              const Spacer(),
-              Text(
-                index.toString().padLeft(2, '0'),
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: AppColors.blue.withValues(alpha: .28),
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            body,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ==================================================== service area sections
 
 /// One public service area: localized copy, icon, priority action routes.
@@ -956,8 +791,7 @@ class _ServiceSpec {
 /// services and the "Explore All Services" CTA; on the right a phone mockup of
 /// the signed-in app surrounded by floating healthcare icons. The CTA scrolls
 /// to the full service cards (with their real route actions) that render
-/// directly beneath the container inside the same band. The care journey above
-/// stays visually separate from this band.
+/// directly beneath the container inside the same band.
 class _WarriorNeedsSection extends StatefulWidget {
   const _WarriorNeedsSection({
     super.key,

@@ -260,17 +260,17 @@ const Map<String, String> _en = {
   'home.heroPanelOne': 'One home for health, blood and support',
   'home.heroPanelTwo': 'Your data, your consent, your control',
   'home.heroPanelThree': 'Built with warriors, families and clinicians',
-  'home.journeyTitle': 'A clearer path from first tap to lasting care',
-  'home.journeySubtitle':
+  'about.journeyTitle': 'A clearer path from first tap to lasting care',
+  'about.journeySubtitle':
       'Sickler\'s Warriors connects the moments that matter — understanding your health, reaching the right support, and staying connected to people who understand.',
-  'home.journeyStep1Title': 'Join with confidence',
-  'home.journeyStep1Body':
+  'about.journeyStep1Title': 'Join with confidence',
+  'about.journeyStep1Body':
       'Create a secure account for yourself, your family or the person you care for, with clear consent at every step.',
-  'home.journeyStep2Title': 'Reach the right care',
-  'home.journeyStep2Body':
+  'about.journeyStep2Title': 'Reach the right care',
+  'about.journeyStep2Body':
       'Find health tools, clinics, blood support and emergency pathways without piecing the system together alone.',
-  'home.journeyStep3Title': 'Stay supported',
-  'home.journeyStep3Body':
+  'about.journeyStep3Title': 'Stay supported',
+  'about.journeyStep3Body':
       'Keep your care history close, learn from trusted resources and remain connected to a community that understands.',
   'home.sos': 'SOS',
   'home.sosHint': 'Emergency SOS',
@@ -1648,17 +1648,17 @@ const Map<String, String> _sw = {
   'home.heroPanelOne': 'Mahali pamoja pa afya, damu na msaada',
   'home.heroPanelTwo': 'Data yako, idhini yako, udhibiti wako',
   'home.heroPanelThree': 'Imejengwa na mashujaa, familia na wataalamu',
-  'home.journeyTitle': 'Njia iliyo wazi kutoka mguso wa kwanza hadi huduma endelevu',
-  'home.journeySubtitle':
+  'about.journeyTitle': 'Njia iliyo wazi kutoka mguso wa kwanza hadi huduma endelevu',
+  'about.journeySubtitle':
       'Sickler\'s Warriors inaunganisha nyakati muhimu — kuelewa afya yako, kufikia msaada sahihi, na kubaki karibu na watu wanaokuelewa.',
-  'home.journeyStep1Title': 'Jiunge kwa uhakika',
-  'home.journeyStep1Body':
+  'about.journeyStep1Title': 'Jiunge kwa uhakika',
+  'about.journeyStep1Body':
       'Unda akaunti salama kwa ajili yako, familia yako au mtu unayemlea, kwa idhini iliyo wazi katika kila hatua.',
-  'home.journeyStep2Title': 'Fikia huduma sahihi',
-  'home.journeyStep2Body':
+  'about.journeyStep2Title': 'Fikia huduma sahihi',
+  'about.journeyStep2Body':
       'Pata zana za afya, kliniki, msaada wa damu na njia za dharura bila kukusanya mfumo peke yako.',
-  'home.journeyStep3Title': 'Baki na msaada',
-  'home.journeyStep3Body':
+  'about.journeyStep3Title': 'Baki na msaada',
+  'about.journeyStep3Body':
       'Weka historia yako ya huduma karibu, jifunze kutoka vyanzo vinavyoaminika na uendelee kuwa sehemu ya jamii inayokuelewa.',
   'home.sos': 'SOS',
   'home.sosHint': 'SOS ya dharura',

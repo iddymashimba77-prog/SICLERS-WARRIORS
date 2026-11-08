@@ -5,6 +5,7 @@ import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shapes.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../widgets/care_journey_section.dart';
 
 /// Supplied Sickler's Warriors contact numbers, kept as single-source
 /// constants so the public site, copy and tests can never drift apart.
@@ -35,7 +36,8 @@ class ContactNumbers {
 
 /// Shared scaffold for the five public "About" surfaces reached from the
 /// public home menu: section app bar, branded hero (icon, optional campaign
-/// headline, section subtitle) and a scrollable, width-constrained body.
+/// headline, section subtitle), a scrollable, width-constrained body and an
+/// optional full-width bottom section.
 class AboutPageShell extends StatelessWidget {
   const AboutPageShell({
     super.key,
@@ -44,6 +46,7 @@ class AboutPageShell extends StatelessWidget {
     required this.heroIcon,
     this.headline,
     this.children = const <Widget>[],
+    this.bottom,
   });
 
   final String title;
@@ -53,6 +56,9 @@ class AboutPageShell extends StatelessWidget {
   /// Optional large brand headline shown inside the hero.
   final String? headline;
   final List<Widget> children;
+
+  /// Optional full-width section rendered after the width-constrained body.
+  final Widget? bottom;
 
   @override
   Widget build(BuildContext context) {
@@ -66,30 +72,39 @@ class AboutPageShell extends StatelessWidget {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screenEdge,
-            AppSpacing.lg,
-            AppSpacing.screenEdge,
-            AppSpacing.huge,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: AppSpacing.contentMaxWidth,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _AboutHero(
-                    icon: heroIcon,
-                    headline: headline,
-                    subtitle: subtitle,
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.screenEdge,
+                  AppSpacing.lg,
+                  AppSpacing.screenEdge,
+                  bottom == null ? AppSpacing.huge : AppSpacing.xl,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: AppSpacing.contentMaxWidth,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _AboutHero(
+                          icon: heroIcon,
+                          headline: headline,
+                          subtitle: subtitle,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        ...children,
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: AppSpacing.xl),
-                  ...children,
-                ],
+                ),
               ),
-            ),
+              if (bottom != null) bottom!,
+            ],
           ),
         ),
       ),
@@ -206,6 +221,7 @@ class MissionPage extends StatelessWidget {
       title: s.tr('about.mission'),
       subtitle: s.tr('about.missionBody'),
       heroIcon: Icons.track_changes,
+      bottom: const CareJourneySection(),
       children: [
         _StatementCard(
           icon: Icons.flag_outlined,
