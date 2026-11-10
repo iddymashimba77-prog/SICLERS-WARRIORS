@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../../auth/data/auth_repository.dart';
 import '../../auth/data/token_store.dart';
 import '../../blood_donation/data/blood_repository.dart';
+import '../../community/data/community_repository.dart';
 import '../../clinic/data/appointments_repository.dart';
 import '../../education/data/education_repository.dart';
 import '../../emergency/data/emergency_repository.dart';
@@ -21,6 +22,7 @@ class HomeDashboardData {
     required this.dashboard,
     this.identity,
     this.unreadCount,
+    this.forumUnreadCount,
     this.articles = const [],
     this.activeEmergencies = const [],
     this.openBloodRequests = const [],
@@ -36,6 +38,9 @@ class HomeDashboardData {
 
   /// Unread in-app notifications for the header badge.
   final int? unreadCount;
+
+  /// Unread community-forum notifications for the quick-action badge.
+  final int? forumUnreadCount;
 
   /// Published education content for the "Learn & grow" slot.
   final List<EducationalContent> articles;
@@ -61,17 +66,22 @@ class HomeDashboardData {
 /// fires the light side reads in parallel behind the primary dashboard call.
 class HomeDashboardLoader {
   HomeDashboardLoader({http.Client? client, TokenStore? tokenStore})
-      : _client = client,
-        _tokenStore = tokenStore ?? EphemeralTokenStore() {
+    : _client = client,
+      _tokenStore = tokenStore ?? EphemeralTokenStore() {
     _health = HealthRepository(tokenStore: _tokenStore, client: _client);
     _auth = AuthRepository(tokenStore: _tokenStore, client: _client);
-    _notifications =
-        NotificationsRepository(tokenStore: _tokenStore, client: _client);
+    _notifications = NotificationsRepository(
+      tokenStore: _tokenStore,
+      client: _client,
+    );
+    _community = CommunityRepository(tokenStore: _tokenStore, client: _client);
     _education = EducationRepository(tokenStore: _tokenStore, client: _client);
     _emergency = EmergencyRepository(tokenStore: _tokenStore, client: _client);
     _blood = BloodRepository(tokenStore: _tokenStore, client: _client);
-    _appointments =
-        AppointmentsRepository(tokenStore: _tokenStore, client: _client);
+    _appointments = AppointmentsRepository(
+      tokenStore: _tokenStore,
+      client: _client,
+    );
   }
 
   final http.Client? _client;
@@ -80,6 +90,7 @@ class HomeDashboardLoader {
   late final HealthRepository _health;
   late final AuthRepository _auth;
   late final NotificationsRepository _notifications;
+  late final CommunityRepository _community;
   late final EducationRepository _education;
   late final EmergencyRepository _emergency;
   late final BloodRepository _blood;
@@ -93,6 +104,7 @@ class HomeDashboardLoader {
       _safe(() => _health.fetchDashboard(access: access)),
       _safe(() => _auth.me(access: access)),
       _safe(() => _notifications.unreadCount(access: access)),
+      _safe(() => _community.forumUnreadCount(access: access)),
       _safe(() => _education.listContent(access: access, pageSize: 3)),
       _safe(() => _emergency.listRequests(access: access)),
       _safe(() => _blood.listRequests(access: access)),
@@ -102,15 +114,17 @@ class HomeDashboardLoader {
     final dash = results[0] as _LoadResult<HealthDashboard>;
     final identity = results[1] as _LoadResult<AuthSessionOutcome>;
     final unread = results[2] as _LoadResult<int>;
-    final articles = results[3] as _LoadResult<List<EducationalContent>>;
-    final emergencies = results[4] as _LoadResult<List<EmergencyRequest>>;
-    final bloodRequests = results[5] as _LoadResult<List<BloodRequest>>;
-    final appointments = results[6] as _LoadResult<List<ClinicAppointment>>;
+    final forumUnread = results[3] as _LoadResult<int>;
+    final articles = results[4] as _LoadResult<List<EducationalContent>>;
+    final emergencies = results[5] as _LoadResult<List<EmergencyRequest>>;
+    final bloodRequests = results[6] as _LoadResult<List<BloodRequest>>;
+    final appointments = results[7] as _LoadResult<List<ClinicAppointment>>;
 
     final failed = [
       dash,
       identity,
       unread,
+      forumUnread,
       articles,
       emergencies,
       bloodRequests,
@@ -121,6 +135,7 @@ class HomeDashboardLoader {
       dashboard: dash.value,
       identity: identity.value,
       unreadCount: unread.value,
+      forumUnreadCount: forumUnread.value,
       articles: articles.value ?? const [],
       activeEmergencies: (emergencies.value ?? const [])
           .where((e) => e.isActive)

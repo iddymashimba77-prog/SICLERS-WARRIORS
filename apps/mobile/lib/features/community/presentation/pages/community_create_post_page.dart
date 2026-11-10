@@ -5,9 +5,10 @@ import '../../data/community_repository.dart';
 
 /// Create-post screen (approved COM-003; FR-COM-001).
 ///
-/// Restates the data boundary: no private medical information belongs in a
-/// community post. The backend sanitizes HTML and rate-limits creation
-/// (30/min, §29).
+/// Categories come from `GET /api/community/categories/`. A local fallback keeps
+/// the form usable if that optional read degrades; publishing itself always goes
+/// through the server, which re-validates the category. The screen restates the
+/// data boundary: no private medical information belongs in a community post.
 class CommunityCreatePostView extends StatefulWidget {
   const CommunityCreatePostView({
     super.key,
@@ -19,14 +20,29 @@ class CommunityCreatePostView extends StatefulWidget {
   final CommunityRepository repository;
 
   @override
-  State<CommunityCreatePostView> createState() => _CommunityCreatePostViewState();
+  State<CommunityCreatePostView> createState() =>
+      _CommunityCreatePostViewState();
 }
 
 class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
+  static const _fallback = ForumCategory(
+    uid: '',
+    slug: 'community-voices',
+    name: 'Community Voices',
+    legacyCode: 'GENERAL',
+  );
+
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
-  String _category = communityCategories.first;
+  List<ForumCategory> _categories = const [_fallback];
+  String _categorySlug = _fallback.slug;
   bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
 
   @override
   void dispose() {
@@ -35,11 +51,28 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
     super.dispose();
   }
 
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await widget.repository.listCategories(
+        access: widget.accessToken,
+      );
+      if (!mounted || categories.isEmpty) return;
+      setState(() {
+        _categories = categories;
+        if (!categories.any((c) => c.slug == _categorySlug)) {
+          _categorySlug = categories.first.slug;
+        }
+      });
+    } catch (_) {
+      // Keep the fallback category when the optional lookup fails.
+    }
+  }
+
   Future<void> _submit() async {
     if (_contentController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.postSaveFailed)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppStrings.postSaveFailed)));
       return;
     }
     setState(() => _submitting = true);
@@ -48,19 +81,19 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
         access: widget.accessToken,
         title: _titleController.text.trim(),
         content: _contentController.text.trim(),
-        category: _category,
+        categorySlug: _categorySlug,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.postPublished)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppStrings.postPublished)));
       Navigator.pop(context, true);
     } catch (_) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.postSaveFailed)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppStrings.postSaveFailed)));
     }
   }
 
@@ -75,7 +108,7 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
             Card(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Padding(
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 child: Text(AppStrings.postShareConsent),
               ),
             ),
@@ -85,7 +118,7 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
               maxLength: 200,
               decoration: InputDecoration(
                 labelText: AppStrings.postTitle,
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
@@ -95,22 +128,26 @@ class _CommunityCreatePostViewState extends State<CommunityCreatePostView> {
               maxLength: 20000,
               decoration: InputDecoration(
                 labelText: AppStrings.postContent,
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: _category,
+              initialValue: _categorySlug,
               decoration: InputDecoration(
                 labelText: AppStrings.postCategory,
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
               ),
               items: [
-                for (final category in communityCategories)
-                  DropdownMenuItem(value: category, child: Text(category)),
+                for (final category in _categories)
+                  DropdownMenuItem(
+                    value: category.slug,
+                    child: Text(category.name),
+                  ),
               ],
-              onChanged: (value) => setState(() => _category = value ?? _category),
+              onChanged: (value) =>
+                  setState(() => _categorySlug = value ?? _categorySlug),
             ),
             const SizedBox(height: 20),
             FilledButton(

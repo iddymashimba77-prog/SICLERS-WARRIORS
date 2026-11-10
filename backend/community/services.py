@@ -1,9 +1,10 @@
-"""Community domain services (approved Stage 4.10).
+"""Community domain services (approved Stage 4.10, forum extension).
 
-Encapsulates moderation state transitions and report resolution so views stay
-thin and the rules are testable. Hide-first moderation: a report action of
-``HIDE`` hides the target for human review; ``REMOVE`` is terminal. Both stamp
-``moderated_by`` / ``moderated_at`` / ``moderation_reason``.
+Encapsulates moderation state transitions, reply threading and forum
+notification fan-out so views stay thin and the rules are testable. Hide-first
+moderation: a report action of ``HIDE`` hides the target for human review;
+``REMOVE`` is terminal. Posts are soft-deleted via ``deleted_at`` so moderation
+history and audit stay intact.
 """
 
 from django.utils import timezone
@@ -12,22 +13,84 @@ from notifications.services import create_notification
 
 from . import models
 
+MAX_COMMENT_DEPTH = 5
 
-def create_post(*, author, title="", content, category="GENERAL"):
-    return models.CommunityPost.objects.create(
-        author=author, title=title, content=content, category=category,
-        status="PUBLISHED",
+
+def _forum_data(post, *, forum_type, comment=None):
+    category = getattr(post, "forum_category", None)
+    return {
+        "route": "community",
+        "forum_type": forum_type,
+        "post_uid": str(post.uid),
+        "post_id": post.pk,
+        "comment_id": comment.pk if comment is not None else None,
+        "category_slug": category.slug if category is not None else None,
+    }
+
+
+def _notify_recipient(*, recipient, post, title, body, delivery_key, forum_type, comment=None):
+    """Create one forum notification, never for an admin-level recipient."""
+    if recipient is None or getattr(recipient, "is_admin", False):
+        return None
+    return create_notification(
+        recipient=recipient,
+        type_="COMMUNITY",
+        title=title,
+        body=body,
+        related_resource_type="community_post",
+        related_resource_id=str(post.uid),
+        delivery_key=delivery_key,
+        data=_forum_data(post, forum_type=forum_type, comment=comment),
     )
 
 
-def update_post(post, *, title=None, content=None, category=None):
-    if title is not None:
+def create_post(*, author, title="", content, category="GENERAL", forum_category=None):
+    return models.CommunityPost.objects.create(
+        author=author,
+        title=title,
+        content=content,
+        category=category,
+        forum_category=forum_category,
+        status="PUBLISHED",
+        last_activity_at=timezone.now(),
+    )
+
+
+def update_post(post, *, title=None, content=None, category=None, forum_category=None):
+    changed = False
+    if title is not None and title != post.title:
         post.title = title
-    if content is not None:
+        changed = True
+    if content is not None and content != post.content:
         post.content = content
-    if category is not None:
+        changed = True
+    if category is not None and category != post.category:
         post.category = category
-    post.save(update_fields=["title", "content", "category", "updated_at"])
+        changed = True
+    if forum_category is not None and forum_category != post.forum_category:
+        post.forum_category = forum_category
+        changed = True
+    if changed:
+        post.is_edited = True
+        post.save(
+            update_fields=[
+                "title", "content", "category", "forum_category",
+                "is_edited", "updated_at",
+            ]
+        )
+    return post
+
+
+def set_post_flags(post, *, is_pinned=None, is_locked=None):
+    fields = []
+    if is_pinned is not None:
+        post.is_pinned = bool(is_pinned)
+        fields.append("is_pinned")
+    if is_locked is not None:
+        post.is_locked = bool(is_locked)
+        fields.append("is_locked")
+    if fields:
+        post.save(update_fields=[*fields, "updated_at"])
     return post
 
 
@@ -67,14 +130,13 @@ def set_reaction(*, post, user, reaction_type="LIKE"):
         post=post, user=user, reaction_type=reaction_type,
     )
     if created and post.author_id and post.author_id != user.pk:
-        create_notification(
+        _notify_recipient(
             recipient=post.author,
-            type_="COMMUNITY",
-            title="New reaction on your post",
-            body="Someone reacted to your community post.",
-            related_resource_type="community_post",
-            related_resource_id=str(post.uid),
-            delivery_key=f"community:reaction:{reaction.pk}",
+            post=post,
+            title="New support on your post",
+            body="Someone supported your community post.",
+            delivery_key=f"community:reaction:{reaction.pk}:{post.author_id}",
+            forum_type="POST_REACTION",
         )
     return reaction
 
@@ -85,24 +147,79 @@ def clear_reaction(*, post, user, reaction_type="LIKE"):
     ).delete()
 
 
-def create_comment(*, post, author, content):
-    comment = models.Comment.objects.create(post=post, author=author, content=content, status="PUBLISHED")
-    if post.author_id and post.author_id != author.pk:
-        create_notification(
-            recipient=post.author,
-            type_="COMMUNITY",
-            title="New reply",
-            body="Someone replied to your community post.",
-            related_resource_type="community_post",
-            related_resource_id=str(post.uid),
-            delivery_key=f"community:comment:{comment.pk}",
-        )
+def create_comment(*, post, author, content, parent=None):
+    depth = 1
+    if parent is not None:
+        depth = min(parent.depth + 1, MAX_COMMENT_DEPTH)
+    comment = models.Comment.objects.create(
+        post=post,
+        parent=parent,
+        author=author,
+        content=content,
+        status="PUBLISHED",
+        depth=depth,
+    )
+    post.last_activity_at = comment.created_at
+    post.save(update_fields=["last_activity_at"])
+    _fan_out_comment_notifications(post=post, comment=comment, parent=parent)
     return comment
 
 
+def _fan_out_comment_notifications(*, post, comment, parent):
+    """Notify the author, the replied-to member and prior participants once.
+
+    The body never repeats community content (non-PHI metadata only). A single
+    recipient receives at most one notification per comment via the unique
+    delivery key, even when they are both the post author and a participant.
+    """
+    recipients = {}
+
+    if post.author_id and post.author_id != comment.author_id:
+        recipients[post.author_id] = (
+            "COMMENT_REPLY" if parent is not None else "POST_COMMENT",
+            "New reply to your post" if parent is not None else "New comment on your post",
+        )
+
+    if parent is not None and parent.author_id and parent.author_id != comment.author_id:
+        recipients.setdefault(
+            parent.author_id,
+            ("COMMENT_REPLY", "New reply to your comment"),
+        )
+
+    participant_ids = (
+        models.Comment.objects.filter(post=post, status="PUBLISHED")
+        .exclude(author_id=comment.author_id)
+        .values_list("author_id", flat=True)
+        .distinct()
+    )
+    for recipient_id in participant_ids:
+        recipients.setdefault(
+            recipient_id,
+            ("POST_ACTIVITY", "New activity in a discussion you joined"),
+        )
+
+    for recipient_id, (forum_type, title) in recipients.items():
+        recipient = post.author if recipient_id == post.author_id else None
+        if recipient is None:
+            from accounts.models import User
+
+            recipient = User.objects.filter(pk=recipient_id).first()
+        _notify_recipient(
+            recipient=recipient,
+            post=post,
+            title=title,
+            body="Open the community forum to read the latest activity.",
+            delivery_key=f"community:comment:{comment.pk}:{recipient_id}",
+            forum_type=forum_type,
+            comment=comment,
+        )
+
+
 def update_comment(comment, *, content):
-    comment.content = content
-    comment.save(update_fields=["content", "updated_at"])
+    if content != comment.content:
+        comment.content = content
+        comment.is_edited = True
+    comment.save(update_fields=["content", "is_edited", "updated_at"])
     return comment
 
 

@@ -6,9 +6,11 @@ import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/responsive/responsive.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../auth/presentation/widgets/role_gate.dart';
 import '../../../auth/presentation/widgets/session_scope.dart';
 import '../../../blood_donation/presentation/pages/blood_donation_page.dart';
 import '../../../clinic/data/appointments_repository.dart';
+import '../../../community/presentation/pages/community_page.dart';
 import '../../../clinic/presentation/pages/clinic_page.dart';
 import '../../../doctor/presentation/pages/doctor_hub_page.dart';
 import '../../../donations/presentation/pages/donations_page.dart';
@@ -86,7 +88,8 @@ class HomeDashboardView extends StatefulWidget {
   State<HomeDashboardView> createState() => _HomeDashboardViewState();
 }
 
-class _HomeDashboardViewState extends State<HomeDashboardView> {
+class _HomeDashboardViewState extends State<HomeDashboardView>
+    with WidgetsBindingObserver {
   late final HomeDashboardLoader _loader =
       widget.loader ?? HomeDashboardLoader();
 
@@ -98,11 +101,26 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh-on-resume keeps the forum unread badge honest without a socket.
+    if (state == AppLifecycleState.resumed) {
+      _load(silent: true);
+    }
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     try {
       final data = await _loader.load(access: widget.accessToken);
       if (!mounted) return;
@@ -112,6 +130,8 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
       });
     } catch (_) {
       if (!mounted) return;
+      // A silent resume refresh keeps the last good snapshot on failure.
+      if (silent && _data != null) return;
       setState(() {
         _data = HomeDashboardData(dashboard: null);
         _loading = false;
@@ -123,11 +143,10 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
     final data = _data;
     final first = data?.identity?.firstName;
     final last = data?.identity?.lastName;
-    final joined = [first, last]
-        .whereType<String>()
-        .where((s) => s.trim().isNotEmpty)
-        .join(' ')
-        .trim();
+    final joined = [
+      first,
+      last,
+    ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' ').trim();
     if (joined.isNotEmpty) return joined;
     final local = _session.displayName;
     if (local != null && local.isNotEmpty) return local;
@@ -191,10 +210,12 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: ErrorRetryView(
           icon: online ? Icons.cloud_off_outlined : Icons.wifi_off,
-          title: online ? AppStrings.dashboardLoadFailed : AppStrings.youAreOffline,
+          title: online
+              ? AppStrings.dashboardLoadFailed
+              : AppStrings.youAreOffline,
           message: online
               ? 'We couldn\'t load your health dashboard. Check your connection '
-                  'and try again.'
+                    'and try again.'
               : 'Connect to the internet, then refresh your dashboard.',
           onRetry: _load,
         ),
@@ -228,7 +249,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
                 onRefresh: _load,
               ),
               SectionHeader(title: AppStrings.quickActions),
-              QuickActionsGrid(actions: _quickActions(context)),
+              QuickActionsGrid(actions: _quickActions(context, data)),
               SectionHeader(title: AppStrings.alertsAndAttention),
               _AlertsCard(data: data),
               SectionHeader(title: AppStrings.healthSnapshot),
@@ -236,8 +257,9 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
               SectionHeader(
                 title: AppStrings.healthTrendTitle,
                 actionLabel: AppStrings.viewHealthInsights,
-                onAction: () => Navigator.of(context)
-                    .pushNamed(HealthDashboardPage.routeName),
+                onAction: () => Navigator.of(
+                  context,
+                ).pushNamed(HealthDashboardPage.routeName),
               ),
               _HealthTrendCard(dashboard: data.dashboard!),
               _AdaptiveGrid(
@@ -245,8 +267,9 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
                 children: [
                   _MedicationsCard(
                     dashboard: data.dashboard!,
-                    onOpen: () => Navigator.of(context)
-                        .pushNamed(MedicationPage.routeName),
+                    onOpen: () => Navigator.of(
+                      context,
+                    ).pushNamed(MedicationPage.routeName),
                   ),
                   _PainSymptomsCard(
                     dashboard: data.dashboard!,
@@ -257,8 +280,9 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
                   _AppointmentCard(
                     appointments: data.upcomingAppointments,
                     onRefresh: _load,
-                    onOpenDoctor: () => Navigator.of(context)
-                        .pushNamed(DoctorHubPage.routeName),
+                    onOpenDoctor: () => Navigator.of(
+                      context,
+                    ).pushNamed(DoctorHubPage.routeName),
                   ),
                   _ActivityCard(dashboard: data.dashboard!),
                   _LearnCard(articles: data.articles),
@@ -291,7 +315,10 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
     ];
   }
 
-  List<QuickAction> _quickActions(BuildContext context) {
+  List<QuickAction> _quickActions(
+    BuildContext context,
+    HomeDashboardData data,
+  ) {
     void go(String route) => Navigator.of(context).pushNamed(route);
     return [
       QuickAction(
@@ -342,6 +369,17 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
         accent: AppColors.blue,
         onTap: () => go(ProfilePage.routeName),
       ),
+      if (!AppRoles.isAdminRole(_session.roles))
+        QuickAction(
+          icon: Icons.forum_outlined,
+          label: AppStrings.communityForum,
+          accent: AppColors.primary,
+          badgeCount: data.forumUnreadCount ?? 0,
+          onTap: () async {
+            await Navigator.of(context).pushNamed(CommunityPage.routeName);
+            _load();
+          },
+        ),
       QuickAction(
         icon: Icons.school_outlined,
         label: AppStrings.education,
@@ -364,12 +402,15 @@ class _AdaptiveGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final gap = AppSpacing.md;
-        final itemW =
-            columns <= 1 ? constraints.maxWidth : (constraints.maxWidth - gap * (columns - 1)) / columns;
+        final itemW = columns <= 1
+            ? constraints.maxWidth
+            : (constraints.maxWidth - gap * (columns - 1)) / columns;
         return Wrap(
           spacing: gap,
           runSpacing: gap,
-          children: [for (final c in children) SizedBox(width: itemW, child: c)],
+          children: [
+            for (final c in children) SizedBox(width: itemW, child: c),
+          ],
         );
       },
     );
@@ -435,10 +476,8 @@ class _CheckInCard extends StatelessWidget {
   Future<void> _openCheckIn(BuildContext context) async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => SymptomFormPage(
-          accessToken: accessToken,
-          repository: repository,
-        ),
+        builder: (_) =>
+            SymptomFormPage(accessToken: accessToken, repository: repository),
       ),
     );
     if (saved == true) onRefresh();
@@ -450,8 +489,9 @@ class _CheckInCard extends StatelessWidget {
     final symptom = dashboard.recentSymptoms.isNotEmpty
         ? dashboard.recentSymptoms.first
         : null;
-    final last =
-        symptom == null ? null : _symptomSummary(symptom, _relativeTime(symptom.recordedAt));
+    final last = symptom == null
+        ? null
+        : _symptomSummary(symptom, _relativeTime(symptom.recordedAt));
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -541,14 +581,17 @@ class _MedicationsCard extends StatelessWidget {
               children: [
                 for (final m in meds.take(4))
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xs,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
                           child: Text(
-                            [m.name, m.strength]
-                                .where((s) => s.isNotEmpty)
-                                .join(' '),
+                            [
+                              m.name,
+                              m.strength,
+                            ].where((s) => s.isNotEmpty).join(' '),
                             style: theme.textTheme.bodyMedium,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -587,10 +630,8 @@ class _PainSymptomsCard extends StatelessWidget {
   Future<void> _log(BuildContext context) async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => SymptomFormPage(
-          accessToken: accessToken,
-          repository: repository,
-        ),
+        builder: (_) =>
+            SymptomFormPage(accessToken: accessToken, repository: repository),
       ),
     );
     if (saved == true) onRefresh();
@@ -618,7 +659,9 @@ class _PainSymptomsCard extends StatelessWidget {
               children: [
                 for (final s in symptoms.take(4))
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xs,
+                    ),
                     child: Row(
                       children: [
                         Icon(
@@ -646,9 +689,7 @@ class _PainSymptomsCard extends StatelessWidget {
                                   if (s.durationMinutes != null)
                                     '${s.durationMinutes} min',
                                   _relativeTime(s.recordedAt),
-                                ]
-                                    .where((t) => t.isNotEmpty)
-                                    .join(' · '),
+                                ].where((t) => t.isNotEmpty).join(' · '),
                                 style: theme.textTheme.bodySmall,
                               ),
                             ],
@@ -739,8 +780,8 @@ class _AppointmentCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 trailing: AppointmentStatusChip(status: item.status),
-                onTap: () => Navigator.of(context)
-                    .pushNamed(ClinicPage.routeName),
+                onTap: () =>
+                    Navigator.of(context).pushNamed(ClinicPage.routeName),
               ),
             TextButton.icon(
               onPressed: () =>
@@ -812,11 +853,16 @@ class _ActivityCard extends StatelessWidget {
               children: [
                 for (final t in entries.take(4))
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xs,
+                    ),
                     child: Row(
                       children: [
-                        const Icon(Icons.fiber_manual_record,
-                            size: 12, color: AppColors.blue),
+                        const Icon(
+                          Icons.fiber_manual_record,
+                          size: 12,
+                          color: AppColors.blue,
+                        ),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
@@ -904,7 +950,8 @@ class _AlertsCard extends StatelessWidget {
     if (data.activeEmergencies.isNotEmpty) {
       return EmergencyCard(
         title: AppStrings.activeEmergencyTitle,
-        message: '${AppStrings.activeEmergencyBody} '
+        message:
+            '${AppStrings.activeEmergencyBody} '
             '${data.activeEmergencies.length} active request(s).',
         icon: Icons.sos,
         actionLabel: AppStrings.trackingTitle,
@@ -992,7 +1039,11 @@ class _EmptyInline extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Icon(
+            icon,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: Text(message, style: theme.textTheme.bodySmall)),
         ],

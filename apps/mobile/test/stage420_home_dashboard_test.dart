@@ -12,19 +12,21 @@ import 'package:sicklers_warriors/features/auth/presentation/controllers/auth_co
 import 'package:sicklers_warriors/features/home/data/home_dashboard_loader.dart';
 import 'package:sicklers_warriors/features/home/presentation/pages/home_page.dart';
 import 'package:sicklers_warriors/shared/widgets/app_emergency.dart';
+import 'package:sicklers_warriors/shared/widgets/dashboard_widgets.dart';
 
 http.Response _json(Map<String, dynamic> body, [int status = 200]) =>
-    http.Response(jsonEncode(body), status,
-        headers: {'content-type': 'application/json'});
+    http.Response(
+      jsonEncode(body),
+      status,
+      headers: {'content-type': 'application/json'},
+    );
 
 Future<void> _tallViewport(WidgetTester tester) async {
   await tester.binding.setSurfaceSize(const Size(900, 2600));
   addTearDown(() => tester.binding.setSurfaceSize(null));
 }
 
-Map<String, dynamic> _dashboard({
-  bool hasData = true,
-}) {
+Map<String, dynamic> _dashboard({bool hasData = true}) {
   if (!hasData) {
     return {
       'generated_at': '2026-09-26T10:00:00Z',
@@ -90,6 +92,8 @@ MockClient _client({
   bool offline = false,
   bool activeEmergency = false,
   bool openBloodRequest = false,
+  int forumUnread = 0,
+  List<String> roleCodes = const ['PATIENT'],
 }) {
   return MockClient((request) async {
     if (offline &&
@@ -107,11 +111,17 @@ MockClient _client({
             'first_name': 'Amina',
             'last_name': 'Mwaka',
             'account_status': 'ACTIVE',
-            'role_codes': ['PATIENT'],
+            'role_codes': roleCodes,
           },
         });
       case '/api/notifications/unread-count/':
-        return _json({'data': {'unread': 3}});
+        return _json({
+          'data': {'unread': 3},
+        });
+      case '/api/community/notifications/unread-count/':
+        return _json({
+          'data': {'unread': forumUnread},
+        });
       case '/api/education/content/':
         return _json({
           'data': {
@@ -188,8 +198,9 @@ Future<AuthController> _authenticated(MockClient client) async {
 
 void main() {
   group('Home dashboard (FRONTEND-2)', () {
-    testWidgets('personalised header uses the real identity from /auth/me',
-        (tester) async {
+    testWidgets('personalised header uses the real identity from /auth/me', (
+      tester,
+    ) async {
       await _tallViewport(tester);
       final client = _client();
       final auth = await _authenticated(client);
@@ -213,8 +224,73 @@ void main() {
       expect(find.text(AppStrings.youAreOffline), findsNothing);
     });
 
-    testWidgets('empty states are honest — no fabricated health data',
-        (tester) async {
+    testWidgets('regular members see Community Forum with the backend badge', (
+      tester,
+    ) async {
+      await _tallViewport(tester);
+      final client = _client(forumUnread: 5);
+      final auth = await _authenticated(client);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(
+            controller: auth,
+            loader: HomeDashboardLoader(client: client),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(AppStrings.communityForum), findsOneWidget);
+      final action = tester.widget<QuickAction>(
+        find.widgetWithText(QuickAction, AppStrings.communityForum),
+      );
+      expect(action.badgeCount, 5);
+    });
+
+    testWidgets('Community Forum is hidden from admin accounts', (
+      tester,
+    ) async {
+      await _tallViewport(tester);
+      final client = _client(forumUnread: 5, roleCodes: const ['ADMIN']);
+      final auth = await _authenticated(client);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(
+            controller: auth,
+            loader: HomeDashboardLoader(client: client),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(AppStrings.communityForum), findsNothing);
+    });
+
+    testWidgets('the forum badge is hidden when the unread count is zero', (
+      tester,
+    ) async {
+      await _tallViewport(tester);
+      final client = _client(forumUnread: 0);
+      final auth = await _authenticated(client);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(
+            controller: auth,
+            loader: HomeDashboardLoader(client: client),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final action = tester.widget<QuickAction>(
+        find.widgetWithText(QuickAction, AppStrings.communityForum),
+      );
+      expect(action.badgeCount, 0);
+    });
+
+    testWidgets('empty states are honest — no fabricated health data', (
+      tester,
+    ) async {
       await _tallViewport(tester);
       final client = _client(hasData: false);
       final auth = await _authenticated(client);
@@ -234,8 +310,9 @@ void main() {
       expect(find.text(AppStrings.noRecentActivity), findsOneWidget);
     });
 
-    testWidgets('a real active emergency surfaces the red EmergencyCard',
-        (tester) async {
+    testWidgets('a real active emergency surfaces the red EmergencyCard', (
+      tester,
+    ) async {
       await _tallViewport(tester);
       final client = _client(activeEmergency: true);
       final auth = await _authenticated(client);
@@ -253,8 +330,9 @@ void main() {
       expect(find.text(AppStrings.activeEmergencyTitle), findsOneWidget);
     });
 
-    testWidgets('an open blood request shows the amber alert (not red)',
-        (tester) async {
+    testWidgets('an open blood request shows the amber alert (not red)', (
+      tester,
+    ) async {
       await _tallViewport(tester);
       final client = _client(openBloodRequest: true);
       final auth = await _authenticated(client);
@@ -272,28 +350,32 @@ void main() {
       expect(find.text(AppStrings.openBloodRequestTitle), findsOneWidget);
     });
 
-    testWidgets('offline failures show an honest offline state instead of data',
-        (tester) async {
-      await tester.binding.setSurfaceSize(const Size(900, 2600));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      final client = _client(offline: true);
-      final auth = await _authenticated(client);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: HomePage(
-            controller: auth,
-            loader: HomeDashboardLoader(client: client),
+    testWidgets(
+      'offline failures show an honest offline state instead of data',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(900, 2600));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final client = _client(offline: true);
+        final auth = await _authenticated(client);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: HomePage(
+              controller: auth,
+              loader: HomeDashboardLoader(client: client),
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text(AppStrings.youAreOffline), findsOneWidget);
-      // No fabricated health figures.
-      expect(find.text('Painful crisis'), findsNothing);
-    });
+        expect(find.text(AppStrings.youAreOffline), findsOneWidget);
+        // No fabricated health figures.
+        expect(find.text('Painful crisis'), findsNothing);
+      },
+    );
 
-    testWidgets('a signed-out Home renders the signed-out message', (tester) async {
+    testWidgets('a signed-out Home renders the signed-out message', (
+      tester,
+    ) async {
       await tester.pumpWidget(const MaterialApp(home: HomePage()));
       expect(find.text(AppStrings.notSignedIn), findsOneWidget);
     });

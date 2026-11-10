@@ -12,6 +12,27 @@ from rest_framework import permissions
 from accounts.permissions import IsAuthenticatedRespectStatus
 
 
+def is_forum_member(user) -> bool:
+    """Active authenticated member, explicitly excluding admin-level roles."""
+    return bool(
+        user
+        and user.is_authenticated
+        and not getattr(user, "is_admin", False)
+    )
+
+
+class ForumMemberOnly(permissions.BasePermission):
+    """Forum endpoints are for regular members — ADMIN/SUPER_ADMIN are denied."""
+
+    message = "The community forum is not available to admin accounts."
+
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        if not is_forum_member(user):
+            return False
+        return IsAuthenticatedRespectStatus().has_permission(request, view)
+
+
 class CommunityAccess(permissions.BasePermission):
     message = "You do not have permission to perform this action."
 
@@ -26,6 +47,9 @@ class CommunityAccess(permissions.BasePermission):
         "destroy": None,
         # Reactions are a member interaction, same bundle as commenting.
         "react": "community.comment",
+        # Moderator-only forum controls (admin roles are denied above).
+        "pin": "community.moderate",
+        "lock": "community.moderate",
     }
 
     def _code_for(self, view):
@@ -33,7 +57,7 @@ class CommunityAccess(permissions.BasePermission):
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
-        if not (user and user.is_authenticated):
+        if not is_forum_member(user):
             return False
         if not IsAuthenticatedRespectStatus().has_permission(request, view):
             return False

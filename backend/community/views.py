@@ -1,19 +1,26 @@
-"""Community API views (approved Stage 4.10, endpoint-matrix §16).
+"""Community forum API views (Stage 4.10, forum extension).
 
-    GET/POST    /api/community/posts/                       list (auth) / create
-    GET         /api/community/posts/{uid}/                 retrieve (auth)
+    GET/POST    /api/community/posts/                       list / create
+    GET         /api/community/posts/{uid}/                 retrieve
     PATCH/DELETE /api/community/posts/{uid}/                author / moderator
-    POST/DELETE /api/community/posts/{uid}/reactions/       react (community.comment)
+    POST/DELETE /api/community/posts/{uid}/reactions/       react
+    POST        /api/community/posts/{uid}/pin/             moderator
+    POST        /api/community/posts/{uid}/lock/            moderator
     GET/POST    /api/community/posts/{uid}/comments/        read / comment
     PATCH/DELETE /api/community/posts/{uid}/comments/{id}/  author / moderator
-    POST        /api/community/reports/                     community.report
-    GET         /api/admin/community/reports/               community.moderate
-    POST        /api/admin/community/reports/{id}/resolve/  community.moderate
+    GET         /api/community/categories/                  active categories
+    POST        /api/community/reports/                     report
+    GET         /api/community/notifications/               own forum notifications
+    GET         /api/community/notifications/unread-count/  own forum badge
+    POST        /api/community/notifications/{id}/read/     mark one own read
+    POST        /api/community/notifications/read-all/      mark all own read
+    GET         /api/admin/community/reports/               moderation queue
+    POST        /api/admin/community/reports/{id}/resolve/  moderation decision
 
-Deny by default: reading community posts/comments is open to authenticated
-members; writing is gated; moderation is MODERATOR/ADMIN/SUPER_ADMIN only.
-There is no ADMIN bypass into private medical data — community is its own
-boundary (§14).
+Forum member surfaces are denied to ADMIN/SUPER_ADMIN at the permission layer
+(and again by role-aware frontend navigation). Admin moderation routes remain
+available to moderators/admins because they are the existing back-office queue,
+not the member forum.
 """
 
 from django.db import IntegrityError, transaction
@@ -29,8 +36,11 @@ from rest_framework.response import Response
 from accounts.permissions import IsAuthenticatedRespectStatus, require
 from audit.services import record_audit
 from core.pagination import CorePageNumberPagination
+from notifications.models import Notification
+from notifications.serializers import NotificationSerializer
+from notifications.services import mark_read
 from . import models, serializers, services
-from .permissions import CommunityAccess
+from .permissions import CommunityAccess, ForumMemberOnly
 from .throttles import (
     CommunityInteractionThrottle,
     CommunityPostThrottle,
@@ -39,14 +49,19 @@ from .throttles import (
 )
 
 
-# Reaction types allowed on community posts (Stage 4.17 §15 — the model field
-# is intentionally free-form; the API whitelists so spam/abuse cannot mint
-# arbitrary reaction labels).
 REACTION_TYPES = frozenset({"LIKE", "HELPFUL", "LOVE", "CARE", "SOLIDARITY", "CELEBRATE"})
+SORT_OPTIONS = frozenset({"latest", "newest", "oldest", "popular"})
 
 
 def _is_moderator(user) -> bool:
     return bool(user and user.is_authenticated and user.has_perm_code("community.moderate"))
+
+
+def _forum_notifications(user):
+    return (
+        Notification.objects.filter(recipient=user, type="COMMUNITY")
+        .exclude(status="SUPPRESSED")
+    )
 
 
 class CommunityPostViewSet(viewsets.GenericViewSet):
@@ -73,9 +88,6 @@ class CommunityPostViewSet(viewsets.GenericViewSet):
 
     def _base_queryset(self):
         user = self.request.user
-        # Stage 4.18: correlated Subquery counts replace the previous
-        # .distinct() Count GROUP BY which fanned out over reactions × comments
-        # rows. Same numbers, no row multiplication on hot feeds.
         reaction_count = models.Reaction.objects.filter(
             post=OuterRef("pk"),
         ).order_by().values("post").annotate(n=Count("id")).values("n")
@@ -83,7 +95,7 @@ class CommunityPostViewSet(viewsets.GenericViewSet):
             post=OuterRef("pk"), status="PUBLISHED",
         ).order_by().values("post").annotate(n=Count("id")).values("n")
         return (
-            models.CommunityPost.objects.select_related("author")
+            models.CommunityPost.objects.select_related("author", "forum_category")
             .filter(deleted_at__isnull=True)
             .annotate(
                 reaction_count=Subquery(reaction_count),
@@ -109,18 +121,38 @@ class CommunityPostViewSet(viewsets.GenericViewSet):
         self.check_object_permissions(self.request, obj)
         return obj
 
+    def _ordered(self, qs, sort):
+        if sort == "newest":
+            return qs.order_by("-is_pinned", "-created_at")
+        if sort == "oldest":
+            return qs.order_by("-is_pinned", "created_at")
+        if sort == "popular":
+            return qs.order_by("-is_pinned", "-reaction_count", "-comment_count", "-created_at")
+        return qs.order_by("-is_pinned", "-last_activity_at", "-created_at")
+
     def list(self, request):
         qs = self.get_queryset()
-        category = request.query_params.get("category")
+        category = request.query_params.get("category") or request.query_params.get("category_slug")
         if category:
-            if category not in models.POST_CATEGORIES:
+            if category in models.POST_CATEGORIES:
+                qs = qs.filter(category=category)
+            elif models.ForumCategory.objects.filter(slug=category, is_active=True).exists():
+                qs = qs.filter(forum_category__slug=category)
+            else:
                 raise ValidationError({"category": "Unsupported category."})
-            qs = qs.filter(category=category)
+        search = (request.query_params.get("search") or "").strip()[:200]
+        if search:
+            qs = qs.filter(Q(title__icontains=search) | Q(content__icontains=search))
         if request.query_params.get("author") == "me":
             qs = qs.filter(author=request.user)
-        qs = qs.order_by("-created_at")
+        sort = (request.query_params.get("sort") or "latest").lower()
+        if sort not in SORT_OPTIONS:
+            raise ValidationError({"sort": "Unsupported sort order."})
+        qs = self._ordered(qs, sort)
         page = self.paginate_queryset(qs)
-        serializer = serializers.CommunityPostSerializer(page, many=True, context={"request": request})
+        serializer = serializers.CommunityPostSerializer(
+            page, many=True, context={"request": request},
+        )
         return self.get_paginated_response(serializer.data)
 
     def retrieve(self, request, uid=None):
@@ -141,6 +173,7 @@ class CommunityPostViewSet(viewsets.GenericViewSet):
             title=data.get("title", ""),
             content=data["content"],
             category=data.get("category", "GENERAL"),
+            forum_category=data.get("forum_category"),
         )
         record_audit(
             actor=user, action_code="community_posts.create",
@@ -157,11 +190,17 @@ class CommunityPostViewSet(viewsets.GenericViewSet):
         if obj.author_id != request.user.id and not _is_moderator(request.user):
             raise PermissionDenied("Only the author can change this post.")
 
+    def _assert_moderator(self, request):
+        if not _is_moderator(request.user):
+            raise PermissionDenied("Only a moderator can perform this action.")
+
     @transaction.atomic
     def partial_update(self, request, uid=None):
         instance = self.get_object()
         self._assert_author_or_moderator(request, instance)
-        serializer = serializers.CommunityPostCreateSerializer(data=request.data, partial=True)
+        serializer = serializers.CommunityPostCreateSerializer(
+            data=request.data, partial=True,
+        )
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         services.update_post(
@@ -169,6 +208,7 @@ class CommunityPostViewSet(viewsets.GenericViewSet):
             title=data.get("title"),
             content=data.get("content"),
             category=data.get("category"),
+            forum_category=data.get("forum_category"),
         )
         record_audit(
             actor=request.user, action_code="community_posts.update",
@@ -191,6 +231,38 @@ class CommunityPostViewSet(viewsets.GenericViewSet):
         )
         return Response(status=http_status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=["post"], url_path="pin")
+    def pin(self, request, uid=None):
+        instance = self.get_object()
+        self._assert_moderator(request)
+        value = request.data.get("is_pinned", True)
+        if not isinstance(value, bool):
+            raise ValidationError({"is_pinned": "Expected a boolean."})
+        services.set_post_flags(instance, is_pinned=value)
+        record_audit(
+            actor=request.user, action_code="community_posts.pin",
+            resource_type="community_post", resource_id=instance.pk, request=request,
+            details={"is_pinned": value},
+        )
+        instance = self.get_queryset().get(pk=instance.pk)
+        return Response(serializers.CommunityPostSerializer(instance, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="lock")
+    def lock(self, request, uid=None):
+        instance = self.get_object()
+        self._assert_moderator(request)
+        value = request.data.get("is_locked", True)
+        if not isinstance(value, bool):
+            raise ValidationError({"is_locked": "Expected a boolean."})
+        services.set_post_flags(instance, is_locked=value)
+        record_audit(
+            actor=request.user, action_code="community_posts.lock",
+            resource_type="community_post", resource_id=instance.pk, request=request,
+            details={"is_locked": value},
+        )
+        instance = self.get_queryset().get(pk=instance.pk)
+        return Response(serializers.CommunityPostSerializer(instance, context={"request": request}).data)
+
     @action(detail=True, methods=["post", "delete"], url_path="reactions")
     def react(self, request, uid=None):
         instance = self.get_object()
@@ -210,7 +282,7 @@ class CommunityPostViewSet(viewsets.GenericViewSet):
 
 
 class CommentListCreateView(GenericAPIView):
-    permission_classes = [IsAuthenticatedRespectStatus]
+    permission_classes = [ForumMemberOnly]
     parser_classes = [JSONParser]
     pagination_class = CorePageNumberPagination
 
@@ -220,9 +292,9 @@ class CommentListCreateView(GenericAPIView):
         return serializers.CommentSerializer
 
     def get_post(self):
-        post = models.CommunityPost.objects.filter(
-            uid=self.kwargs["uid"], deleted_at__isnull=True,
-        ).first()
+        post = models.CommunityPost.objects.select_related(
+            "author", "forum_category",
+        ).filter(uid=self.kwargs["uid"], deleted_at__isnull=True).first()
         if post is None:
             raise NotFound("Not found.")
         return post
@@ -234,15 +306,24 @@ class CommentListCreateView(GenericAPIView):
 
     def get_queryset(self, post):
         user = self.request.user
-        qs = models.Comment.objects.select_related("author").filter(post=post)
+        reply_count = models.Comment.objects.filter(
+            parent=OuterRef("pk"), status="PUBLISHED",
+        ).order_by().values("parent").annotate(n=Count("id")).values("n")
+        qs = (
+            models.Comment.objects.select_related("author", "parent")
+            .filter(post=post)
+            .annotate(reply_count=Subquery(reply_count))
+        )
         if _is_moderator(user):
             return qs
-        return qs.filter(Q(status="PUBLISHED") | Q(author=user))
+        # Deleted/hidden parents stay as tombstones while they have live
+        # replies so the thread never loses its structure.
+        return qs.filter(
+            Q(status="PUBLISHED") | Q(author=user) | Q(replies__status="PUBLISHED")
+        ).distinct()
 
     def get(self, request, uid=None):
         post = self.get_post()
-        # Stage 4.17 §15: moderated (HIDDEN/REMOVED) content stays hidden — its
-        # comment thread is not readable by regular members, only moderators.
         if post.status != "PUBLISHED" and not _is_moderator(request.user):
             raise NotFound("Not found.")
         qs = self.get_queryset(post).order_by("created_at")
@@ -257,15 +338,30 @@ class CommentListCreateView(GenericAPIView):
         post = self.get_post()
         if post.status != "PUBLISHED":
             raise ValidationError({"post": "This post is not open for comments."})
+        if post.is_locked:
+            raise ValidationError({"post": "This discussion is locked."})
         serializer = serializers.CommentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        parent = None
+        parent_id = serializer.validated_data.get("parent_id")
+        if parent_id:
+            parent = models.Comment.objects.filter(
+                pk=parent_id, post=post, status="PUBLISHED",
+            ).first()
+            if parent is None:
+                raise ValidationError({"parent_id": "Reply target was not found."})
+            if parent.depth >= services.MAX_COMMENT_DEPTH:
+                raise ValidationError({"parent_id": "Reply depth limit reached."})
         comment = services.create_comment(
-            post=post, author=request.user, content=serializer.validated_data["content"],
+            post=post,
+            author=request.user,
+            content=serializer.validated_data["content"],
+            parent=parent,
         )
         record_audit(
             actor=request.user, action_code="community_comments.create",
             resource_type="comment", resource_id=comment.pk, request=request,
-            details={"post": post.pk},
+            details={"post": post.pk, "parent": parent.pk if parent else None},
         )
         return Response(
             serializers.CommentSerializer(comment, context={"request": request}).data,
@@ -274,7 +370,7 @@ class CommentListCreateView(GenericAPIView):
 
 
 class CommentDetailView(GenericAPIView):
-    permission_classes = [IsAuthenticatedRespectStatus]
+    permission_classes = [ForumMemberOnly]
     parser_classes = [JSONParser]
 
     def get_serializer_class(self):
@@ -283,7 +379,7 @@ class CommentDetailView(GenericAPIView):
         return serializers.CommentSerializer
 
     def get_object(self):
-        comment = models.Comment.objects.select_related("author").filter(
+        comment = models.Comment.objects.select_related("author", "parent").filter(
             pk=self.kwargs["pk"], post__uid=self.kwargs["uid"], post__deleted_at__isnull=True,
         ).first()
         if comment is None:
@@ -298,6 +394,8 @@ class CommentDetailView(GenericAPIView):
     def patch(self, request, uid=None, pk=None):
         comment = self.get_object()
         self._assert_author_or_moderator(request, comment)
+        if comment.status != "PUBLISHED":
+            raise ValidationError({"comment": "Deleted comments cannot be edited."})
         serializer = serializers.CommentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         services.update_comment(comment, content=serializer.validated_data["content"])
@@ -315,9 +413,84 @@ class CommentDetailView(GenericAPIView):
         return Response(status=http_status.HTTP_204_NO_CONTENT)
 
 
+class ForumCategoryListView(GenericAPIView):
+    permission_classes = [ForumMemberOnly]
+    serializer_class = serializers.ForumCategorySerializer
+
+    def get(self, request):
+        qs = (
+            models.ForumCategory.objects.filter(is_active=True)
+            .annotate(
+                post_count=Count(
+                    "posts",
+                    filter=Q(posts__status="PUBLISHED", posts__deleted_at__isnull=True),
+                    distinct=True,
+                )
+            )
+            .order_by("sort_order", "name")
+        )
+        return Response({
+            "results": serializers.ForumCategorySerializer(qs, many=True).data,
+        })
+
+
+class ForumNotificationListView(GenericAPIView):
+    permission_classes = [ForumMemberOnly]
+    pagination_class = CorePageNumberPagination
+    serializer_class = NotificationSerializer
+
+    def get_queryset(self):
+        qs = _forum_notifications(self.request.user)
+        if self.request.query_params.get("unread") in ("1", "true", "True"):
+            qs = qs.exclude(status="READ")
+        return qs.order_by("-created_at")
+
+    def get(self, request):
+        qs = self.get_queryset()
+        page = self.paginate_queryset(qs)
+        serializer = NotificationSerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
+
+
+class ForumNotificationUnreadCountView(GenericAPIView):
+    permission_classes = [ForumMemberOnly]
+
+    def get(self, request):
+        count = _forum_notifications(request.user).exclude(status="READ").count()
+        return Response({"unread": count})
+
+
+class ForumNotificationReadView(GenericAPIView):
+    permission_classes = [ForumMemberOnly]
+    serializer_class = NotificationSerializer
+
+    def post(self, request, pk=None):
+        notification = _forum_notifications(request.user).filter(pk=pk).first()
+        if notification is None:
+            raise NotFound("Not found.")
+        mark_read(notification)
+        return Response(NotificationSerializer(notification).data)
+
+
+class ForumNotificationReadAllView(GenericAPIView):
+    permission_classes = [ForumMemberOnly]
+
+    def post(self, request):
+        updated = _forum_notifications(request.user).exclude(status="READ").update(
+            status="READ",
+        )
+        # Use the shared service semantics for read_at consistency.
+        from django.utils import timezone
+
+        _forum_notifications(request.user).filter(status="READ", read_at__isnull=True).update(
+            read_at=timezone.now(),
+        )
+        return Response({"updated": updated})
+
+
 @extend_schema(responses=OpenApiTypes.OBJECT)
 class ReportCreateView(GenericAPIView):
-    permission_classes = [IsAuthenticatedRespectStatus, require("community.report")]
+    permission_classes = [ForumMemberOnly, require("community.report")]
     parser_classes = [JSONParser]
 
     def get_serializer_class(self):

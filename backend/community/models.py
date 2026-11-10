@@ -24,12 +24,41 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 POST_CATEGORIES = ["SUPPORT", "EDUCATION", "GENERAL", "VENTING"]
 POST_STATUSES = ["PUBLISHED", "HIDDEN", "REMOVED", "PENDING_REVIEW"]
 COMMENT_STATUSES = ["PUBLISHED", "HIDDEN", "REMOVED"]
 REPORT_TARGET_TYPES = ["POST", "COMMENT"]
 REPORT_STATUSES = ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"]
+
+
+class ForumCategory(models.Model):
+    """Database-managed forum category (Stage 4.10 extension).
+
+    The legacy ``CommunityPost.category`` vocabulary remains for API
+    compatibility, while new clients read the active category list from the
+    server instead of hardcoding labels. ``legacy_code`` maps a category back to
+    that approved four-value CHECK vocabulary.
+    """
+
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    slug = models.SlugField(max_length=60, unique=True)
+    name = models.CharField(max_length=80)
+    description = models.TextField(blank=True)
+    legacy_code = models.CharField(max_length=10, blank=True, choices=[(v, v) for v in POST_CATEGORIES])
+    is_active = models.BooleanField(default=True, db_index=True)
+    sort_order = models.PositiveSmallIntegerField(default=0, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "forum_categories"
+        ordering = ["sort_order", "name"]
+        verbose_name_plural = "forum categories"
+
+    def __str__(self):
+        return self.slug
 
 
 class CommunityPost(models.Model):
@@ -43,7 +72,15 @@ class CommunityPost(models.Model):
     title = models.CharField(max_length=200, blank=True)
     content = models.TextField()
     category = models.CharField(max_length=10, choices=CATEGORY, default="GENERAL")
+    forum_category = models.ForeignKey(
+        ForumCategory, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="posts",
+    )
     status = models.CharField(max_length=14, choices=STATUS, default="PUBLISHED", db_index=True)
+    is_pinned = models.BooleanField(default=False, db_index=True)
+    is_locked = models.BooleanField(default=False)
+    is_edited = models.BooleanField(default=False)
+    last_activity_at = models.DateTimeField(default=timezone.now, db_index=True)
     moderated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
         on_delete=models.SET_NULL, related_name="moderated_community_posts",
@@ -71,6 +108,8 @@ class CommunityPost(models.Model):
             models.Index(fields=["status", "-created_at"], name="community_posts_status_idx"),
             models.Index(fields=["author", "-created_at"], name="community_posts_author_idx"),
             models.Index(fields=["category", "-created_at"], name="community_posts_category_idx"),
+            models.Index(fields=["forum_category", "-created_at"], name="community_posts_forum_cat_idx"),
+            models.Index(fields=["status", "-last_activity_at"], name="community_posts_activity_idx"),
         ]
 
     def __str__(self):
@@ -83,11 +122,17 @@ class Comment(models.Model):
     post = models.ForeignKey(
         CommunityPost, on_delete=models.CASCADE, related_name="comments",
     )
+    parent = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.CASCADE,
+        related_name="replies",
+    )
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="community_comments",
     )
     content = models.TextField()
     status = models.CharField(max_length=12, choices=STATUS, default="PUBLISHED", db_index=True)
+    depth = models.PositiveSmallIntegerField(default=1)
+    is_edited = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -102,6 +147,7 @@ class Comment(models.Model):
         ]
         indexes = [
             models.Index(fields=["post", "created_at"], name="comments_post_ts_idx"),
+            models.Index(fields=["post", "parent", "created_at"], name="comments_post_parent_idx"),
         ]
 
     def __str__(self):

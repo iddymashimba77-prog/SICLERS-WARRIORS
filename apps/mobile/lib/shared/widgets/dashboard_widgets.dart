@@ -33,24 +33,15 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(
-        top: AppSpacing.xl,
-        bottom: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              title.toUpperCase(),
-              style: theme.textTheme.labelSmall,
-            ),
+            child: Text(title.toUpperCase(), style: theme.textTheme.labelSmall),
           ),
           if (trailing != null) trailing!,
           if (actionLabel != null)
-            TextButton(
-              onPressed: onAction,
-              child: Text(actionLabel!),
-            ),
+            TextButton(onPressed: onAction, child: Text(actionLabel!)),
         ],
       ),
     );
@@ -166,12 +157,14 @@ class QuickAction extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.accent = AppColors.blue,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final Color accent;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -193,14 +186,44 @@ class QuickAction extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: AppShapes.tile,
-                  ),
-                  child: Icon(icon, color: accent, size: 22),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: AppShapes.tile,
+                      ),
+                      child: Icon(icon, color: accent, size: 22),
+                    ),
+                    if (badgeCount > 0)
+                      Positioned(
+                        top: -5,
+                        right: -6,
+                        child: Container(
+                          constraints: const BoxConstraints(minWidth: 18),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.emergency,
+                            borderRadius: AppShapes.medium,
+                          ),
+                          child: Text(
+                            badgeCount > 99 ? '99+' : '$badgeCount',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
@@ -231,7 +254,8 @@ class QuickActionsGrid extends StatelessWidget {
       builder: (context, size) {
         if (size == AppScreenSize.compact) {
           const cols = 4;
-          final width = MediaQuery.sizeOf(context).width - AppSpacing.screenEdge * 2;
+          final width =
+              MediaQuery.sizeOf(context).width - AppSpacing.screenEdge * 2;
           final itemW = (width - AppSpacing.sm * (cols - 1)) / cols;
           return Wrap(
             spacing: AppSpacing.sm,
@@ -244,9 +268,7 @@ class QuickActionsGrid extends StatelessWidget {
         return Wrap(
           spacing: AppSpacing.md,
           runSpacing: AppSpacing.md,
-          children: [
-            for (final a in actions) SizedBox(width: 140, child: a),
-          ],
+          children: [for (final a in actions) SizedBox(width: 140, child: a)],
         );
       },
     );
@@ -299,8 +321,7 @@ class HealthSummaryCard extends StatelessWidget {
               ],
             ),
           ),
-          if (value != null)
-            Text(value!, style: theme.textTheme.titleLarge),
+          if (value != null) Text(value!, style: theme.textTheme.titleLarge),
           if (onTap != null) ...[
             const SizedBox(width: AppSpacing.xs),
             const Icon(Icons.chevron_right, size: 20),
@@ -344,9 +365,7 @@ class ProgressCard extends StatelessWidget {
                 Icon(icon, size: 18, color: accent),
                 const SizedBox(width: AppSpacing.xs),
               ],
-              Expanded(
-                child: Text(label, style: theme.textTheme.labelMedium),
-              ),
+              Expanded(child: Text(label, style: theme.textTheme.labelMedium)),
               Text(
                 '${(pct * 100).round()}%',
                 style: theme.textTheme.labelMedium?.copyWith(color: accent),
@@ -479,9 +498,7 @@ class AlertCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     actionLabel!,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: accent,
-                    ),
+                    style: theme.textTheme.labelMedium?.copyWith(color: accent),
                   ),
                 ],
               ],
