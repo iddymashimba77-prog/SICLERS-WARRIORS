@@ -134,7 +134,8 @@ void main() {
     }
   });
 
-  testWidgets('the rebalanced desktop header stays laid out', (tester) async {
+  testWidgets('the desktop header keeps only SOS, theme and language',
+      (tester) async {
     for (final width in [1025.0, 1280.0, 1440.0]) {
       tester.view.physicalSize = Size(width, 1000);
       tester.view.devicePixelRatio = 1.0;
@@ -142,9 +143,110 @@ void main() {
       await tester.pumpWidget(_app());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
+
+      final header = find.byType(SliverAppBar);
       expect(tester.takeException(), isNull, reason: 'overflow at ${width}px');
-      expect(find.byKey(const Key('mega-About')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: header,
+          matching: find.byKey(const ValueKey('public-header-sos')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: header,
+          matching: find.byKey(const ValueKey('public-theme-toggle')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: header,
+          matching: find.byKey(const ValueKey('public-language-toggle')),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('mega-About')), findsNothing);
+      expect(
+        find.descendant(of: header, matching: find.text('Login')),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: header, matching: find.text('Sign up')),
+        findsNothing,
+      );
     }
+  });
+
+  testWidgets('the mobile header keeps only SOS, theme and language',
+      (tester) async {
+    for (final width in [320.0, 390.0, 430.0, 719.0]) {
+      tester.view.physicalSize = Size(width, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_app());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final header = find.byType(SliverAppBar);
+      expect(tester.takeException(), isNull, reason: 'overflow at ${width}px');
+      expect(
+        find.descendant(
+          of: header,
+          matching: find.byKey(const ValueKey('public-header-sos')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: header,
+          matching: find.byKey(const ValueKey('public-theme-toggle')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: header,
+          matching: find.byKey(const ValueKey('public-language-toggle')),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.menu), findsNothing);
+      expect(
+        find.descendant(of: header, matching: find.text('Login')),
+        findsNothing,
+      );
+    }
+  });
+
+  testWidgets('the Complete Care section is gone and the phone ends the page',
+      (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Complete care, one platform'), findsNothing);
+    expect(find.text('Everything a Warrior Needs'), findsNothing);
+    expect(
+      find.text('Seven connected corners of care, support and community.'),
+      findsNothing,
+    );
+    expect(find.text('Explore All Services'), findsNothing);
+
+    final phone = find.byKey(const ValueKey('phone-showcase-section'));
+    expect(phone, findsOneWidget);
+    expect(find.text('Quick actions'), findsOneWidget);
+
+    final column = tester.widget<Column>(
+      find
+          .descendant(
+            of: find.byType(SliverToBoxAdapter),
+            matching: find.byType(Column),
+          )
+          .first,
+    );
+    expect(column.children.last.key, const ValueKey('phone-showcase-section'));
   });
 
   testWidgets('the public header keeps SOS one tap away', (tester) async {

@@ -10,15 +10,14 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/theme_controller.dart';
 import '../../../../shared/widgets/app_logo.dart';
-import 'about_pages.dart';
 import '../../../../core/theme/app_shapes.dart';
 
 /// Public landing page for Sickler's Warriors (FINALIZE public home).
 ///
 /// A public brand experience built around a calm, premium care journey:
-/// pinned header with mega-menus, an editorial hero, and the seven service
-/// pillars with the signed-in app showcase. News and
-/// announcements are deliberately absent from the public surface.
+/// a minimal pinned header, an editorial hero, and the signed-in app showcase
+/// as the final surface. News and announcements are deliberately absent from
+/// the public page.
 class PublicHomePage extends StatefulWidget {
   const PublicHomePage({super.key});
 
@@ -45,13 +44,12 @@ class _PublicHomePageState extends State<PublicHomePage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _HeroSection(isDesktop: isDesktop, theme: theme),
-                _WarriorNeedsSection(
-                  key: const ValueKey('warrior-needs-section'),
+                _PhoneShowcaseSection(
+                  key: const ValueKey('phone-showcase-section'),
                   theme: theme,
                   services: [
                     _ServiceSpec(
                       title: s.tr('srv.healthTitle'),
-                      subtitle: s.tr('srv.healthSubtitle'),
                       icon: Icons.health_and_safety_outlined,
                       actions: const [
                         _SectionAction(labelKey: 'act.healthDashboard', route: '/health'),
@@ -60,7 +58,6 @@ class _PublicHomePageState extends State<PublicHomePage> {
                     ),
                     _ServiceSpec(
                       title: s.tr('srv.doctorTitle'),
-                      subtitle: s.tr('srv.doctorSubtitle'),
                       icon: Icons.medical_services_outlined,
                       actions: const [
                         _SectionAction(labelKey: 'act.findDoctor', route: '/doctors'),
@@ -69,7 +66,6 @@ class _PublicHomePageState extends State<PublicHomePage> {
                     ),
                     _ServiceSpec(
                       title: s.tr('srv.bloodTitle'),
-                      subtitle: s.tr('srv.bloodSubtitle'),
                       icon: Icons.bloodtype_outlined,
                       emergency: true,
                       actions: const [
@@ -79,7 +75,6 @@ class _PublicHomePageState extends State<PublicHomePage> {
                     ),
                     _ServiceSpec(
                       title: s.tr('srv.emergencyTitle'),
-                      subtitle: s.tr('srv.emergencySubtitle'),
                       icon: Icons.emergency_outlined,
                       emergency: true,
                       actions: const [
@@ -88,7 +83,6 @@ class _PublicHomePageState extends State<PublicHomePage> {
                     ),
                     _ServiceSpec(
                       title: s.tr('srv.educationTitle'),
-                      subtitle: s.tr('srv.educationSubtitle'),
                       icon: Icons.school_outlined,
                       actions: const [
                         _SectionAction(labelKey: 'act.openAcademy', route: '/education'),
@@ -96,7 +90,6 @@ class _PublicHomePageState extends State<PublicHomePage> {
                     ),
                     _ServiceSpec(
                       title: s.tr('srv.communityTitle'),
-                      subtitle: s.tr('srv.communitySubtitle'),
                       icon: Icons.forum_outlined,
                       actions: const [
                         _SectionAction(labelKey: 'act.joinCommunity', route: '/community'),
@@ -106,7 +99,6 @@ class _PublicHomePageState extends State<PublicHomePage> {
                     ),
                     _ServiceSpec(
                       title: s.tr('srv.donateTitle'),
-                      subtitle: s.tr('srv.donateSubtitle'),
                       icon: Icons.volunteer_activism_outlined,
                       actions: const [
                         _SectionAction(labelKey: 'act.makeDonation', route: '/donations'),
@@ -167,22 +159,8 @@ class _PublicHeader extends StatelessWidget {
 
   final bool isDesktop;
 
-  void _go(BuildContext context, _MenuLink link) {
-    if (link.route.isNotEmpty) {
-      goTo(context, link.route);
-    } else if (link.page != null) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => link.page!),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    final menus = _megaMenusFor(s);
-    final compactHeader = !isDesktop &&
-        MediaQuery.sizeOf(context).width < 720;
     return SliverAppBar(
       backgroundColor: Theme.of(context).colorScheme.surface,
       elevation: 0,
@@ -193,139 +171,25 @@ class _PublicHeader extends StatelessWidget {
       toolbarHeight: isDesktop ? 72 : 60,
       leadingWidth: isDesktop ? null : 56,
       leading: isDesktop ? null : const _HeaderSosButton(compact: true),
-      titleSpacing: isDesktop ? AppSpacing.lg : 0,
-      title: isDesktop
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final (index, entry) in menus.entries.indexed) ...[
-                  if (index > 0) const SizedBox(width: AppSpacing.xs),
-                  _HeaderMenuButton(
-                    label: entry.key,
-                    links: entry.value,
-                    onSelected: (l) => _go(context, l),
-                  ),
-                ],
-              ],
-            )
-          : null,
+      titleSpacing: AppSpacing.lg,
       actions: isDesktop
           ? [
               const _HeaderSosButton(),
               const SizedBox(width: AppSpacing.sm),
               const _PublicThemeToggle(),
+              const SizedBox(width: AppSpacing.xs),
               const _PublicLanguageToggle(),
-              const SizedBox(width: AppSpacing.xs),
-              TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/login'),
-                child: Text(s.tr('common.signIn')),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.md),
-                child: FilledButton(
-                  onPressed: () => Navigator.pushNamed(context, '/signup'),
-                  child: Text(s.tr('common.signUp')),
-                ),
-              ),
+              const SizedBox(width: AppSpacing.md),
             ]
-          : compactHeader
-              ? [
-                  const _PublicThemeToggle(),
-                  const _PublicLanguageToggle(),
-                  IconButton(
-                    tooltip: s.tr('home.explore'),
-                    onPressed: () => _showMobileMenu(context),
-                    icon: const Icon(Icons.menu),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                ]
-              : [
-                  const _PublicThemeToggle(),
-                  const _PublicLanguageToggle(),
-                  TextButton(
-                    onPressed: () => Navigator.pushNamed(context, '/login'),
-                    child: Text(s.tr('common.signIn')),
-                  ),
-                  IconButton(
-                    tooltip: s.tr('home.explore'),
-                    onPressed: () => _showMobileMenu(context),
-                    icon: const Icon(Icons.menu),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                ],
+          : [
+              const _PublicThemeToggle(),
+              const SizedBox(width: AppSpacing.xs),
+              const _PublicLanguageToggle(),
+              const SizedBox(width: AppSpacing.md),
+            ],
     );
   }
 
-  void _showMobileMenu(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    final entries = _megaMenusFor(s).entries.toList();
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xxl,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ListTile(
-                  leading: const Icon(
-                    Icons.emergency_outlined,
-                    color: AppColors.emergency,
-                  ),
-                  title: Text(
-                    s.tr('home.sosHint'),
-                    style: const TextStyle(
-                      color: AppColors.emergency,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    goTo(context, '/emergency');
-                  },
-                ),
-                Divider(color: Theme.of(context).colorScheme.outlineVariant),
-                for (final entry in entries) ...[
-                  _MobileMenuCategory(
-                    title: entry.key,
-                    links: entry.value,
-                    onSelected: (link) {
-                      Navigator.of(sheetContext).pop();
-                      _go(context, link);
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                ],
-                ListTile(
-                  leading: const Icon(Icons.login),
-                  title: Text(s.tr('common.signIn')),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    Navigator.pushNamed(context, '/login');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.person_add_alt_1),
-                  title: Text(s.tr('common.createAccount')),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    Navigator.pushNamed(context, '/signup');
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _PublicThemeToggle extends StatelessWidget {
@@ -369,98 +233,6 @@ class _PublicLanguageToggle extends StatelessWidget {
           color: Theme.of(context).colorScheme.onSurface,
         ),
       ),
-    );
-  }
-}
-
-class _HeaderMenuButton extends StatelessWidget {
-  const _HeaderMenuButton({
-    required this.label,
-    required this.links,
-    required this.onSelected,
-  });
-
-  final String label;
-  final List<_MenuLink> links;
-  final ValueChanged<_MenuLink> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    final menuLabelStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: Theme.of(context).colorScheme.onSurface,
-          fontWeight: FontWeight.w600,
-        );
-    return PopupMenuButton<_MenuLink>(
-      key: Key('mega-$label'),
-      tooltip: '$label ${s.tr('common.menuSuffix')}',
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      onSelected: onSelected,
-      itemBuilder: (context) => [
-        for (final link in links)
-          PopupMenuItem<_MenuLink>(
-            value: link,
-            height: 44,
-            child: Row(
-              children: [
-                Icon(
-                  link.icon,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(link.label),
-              ],
-            ),
-          ),
-      ],
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(label, style: menuLabelStyle),
-      ),
-    );
-  }
-}
-
-class _MobileMenuCategory extends StatelessWidget {
-  const _MobileMenuCategory({
-    required this.title,
-    required this.links,
-    required this.onSelected,
-  });
-
-  final String title;
-  final List<_MenuLink> links;
-  final ValueChanged<_MenuLink> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title.toUpperCase(),
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            letterSpacing: .8,
-            color: theme.colorScheme.primary,
-          ),
-        ),
-        for (final link in links)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            leading: Icon(
-              link.icon,
-              size: 20,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            title: Text(link.label),
-            onTap: () => onSelected(link),
-          ),
-      ],
     );
   }
 }
@@ -693,36 +465,29 @@ class _HeroBrandPanel extends StatelessWidget {
 
 // ==================================================== service area sections
 
-/// One public service area: localized copy, icon, priority action routes.
-///
-/// Drives both the compact checklist inside the section's hero card and the
-/// full action cards rendered beneath it.
+/// One public service area rendered as a quick-action tile in the phone
+/// mockup: localized title, icon and priority action routes.
 class _ServiceSpec {
   const _ServiceSpec({
     required this.title,
-    required this.subtitle,
     required this.icon,
     required this.actions,
     this.emergency = false,
   });
 
   final String title;
-  final String subtitle;
   final IconData icon;
   final List<_SectionAction> actions;
   final bool emergency;
 }
 
-/// "Everything a Warrior Needs" — the premium mid-page service showcase.
+/// The signed-in app mockup, kept as the final public-home surface.
 ///
-/// A light-blue → white band holds one bevelled, shadowed container: on the
-/// left the badge, heading, copy, a compact tappable checklist of all seven
-/// services and the "Explore All Services" CTA; on the right a phone mockup of
-/// the signed-in app surrounded by floating healthcare icons. The CTA scrolls
-/// to the full service cards (with their real route actions) that render
-/// directly beneath the container inside the same band.
-class _WarriorNeedsSection extends StatefulWidget {
-  const _WarriorNeedsSection({
+/// The former "Complete Care, One Platform" badge, heading, copy, service
+/// checklist and card chrome are intentionally gone; only the unchanged phone
+/// mockup remains.
+class _PhoneShowcaseSection extends StatelessWidget {
+  const _PhoneShowcaseSection({
     super.key,
     required this.theme,
     required this.services,
@@ -732,244 +497,21 @@ class _WarriorNeedsSection extends StatefulWidget {
   final List<_ServiceSpec> services;
 
   @override
-  State<_WarriorNeedsSection> createState() => _WarriorNeedsSectionState();
-}
-
-class _WarriorNeedsSectionState extends State<_WarriorNeedsSection> {
-  @override
   Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    final theme = widget.theme;
-    final scheme = theme.colorScheme;
-    final dark = theme.brightness == Brightness.dark;
-    final wide = MediaQuery.of(context).size.width > 1024;
-
+    final scheme = Theme.of(context).colorScheme;
+    final wide = MediaQuery.sizeOf(context).width > 1024;
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: dark
-              ? [scheme.surfaceContainerLow, scheme.surfaceContainer]
-              : [scheme.primaryContainer.withValues(alpha: 0.28), AppColors.surface],
-        ),
-      ),
-      padding: EdgeInsets.symmetric(
-        vertical: AppSpacing.xxxl,
-        horizontal: wide ? AppSpacing.xxxl : AppSpacing.lg,
+      color: scheme.surface,
+      padding: EdgeInsets.fromLTRB(
+        wide ? AppSpacing.xxxl : AppSpacing.xxl,
+        wide ? AppSpacing.xxxl : AppSpacing.xl,
+        wide ? AppSpacing.xxxl : AppSpacing.xxl,
+        wide ? AppSpacing.lg : AppSpacing.md,
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: AppSpacing.contentMaxWidth,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _heroCard(context, s, dark),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _heroCard(BuildContext context, AppLocalizations s, bool dark) {
-    final scheme = widget.theme.colorScheme;
-    final pad = MediaQuery.of(context).size.width > 1024
-        ? AppSpacing.xxl
-        : AppSpacing.lg;
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: dark
-              ? [scheme.surfaceContainerHigh, scheme.surfaceContainer]
-              : [AppColors.surface, scheme.primaryContainer.withValues(alpha: 0.24)],
-        ),
-        borderRadius: AppShapes.hero,
-        border: Border.all(
-          color: dark ? AppColors.dividerOnDark : AppColors.borderSubtle,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.navy.withValues(alpha: dark ? .35 : .10),
-            offset: const Offset(0, 18),
-            blurRadius: 44,
-            spreadRadius: -14,
-          ),
-          BoxShadow(
-            color: AppColors.navy.withValues(alpha: dark ? .20 : .06),
-            offset: const Offset(0, 2),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      padding: EdgeInsets.all(pad),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final twoCol = constraints.maxWidth >= 640;
-          final copy = _heroCopy(context, s, dark);
-          final showcase = Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xs),
-            child: _PhoneShowcase(
-              theme: widget.theme,
-              services: widget.services,
-            ),
-          );
-          if (!twoCol) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                copy,
-                const SizedBox(height: AppSpacing.xl),
-                showcase,
-              ],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 11, child: copy),
-              const SizedBox(width: AppSpacing.xl),
-              Expanded(flex: 9, child: showcase),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _heroCopy(BuildContext context, AppLocalizations s, bool dark) {
-    final theme = widget.theme;
-    final scheme = theme.colorScheme;
-    final headingSize =
-        MediaQuery.of(context).size.width > 1024 ? 36.0 : 30.0;
-    final badgeBg =
-        dark ? AppColors.blue.withValues(alpha: .30) : AppColors.lightBlue;
-    final badgeFg = dark ? AppColors.textOnDark : AppColors.blue;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs + 2,
-          ),
-          decoration: BoxDecoration(
-            color: badgeBg,
-            borderRadius: AppShapes.pill,
-            border: Border.all(color: AppColors.blue.withValues(alpha: .3)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.verified_outlined, size: 16, color: badgeFg),
-              const SizedBox(width: AppSpacing.xs),
-              Flexible(
-                child: Text(
-                  s.tr('home.servicesBadge'),
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: badgeFg,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Text(
-          s.tr('home.sectionsTitle'),
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontSize: headingSize,
-            height: 1.15,
-            fontWeight: FontWeight.w800,
-            color: scheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          s.tr('home.sectionsSubtitle'),
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: scheme.onSurfaceVariant,
-            height: 1.55,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        for (final (index, spec) in widget.services.indexed) ...[
-          _serviceRow(context, spec),
-          if (index < widget.services.length - 1)
-            const SizedBox(height: AppSpacing.sm),
-        ],
-      ],
-    );
-  }
-
-  Widget _serviceRow(BuildContext context, _ServiceSpec spec) {
-    final theme = widget.theme;
-    final scheme = theme.colorScheme;
-    final accent = spec.emergency ? AppColors.emergency : AppColors.blue;
-    return Material(
-      color: scheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppShapes.tile,
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
-      child: InkWell(
-        borderRadius: AppShapes.tile,
-        onTap: () => goTo(context, spec.actions.first.route),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: .12),
-                  borderRadius: AppShapes.small,
-                ),
-                child: Icon(spec.icon, size: 18, color: accent),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      spec.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      spec.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: scheme.onSurfaceVariant,
-              ),
-            ],
-          ),
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: _PhoneShowcase(theme: theme, services: services),
         ),
       ),
     );
@@ -1365,56 +907,3 @@ class _SectionAction {
   final String route;
 }
 
-// ========================================================= mega menu model
-
-class _MenuLink {
-  const _MenuLink(this.label, {this.icon = Icons.arrow_forward_ios, this.route = '', this.page});
-
-  final String label;
-  final IconData icon;
-  final String route;
-
-  /// Page for destinations without a named route (About pages).
-  final Widget? page;
-}
-
-Map<String, List<_MenuLink>> _megaMenusFor(AppLocalizations s) {
-  return {
-    s.tr('nav.about'): [
-      _MenuLink(s.tr('about.about'), icon: Icons.volunteer_activism_outlined,
-          page: const AboutWarriorsPage()),
-      _MenuLink(s.tr('about.mission'), icon: Icons.track_changes_outlined,
-          page: const MissionPage()),
-      _MenuLink(s.tr('about.howItWorks'), icon: Icons.account_tree_outlined,
-          page: const HowItWorksPage()),
-      _MenuLink(s.tr('about.team'), icon: Icons.groups_outlined,
-          page: const TeamPage()),
-      _MenuLink(s.tr('about.contact'), icon: Icons.mail_outline,
-          page: const ContactUsPage()),
-    ],
-    s.tr('nav.health'): [
-      _MenuLink(s.tr('act.healthDashboard'), icon: Icons.monitor_heart_outlined, route: '/health'),
-      _MenuLink(s.tr('act.manageMedication'), icon: Icons.medication_outlined, route: '/medication'),
-      _MenuLink(s.tr('nav.records'), icon: Icons.folder_shared_outlined, route: '/records'),
-      _MenuLink(s.tr('nav.timeline'), icon: Icons.timeline_outlined, route: '/health'),
-      _MenuLink(s.tr('nav.appointments'), icon: Icons.event_available_outlined, route: '/clinic'),
-    ],
-    s.tr('nav.blood'): [
-      _MenuLink(s.tr('act.bloodNetwork'), icon: Icons.bloodtype_outlined, route: '/blood-donation'),
-      _MenuLink(s.tr('act.donateBlood'), icon: Icons.water_drop_outlined, route: '/donor-home'),
-      _MenuLink(s.tr('nav.supportDonations'), icon: Icons.volunteer_activism_outlined, route: '/donations'),
-    ],
-    s.tr('nav.community'): [
-      _MenuLink(s.tr('act.joinCommunity'), icon: Icons.forum_outlined, route: '/community'),
-      _MenuLink(s.tr('act.messages'), icon: Icons.chat_bubble_outline, route: '/messages'),
-      _MenuLink(s.tr('act.openAcademy'), icon: Icons.school_outlined, route: '/education'),
-      _MenuLink(s.tr('act.aiCoach'), icon: Icons.smart_toy_outlined, route: '/ai-assistant'),
-    ],
-    s.tr('nav.resources'): [
-      _MenuLink(s.tr('nav.education'), icon: Icons.menu_book_outlined, route: '/education'),
-      _MenuLink(s.tr('act.emergencySos'), icon: Icons.emergency_outlined, route: '/emergency'),
-      _MenuLink(s.tr('nav.records'), icon: Icons.event_note_outlined, route: '/records'),
-      _MenuLink(s.tr('nav.supportDonations'), icon: Icons.volunteer_activism_outlined, route: '/donations'),
-    ],
-  };
-}

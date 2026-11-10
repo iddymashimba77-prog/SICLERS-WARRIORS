@@ -7,9 +7,7 @@ import 'package:sicklers_warriors/core/l10n/locale_controller.dart';
 import 'package:sicklers_warriors/core/prefs/app_preferences.dart';
 import 'package:sicklers_warriors/core/theme/theme_controller.dart';
 import 'package:sicklers_warriors/features/public/presentation/pages/about_pages.dart';
-import 'package:sicklers_warriors/features/public/presentation/pages/public_home_page.dart';
 import 'package:sicklers_warriors/features/public/presentation/widgets/care_journey_section.dart';
-import 'package:sicklers_warriors/shared/widgets/module_placeholder_page.dart';
 
 Widget _localizedApp(String language, {required Widget home}) {
   final locale = LocaleController(AppPreferences.memory())
@@ -31,9 +29,6 @@ Widget _localizedApp(String language, {required Widget home}) {
   );
 }
 
-Widget _publicHome(String language) =>
-    _localizedApp(language, home: const PublicHomePage());
-
 class _RouteProbe extends StatelessWidget {
   const _RouteProbe(this.label);
 
@@ -50,141 +45,8 @@ Future<void> _settleRouteTransition(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 350));
 }
 
-/// Opens the compact-header Explore menu (its tooltip is localized).
-Future<void> _openExploreMenu(WidgetTester tester, String tooltip) async {
-  await tester.tap(find.byTooltip(tooltip));
-  await _settleRouteTransition(tester);
-}
-
-/// Drains pending framework exceptions so tests can tolerate a known,
-/// documented one without swallowing anything else.
-List<Object?> _drainExceptions(WidgetTester tester) {
-  final errors = <Object?>[];
-  Object? error;
-  while ((error = tester.takeException()) != null) {
-    errors.add(error);
-  }
-  return errors;
-}
-
-/// Desktop path: mega-menu → About item → designed page (never a placeholder).
-///
-/// Each caller is its own `testWidgets` on purpose: reusing one test for
-/// several pushes would keep the Navigator state (and the pushed route)
-/// alive across `pumpWidget` calls, so later iterations would assert against
-/// the previous page instead of a fresh home.
-Future<void> _openAboutFromDesktop(
-  WidgetTester tester, {
-  required String item,
-  required String marker,
-}) async {
-  tester.view.physicalSize = const Size(2400, 1000);
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.reset);
-
-  await tester.pumpWidget(_publicHome('en'));
-  await _settleRouteTransition(tester);
-
-  await tester.tap(find.byKey(const Key('mega-About')));
-  await _settleRouteTransition(tester);
-
-  // The popup gives its items a 256px-wide menu. flutter_test renders every
-  // glyph as a full em square (Ahem), so the longest menu label measures
-  // ~364px here and reports a RenderFlex overflow — with real fonts the same
-  // label measures ~220px and fits. Drain that known report; every other
-  // exception still fails the test.
-  final tolerated = _drainExceptions(tester)
-      .where((e) => '$e'.contains('A RenderFlex overflowed'))
-      .toList();
-  expect(
-    tolerated.length,
-    lessThanOrEqualTo(1),
-    reason: 'only the known Ahem-font popup overflow may be tolerated',
-  );
-
-  expect(
-    find.text(item),
-    findsOneWidget,
-    reason: 'the About mega-menu lists "$item"',
-  );
-
-  await tester.tap(find.text(item));
-  await _settleRouteTransition(tester);
-  expect(
-    find.text(marker),
-    findsAtLeastNWidgets(1),
-    reason: '"$item" opens a designed About page, not a placeholder',
-  );
-  expect(find.byType(ModulePlaceholderPage), findsNothing);
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  group('public About menu wiring', () {
-    testWidgets('desktop mega-menu opens the About landing (EN)',
-        (tester) async {
-      await _openAboutFromDesktop(tester,
-          item: 'About Sickler\'s Warriors',
-          marker: 'More Than Support. A Community of Strength.');
-      expect(
-        find.textContaining('lifelong challenges'),
-        findsOneWidget,
-        reason: 'the About landing names the challenges the platform addresses',
-      );
-    });
-
-    testWidgets('desktop mega-menu opens Our Mission (EN)', (tester) =>
-        _openAboutFromDesktop(tester,
-            item: 'Our Mission', marker: 'Our Core Values'));
-
-    testWidgets('desktop mega-menu opens How It Works (EN)', (tester) =>
-        _openAboutFromDesktop(tester,
-            item: 'How It Works', marker: 'Build Your Profile'));
-
-    testWidgets('desktop mega-menu opens Team & Partners (EN)', (tester) =>
-        _openAboutFromDesktop(tester,
-            item: 'Team & Partners', marker: 'Iddy Mashimba'));
-
-    testWidgets('desktop mega-menu opens Contact Us (EN)', (tester) =>
-        _openAboutFromDesktop(tester,
-            item: 'Contact Us', marker: 'We\'re Here to Connect.'));
-
-    testWidgets('mobile three-dot menu opens the About landing page (SW)',
-        (tester) async {
-      await tester.pumpWidget(_publicHome('sw'));
-      await _settleRouteTransition(tester);
-
-      await _openExploreMenu(tester, 'Chunguza');
-      expect(find.text('KUHUSU'), findsOneWidget,
-          reason: 'the bottom sheet groups About under its Kiswahili header');
-
-      await tester.tap(find.text('Kuhusu Sickler\'s Warriors'));
-      await _settleRouteTransition(tester);
-      expect(find.text('Zaidi ya Msaada. Jamii ya Nguvu.'), findsOneWidget);
-      expect(
-        find.textContaining('Jukwaa linaloongozwa na jamii'),
-        findsAtLeastNWidgets(1),
-        reason: 'the About subtitle comes from the shared about.aboutBody key',
-      );
-      expect(
-        find.textContaining('changamoto za maisha yote'),
-        findsOneWidget,
-        reason: 'the Kiswahili About page also names the challenges',
-      );
-    });
-
-    testWidgets('the public home no longer renders footer links',
-        (tester) async {
-      await tester.pumpWidget(_publicHome('en'));
-      await _settleRouteTransition(tester);
-
-      expect(find.text('Privacy'), findsNothing);
-      expect(find.text('Terms'), findsNothing);
-      expect(find.text('Consent'), findsNothing);
-      expect(find.text('Contact'), findsNothing);
-    });
-  });
 
   group('contact numbers', () {
     test('supplied numbers stay exact and consistent with their tel paths',
