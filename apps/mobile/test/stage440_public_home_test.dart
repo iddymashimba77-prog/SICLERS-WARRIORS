@@ -7,6 +7,7 @@ import 'package:sicklers_warriors/core/prefs/app_preferences.dart';
 import 'package:sicklers_warriors/core/theme/theme_controller.dart';
 import 'package:sicklers_warriors/features/auth/presentation/pages/login_page.dart';
 import 'package:sicklers_warriors/features/public/presentation/pages/public_home_page.dart';
+import 'package:sicklers_warriors/shared/widgets/app_logo.dart';
 
 Widget _app({ThemeController? theme, LocaleController? locale}) {
   final themeController = theme ?? ThemeController(AppPreferences.memory());
@@ -46,6 +47,38 @@ void main() {
     expect(find.text('Read the latest updates'), findsNothing);
     expect(find.byIcon(Icons.campaign_outlined), findsNothing);
     expect(find.text('Read the latest updates'), findsNothing);
+  });
+
+  testWidgets('the hero is cleaned of the slogan, intro and proof lines',
+      (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.textContaining('Care, community and courage'), findsNothing);
+    expect(find.textContaining('A digital health, blood and support'),
+        findsNothing);
+    expect(find.text('Patient-first by design'), findsNothing);
+    expect(find.text('Consent-led health data'), findsNothing);
+    expect(find.text('Care that stays connected'), findsNothing);
+  });
+
+  testWidgets('the header no longer shows the top-left brand lockup',
+      (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final header = find.byType(SliverAppBar);
+    expect(header, findsOneWidget);
+    expect(
+      find.descendant(of: header, matching: find.byType(AppBrand)),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: header, matching: find.byType(AppLogo)),
+      findsNothing,
+    );
   });
 
   testWidgets('public theme toggle flips to dark mode', (tester) async {
@@ -98,6 +131,19 @@ void main() {
         reason: 'hero missing at ${width}px',
       );
       expect(tester.takeException(), isNull, reason: 'overflow at ${width}px');
+    }
+  });
+
+  testWidgets('the rebalanced desktop header stays laid out', (tester) async {
+    for (final width in [1025.0, 1280.0, 1440.0]) {
+      tester.view.physicalSize = Size(width, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_app());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.takeException(), isNull, reason: 'overflow at ${width}px');
+      expect(find.byKey(const Key('mega-About')), findsOneWidget);
     }
   });
 

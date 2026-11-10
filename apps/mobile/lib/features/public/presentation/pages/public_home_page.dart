@@ -189,20 +189,28 @@ class _PublicHeader extends StatelessWidget {
       scrolledUnderElevation: 2,
       pinned: true,
       centerTitle: false,
+      automaticallyImplyLeading: false,
       toolbarHeight: isDesktop ? 72 : 60,
-      titleSpacing: AppSpacing.lg,
-      title: AppBrand(markHeight: isDesktop ? 36 : 30, onTap: null),
+      leadingWidth: isDesktop ? null : 56,
+      leading: isDesktop ? null : const _HeaderSosButton(compact: true),
+      titleSpacing: isDesktop ? AppSpacing.lg : 0,
+      title: isDesktop
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final (index, entry) in menus.entries.indexed) ...[
+                  if (index > 0) const SizedBox(width: AppSpacing.xs),
+                  _HeaderMenuButton(
+                    label: entry.key,
+                    links: entry.value,
+                    onSelected: (l) => _go(context, l),
+                  ),
+                ],
+              ],
+            )
+          : null,
       actions: isDesktop
           ? [
-              for (final (index, entry) in menus.entries.indexed) ...[
-                if (index > 0) const SizedBox(width: AppSpacing.sm),
-                _HeaderMenuButton(
-                  label: entry.key,
-                  links: entry.value,
-                  onSelected: (l) => _go(context, l),
-                ),
-              ],
-              const SizedBox(width: AppSpacing.md),
               const _HeaderSosButton(),
               const SizedBox(width: AppSpacing.sm),
               const _PublicThemeToggle(),
@@ -214,7 +222,7 @@ class _PublicHeader extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.xs),
               Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.lg),
+                padding: const EdgeInsets.only(right: AppSpacing.md),
                 child: FilledButton(
                   onPressed: () => Navigator.pushNamed(context, '/signup'),
                   child: Text(s.tr('common.signUp')),
@@ -223,7 +231,6 @@ class _PublicHeader extends StatelessWidget {
             ]
           : compactHeader
               ? [
-                  const _HeaderSosButton(compact: true),
                   const _PublicThemeToggle(),
                   const _PublicLanguageToggle(),
                   IconButton(
@@ -234,7 +241,6 @@ class _PublicHeader extends StatelessWidget {
                   const SizedBox(width: AppSpacing.xs),
                 ]
               : [
-                  const _HeaderSosButton(compact: true),
                   const _PublicThemeToggle(),
                   const _PublicLanguageToggle(),
                   TextButton(
@@ -388,7 +394,7 @@ class _HeaderMenuButton extends StatelessWidget {
     return PopupMenuButton<_MenuLink>(
       key: Key('mega-$label'),
       tooltip: '$label ${s.tr('common.menuSuffix')}',
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       onSelected: onSelected,
       itemBuilder: (context) => [
         for (final link in links)
@@ -475,34 +481,6 @@ class _HeroSection extends StatelessWidget {
           ? CrossAxisAlignment.start
           : CrossAxisAlignment.center,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs + 2,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .10),
-            borderRadius: AppShapes.pill,
-            border: Border.all(color: Colors.white.withValues(alpha: .18)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.verified_outlined, size: 16, color: Colors.white),
-              const SizedBox(width: AppSpacing.xs),
-              Flexible(
-                child: Text(
-                  s.tr('home.heroBadge'),
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
         Text(
           s.tr('home.heroTitle'),
           textAlign: isDesktop ? TextAlign.start : TextAlign.center,
@@ -522,18 +500,6 @@ class _HeroSection extends StatelessWidget {
             color: AppColors.lightRed,
             fontWeight: FontWeight.w600,
             height: 1.25,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
-          child: Text(
-            s.tr('home.heroBody'),
-            textAlign: isDesktop ? TextAlign.start : TextAlign.center,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: .82),
-              height: 1.6,
-            ),
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -568,17 +534,6 @@ class _HeroSection extends StatelessWidget {
               ),
               child: Text(s.tr('common.signIn')),
             ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        Wrap(
-          spacing: AppSpacing.lg,
-          runSpacing: AppSpacing.sm,
-          alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
-          children: [
-            _HeroProof(label: s.tr('home.heroProofOne')),
-            _HeroProof(label: s.tr('home.heroProofTwo')),
-            _HeroProof(label: s.tr('home.heroProofThree')),
           ],
         ),
       ],
@@ -650,32 +605,6 @@ class _HeroSection extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _HeroProof extends StatelessWidget {
-  const _HeroProof({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.check_circle_outline, size: 16, color: Colors.white70),
-        const SizedBox(width: AppSpacing.xs),
-        Flexible(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withValues(alpha: .82),
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-        ),
-      ],
     );
   }
 }

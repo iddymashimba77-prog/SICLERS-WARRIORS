@@ -16,6 +16,7 @@ import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../../../public/presentation/pages/news_list_page.dart';
 import '../../../public/presentation/pages/public_home_page.dart';
 import '../../data/profile_repository.dart';
+import '../widgets/profile_information_hub.dart';
 import '../widgets/profile_view.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -143,6 +144,8 @@ class ProfilePage extends StatelessWidget {
               icon: const Icon(Icons.logout),
               label: Text(s.tr('common.signOut')),
             ),
+            const Divider(height: 32),
+            const ProfileInformationHub(),
             const SizedBox(height: AppSpacing.lg),
           ],
         ),
