@@ -12,6 +12,7 @@ const List<String> _protectedExact = [
   '/health',
   '/health/timeline',
   '/medication',
+  '/hydration',
   '/records',
   '/medical',
   '/clinic',

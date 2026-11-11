@@ -22,7 +22,11 @@ Widget _app({ThemeController? theme, LocaleController? locale}) {
         supportedLocales: AppLocalizationsDelegate.supportedLocales,
         theme: ThemeData(useMaterial3: true),
         home: const PublicHomePage(),
-        routes: {LoginPage.routeName: (_) => const LoginPage()},
+        routes: {
+          LoginPage.routeName: (_) => const LoginPage(),
+          '/signup': (_) => const Scaffold(body: Text('signup-route')),
+          '/education': (_) => const Scaffold(body: Text('education-route')),
+        },
       ),
     ),
   );
@@ -220,11 +224,11 @@ void main() {
     }
   });
 
-  testWidgets('the Complete Care section is gone and the phone ends the page',
+  testWidgets('the hero integrates the phone and leaves no lower section',
       (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 1300));
 
     expect(find.text('Complete care, one platform'), findsNothing);
     expect(find.text('Everything a Warrior Needs'), findsNothing);
@@ -233,20 +237,204 @@ void main() {
       findsNothing,
     );
     expect(find.text('Explore All Services'), findsNothing);
-
-    final phone = find.byKey(const ValueKey('phone-showcase-section'));
-    expect(phone, findsOneWidget);
-    expect(find.text('Quick actions'), findsOneWidget);
-
-    final column = tester.widget<Column>(
-      find
-          .descendant(
-            of: find.byType(SliverToBoxAdapter),
-            matching: find.byType(Column),
-          )
-          .first,
+    expect(
+      find.byKey(const ValueKey('phone-showcase-section')),
+      findsNothing,
     );
-    expect(column.children.last.key, const ValueKey('phone-showcase-section'));
+
+    final hero = find.byKey(const ValueKey('public-hero'));
+    expect(hero, findsOneWidget);
+    expect(find.byType(SliverToBoxAdapter), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SliverToBoxAdapter),
+        matching: hero,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: hero,
+        matching: find.byKey(const ValueKey('hero-phone')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: hero,
+        matching: find.byKey(const ValueKey('hero-services')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: hero,
+        matching: find.byKey(const ValueKey('hero-logo')),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the integrated phone keeps its original internal screen',
+      (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1300));
+
+    expect(find.text('Quick actions'), findsOneWidget);
+    expect(find.text('Doctor Connection'), findsOneWidget);
+    expect(find.text('Emergency Support'), findsOneWidget);
+    expect(find.text('Community'), findsOneWidget);
+    expect(find.text('Education — Warrior Academy'), findsOneWidget);
+    expect(find.text('Hydration Tracker'), findsOneWidget);
+    expect(find.text('Ask AI'), findsOneWidget);
+  });
+
+  testWidgets('the hero shows the brand, headline and premium actions',
+      (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1300));
+
+    expect(find.text('Empowering Every Warrior.'), findsOneWidget);
+    expect(
+      find.text('Connecting Care, Community and Hope.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('home-cta-join')), findsOneWidget);
+    expect(find.byKey(const ValueKey('home-cta-login')), findsOneWidget);
+    expect(find.text('Join the Community'), findsOneWidget);
+    expect(find.text('Login'), findsOneWidget);
+  });
+
+  testWidgets('the glass panel exposes the seven public service shortcuts',
+      (tester) async {
+    tester.view.physicalSize = const Size(1440, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1300));
+
+    for (final id in [
+      'health',
+      'hydration',
+      'blood',
+      'education',
+      'community',
+      'ai',
+      'donate',
+    ]) {
+      expect(
+        find.byKey(ValueKey('home-service-$id')),
+        findsOneWidget,
+        reason: 'missing $id service card',
+      );
+    }
+    expect(find.text('Care services'), findsOneWidget);
+    expect(find.text('Hydration Tracker'), findsOneWidget);
+    expect(find.text('Community Forum'), findsOneWidget);
+    expect(find.text('Ask AI'), findsOneWidget);
+    expect(find.textContaining('Admin'), findsNothing);
+    final cardSizes = [
+      for (final id in [
+        'health',
+        'hydration',
+        'blood',
+        'education',
+        'community',
+        'ai',
+        'donate',
+      ])
+        tester.getSize(find.byKey(ValueKey('home-service-$id'))),
+    ];
+    expect(
+      cardSizes.every((size) => size.height == cardSizes.first.height),
+      isTrue,
+      reason: 'service cards should share one height',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('education shortcut opens the public academy',
+      (tester) async {
+    tester.view.physicalSize = const Size(1440, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1300));
+
+    await tester.tap(find.byKey(const ValueKey('home-service-education')));
+    await tester.pumpAndSettle();
+    expect(find.text('education-route'), findsOneWidget);
+  });
+
+  testWidgets('the phone mockup stays interactive inside the hero',
+      (tester) async {
+    tester.view.physicalSize = const Size(1440, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1300));
+
+    await tester.tap(find.text('Emergency Support'));
+    await tester.pumpAndSettle();
+    expect(find.byType(LoginPage), findsOneWidget);
+  });
+
+  testWidgets('protected shortcuts route anonymous visitors to login',
+      (tester) async {
+    tester.view.physicalSize = const Size(1440, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1300));
+
+    await tester.tap(find.byKey(const ValueKey('home-service-health')));
+    await tester.pumpAndSettle();
+    expect(find.byType(LoginPage), findsOneWidget);
+  });
+
+  testWidgets('the hero stays balanced on tablet and desktop widths',
+      (tester) async {
+    for (final size in [
+      const Size(768, 1600),
+      const Size(1024, 1600),
+      const Size(1280, 1600),
+      const Size(1440, 1600),
+      const Size(1920, 1600),
+    ]) {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_app());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1300));
+
+      expect(
+        find.byKey(const ValueKey('public-hero')),
+        findsOneWidget,
+        reason: 'hero missing at ${size.width}px',
+      );
+      expect(
+        find.byKey(const ValueKey('hero-phone')),
+        findsOneWidget,
+        reason: 'phone missing at ${size.width}px',
+      );
+      expect(
+        find.byKey(const ValueKey('hero-services')),
+        findsOneWidget,
+        reason: 'services missing at ${size.width}px',
+      );
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'overflow at ${size.width}px',
+      );
+    }
   });
 
   testWidgets('the public header keeps SOS one tap away', (tester) async {
