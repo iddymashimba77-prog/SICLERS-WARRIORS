@@ -49,6 +49,31 @@ class AppColors {
   /// Deeper navy stop used inside navy gradients.
   static const Color navyDeep = Color(0xFF0E2A4F);
 
+  // ------------------------------------------------- public home (reference)
+  /// Public home gradient stops — deep navy to midnight blue.
+  static const Color homeNavyTop = Color(0xFF001037);
+  static const Color homeNavyMid = Color(0xFF00184A);
+  static const Color homeBlueBottom = Color(0xFF001D5B);
+
+  /// Dark blue screen behind the public-home phone preview.
+  static const Color homePhoneScreen = Color(0xFF012C7F);
+
+  /// Reference red gradient for SOS / primary public actions.
+  static const Color homeRed = Color(0xFFE10B25);
+  static const Color homeRedDeep = Color(0xFFB00020);
+
+  /// Reference accents for public-home icons, glows and secondary copy.
+  static const Color homeAccentBlue = Color(0xFF2F8CFF);
+  static const Color homeLavender = Color(0xFFA9B8F5);
+
+  /// Ink and screen tones for the light-adapted public home / phone preview.
+  static const Color homeInk = Color(0xFF07122E);
+  static const Color homeInkMuted = Color(0xFF5D6B8A);
+  static const Color homeScreen = Color(0xFFF7F9FE);
+  static const Color homeLightTop = Color(0xFFF5F8FF);
+  static const Color homeLightMid = Color(0xFFE7EFFF);
+  static const Color homeLightBottom = Color(0xFFD8E6FF);
+
   // -------------------------------------------------------------- surfaces
   static const Color background = Color(0xFFF5F7FA);
   static const Color surface = Color(0xFFFFFFFF);

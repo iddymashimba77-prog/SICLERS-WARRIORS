@@ -45,6 +45,15 @@ class AppShapes {
   /// 24 px — hero and marketing surfaces.
   static const BorderRadius hero = BorderRadius.all(Radius.circular(24));
 
+  /// 28 px — public-home glass menu surface.
+  static const BorderRadius homeCard = BorderRadius.all(Radius.circular(28));
+
+  /// 22 px — public-home tiles and donate row.
+  static const BorderRadius homeTile = BorderRadius.all(Radius.circular(22));
+
+  /// 38 px — public-home phone frame.
+  static const BorderRadius homePhone = BorderRadius.all(Radius.circular(38));
+
   /// Fully rounded pill — semantic chips only.
   static const BorderRadius pill = BorderRadius.all(Radius.circular(999));
 

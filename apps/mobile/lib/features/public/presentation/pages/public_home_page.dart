@@ -8,329 +8,281 @@ import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/locale_controller.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/theme_controller.dart';
-import '../../../../shared/widgets/app_logo.dart';
-import '../../../../core/theme/app_shapes.dart';
 
-/// Public landing page for Sickler's Warriors.
-///
-/// One integrated hero: the official brand lockup, headline and actions, a
-/// glass service-shortcut panel, and the existing signed-in phone mockup as a
-/// large companion visual. There is no separate lower section; the page ends
-/// inside the hero. News and announcements are deliberately absent.
-class PublicHomePage extends StatefulWidget {
+class PublicHomePage extends StatelessWidget {
   const PublicHomePage({super.key});
 
   static const String routeName = '/';
 
   @override
-  State<PublicHomePage> createState() => _PublicHomePageState();
-}
-
-class _PublicHomePageState extends State<PublicHomePage> {
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDesktop = MediaQuery.of(context).size.width > 1024;
+    final mode = ThemeScope.maybeOf(context)?.value ?? ThemeMode.system;
+    final dark = mode != ThemeMode.light;
+    final palette = _HomePalette.of(dark);
 
     return Scaffold(
-      backgroundColor: AppColors.navy,
-      body: CustomScrollView(
-        slivers: [
-          _PublicHeader(isDesktop: isDesktop),
-          SliverToBoxAdapter(
-            child: _PublicHero(
-              key: const ValueKey('public-hero'),
-              theme: theme,
-            ),
+      backgroundColor: palette.background.first,
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: palette.background,
+            stops: const [0, .55, 1],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-// ===================================================================== header
-
-/// Persistent SOS affordance in the public header: the crisis path is never
-/// more than one tap away, on top of the emergency strip further down.
-class _HeaderSosButton extends StatelessWidget {
-  const _HeaderSosButton({this.compact = false});
-
-  /// Icon-only on the compact toolbar, where a labelled button would squeeze
-  /// the brand mark out of the app bar.
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    final hint = s.tr('home.sosHint');
-    void go() => goTo(context, '/emergency');
-    if (compact) {
-      return IconButton(
-        key: const ValueKey('public-header-sos'),
-        tooltip: hint,
-        onPressed: go,
-        style: IconButton.styleFrom(
-          backgroundColor: AppColors.emergency,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(40, 40),
         ),
-        icon: const Icon(Icons.emergency_outlined, size: 20),
-      );
-    }
-    return Tooltip(
-      message: hint,
-      child: FilledButton.icon(
-        key: const ValueKey('public-header-sos'),
-        onPressed: go,
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.emergency,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm + 2,
-          ),
-          shape: const RoundedRectangleBorder(borderRadius: AppShapes.pill),
-          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-        ),
-        icon: const Icon(Icons.emergency_outlined, size: 18),
-        label: Text(s.tr('home.sos')),
-      ),
-    );
-  }
-}
-
-class _PublicHeader extends StatelessWidget {
-  const _PublicHeader({required this.isDesktop});
-
-  final bool isDesktop;
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverAppBar(
-      backgroundColor: AppColors.navy,
-      foregroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      pinned: true,
-      centerTitle: false,
-      automaticallyImplyLeading: false,
-      toolbarHeight: isDesktop ? 72 : 60,
-      leadingWidth: isDesktop ? null : 64,
-      leading: isDesktop
-          ? null
-          : const Padding(
-              padding: EdgeInsets.only(left: AppSpacing.lg),
-              child: _HeaderSosButton(compact: true),
-            ),
-      titleSpacing: 0,
-      actions: isDesktop
-          ? [
-              const _HeaderSosButton(),
-              const SizedBox(width: AppSpacing.sm),
-              const _PublicThemeToggle(),
-              const SizedBox(width: AppSpacing.xs),
-              const _PublicLanguageToggle(),
-              const SizedBox(width: AppSpacing.md),
-            ]
-          : [
-              const _PublicThemeToggle(),
-              const SizedBox(width: AppSpacing.xs),
-              const _PublicLanguageToggle(),
-              const SizedBox(width: AppSpacing.md),
-            ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(
-          height: 1,
-          color: Colors.white.withValues(alpha: .08),
-        ),
-      ),
-    );
-  }
-}
-
-class _PublicThemeToggle extends StatelessWidget {
-  const _PublicThemeToggle();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = ThemeScope.maybeOf(context);
-    if (theme == null) return const SizedBox.shrink();
-    final s = AppLocalizations.of(context);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return IconButton(
-      key: const ValueKey('public-theme-toggle'),
-      tooltip: dark ? s.tr('common.lightMode') : s.tr('common.darkMode'),
-      onPressed: () =>
-          theme.setMode(dark ? ThemeMode.light : ThemeMode.dark),
-      style: IconButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: Colors.white.withValues(alpha: .06),
-        minimumSize: const Size(40, 40),
-      ),
-      icon: Icon(
-        dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-        size: 20,
-      ),
-    );
-  }
-}
-
-class _PublicLanguageToggle extends StatelessWidget {
-  const _PublicLanguageToggle();
-
-  @override
-  Widget build(BuildContext context) {
-    final locale = LocaleScope.maybeOf(context);
-    if (locale == null) return const SizedBox.shrink();
-    final swahili = locale.isSwahili;
-    return TextButton(
-      key: const ValueKey('public-language-toggle'),
-      onPressed: () => locale.setLanguage(swahili ? 'en' : 'sw'),
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: Colors.white.withValues(alpha: .06),
-        minimumSize: const Size(44, 40),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        shape: const RoundedRectangleBorder(borderRadius: AppShapes.pill),
-      ),
-      child: Text(
-        swahili ? 'EN' : 'SW',
-        style: const TextStyle(
-          fontWeight: FontWeight.w800,
-          letterSpacing: .4,
-        ),
-      ),
-    );
-  }
-}
-
-// ====================================================================== hero
-
-class _PublicHero extends StatelessWidget {
-  const _PublicHero({super.key, required this.theme});
-
-  final ThemeData theme;
-
-  static const double _maxWidth = AppSpacing.contentMaxWidth;
-  static const double _twoColumnBreakpoint = 1100;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context);
-    final width = MediaQuery.sizeOf(context).width;
-    final twoColumn = width >= _twoColumnBreakpoint;
-
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.navy, AppColors.navyDeep, AppColors.blue],
-          stops: [0.0, 0.55, 1.0],
-        ),
-      ),
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: [
-          const Positioned(
-            top: -180,
-            right: -120,
-            child: _HeroGlow(
-              color: AppColors.blue,
-              size: 560,
-              opacity: .38,
-            ),
-          ),
-          const Positioned(
-            bottom: -220,
-            left: -140,
-            child: _HeroGlow(
-              color: AppColors.emergency,
-              size: 460,
-              opacity: .14,
-            ),
-          ),
-          const Positioned(
-            top: 180,
-            left: -220,
-            child: _HeroGlow(
-              color: AppColors.blue,
-              size: 420,
-              opacity: .16,
-            ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                twoColumn ? AppSpacing.xxxl : AppSpacing.lg,
-                twoColumn ? AppSpacing.xxxl : AppSpacing.xl,
-                twoColumn ? AppSpacing.xxxl : AppSpacing.lg,
-                AppSpacing.xxxl,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: _maxWidth),
+        child: ClipRect(
+          child: SingleChildScrollView(
+            child: Stack(
+              children: [
+                Positioned.fill(child: _HomeBackground(palette: palette)),
+                SafeArea(
+                  bottom: false,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (twoColumn)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              flex: 9,
-                              child: _HeroContent(isDesktop: true),
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 480),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.lg + 4,
+                              AppSpacing.xs,
+                              AppSpacing.lg + 4,
+                              0,
                             ),
-                            const SizedBox(width: AppSpacing.xxxl),
-                            Expanded(
-                              flex: 11,
-                              child: _IntegratedPhone(
-                                key: const ValueKey('hero-phone'),
-                                theme: theme,
-                                services: _phoneServices(s),
-                                desiredScale: 1.28,
-                              ),
-                            ),
-                          ],
-                        )
-                      else ...[
-                        _HeroContent(isDesktop: false),
-                        SizedBox(
-                          height: width < 600
-                              ? AppSpacing.xxl
-                              : AppSpacing.xxxl,
-                        ),
-                        Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 500),
-                            child: _IntegratedPhone(
-                              key: const ValueKey('hero-phone'),
-                              theme: theme,
-                              services: _phoneServices(s),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _TopBar(palette: palette),
+                                const SizedBox(height: AppSpacing.md + 2),
+                                _Hero(palette: palette),
+                                const SizedBox(height: AppSpacing.md + 2),
+                                _ServiceMenu(palette: palette),
+                              ],
                             ),
                           ),
                         ),
-                      ],
-                      SizedBox(
-                        height: twoColumn
-                            ? AppSpacing.xxxl
-                            : AppSpacing.xxl,
                       ),
-                      _GlassServicesPanel(
-                        key: const ValueKey('hero-services'),
-                        services: _homeServices(s),
-                        label: s.tr('home.servicesLabel'),
+                      const SizedBox(height: AppSpacing.sm),
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 520),
+                          child: _PhoneStage(palette: palette),
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomePalette {
+  const _HomePalette({
+    required this.dark,
+    required this.background,
+    required this.glowBlue,
+    required this.glowRed,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textMuted,
+    required this.glassFill,
+    required this.glassBorder,
+    required this.glassShadow,
+    required this.tileFill,
+    required this.tileHover,
+    required this.tileBorder,
+    required this.tileBorderHover,
+    required this.controlFill,
+    required this.controlBorder,
+    required this.divider,
+    required this.phoneFrame,
+    required this.phoneScreen,
+    required this.phoneText,
+    required this.phoneMuted,
+    required this.phoneTileFill,
+    required this.phoneTileBorder,
+    required this.swooshInner,
+    required this.loginBorder,
+    required this.loginText,
+    required this.wordmarkSickle,
+    required this.wordmarkWarriors,
+    required this.taglinePrimary,
+    required this.taglineSecondary,
+  });
+
+  final bool dark;
+  final List<Color> background;
+  final Color glowBlue;
+  final Color glowRed;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color textMuted;
+  final Color glassFill;
+  final Color glassBorder;
+  final Color glassShadow;
+  final Color tileFill;
+  final Color tileHover;
+  final Color tileBorder;
+  final Color tileBorderHover;
+  final Color controlFill;
+  final Color controlBorder;
+  final Color divider;
+  final Color phoneFrame;
+  final Color phoneScreen;
+  final Color phoneText;
+  final Color phoneMuted;
+  final Color phoneTileFill;
+  final Color phoneTileBorder;
+  final Color swooshInner;
+  final Color loginBorder;
+  final Color loginText;
+  final Color wordmarkSickle;
+  final Color wordmarkWarriors;
+  final Color taglinePrimary;
+  final Color taglineSecondary;
+
+  factory _HomePalette.of(bool dark) {
+    if (dark) {
+      return _HomePalette(
+        dark: true,
+        background: const [
+          AppColors.homeNavyTop,
+          AppColors.homeNavyMid,
+          AppColors.homeBlueBottom,
+        ],
+        glowBlue: AppColors.homeAccentBlue,
+        glowRed: AppColors.homeRed,
+        textPrimary: Colors.white,
+        textSecondary: AppColors.homeLavender,
+        textMuted: Colors.white.withValues(alpha: .70),
+        glassFill: Colors.white.withValues(alpha: .08),
+        glassBorder: Colors.white.withValues(alpha: .18),
+        glassShadow: AppColors.homeNavyTop.withValues(alpha: .38),
+        tileFill: Colors.white.withValues(alpha: .06),
+        tileHover: Colors.white.withValues(alpha: .12),
+        tileBorder: Colors.white.withValues(alpha: .14),
+        tileBorderHover: Colors.white.withValues(alpha: .30),
+        controlFill: Colors.white.withValues(alpha: .06),
+        controlBorder: Colors.white.withValues(alpha: .55),
+        divider: Colors.white.withValues(alpha: .18),
+        phoneFrame: AppColors.homeNavyTop,
+        phoneScreen: AppColors.homePhoneScreen,
+        phoneText: Colors.white,
+        phoneMuted: AppColors.homeLavender,
+        phoneTileFill: Colors.white.withValues(alpha: .09),
+        phoneTileBorder: Colors.white.withValues(alpha: .16),
+        swooshInner: Colors.white,
+        loginBorder: Colors.white.withValues(alpha: .55),
+        loginText: Colors.white,
+        wordmarkSickle: Colors.white,
+        wordmarkWarriors: Colors.white,
+        taglinePrimary: AppColors.homeLavender,
+        taglineSecondary: Colors.white,
+      );
+    }
+    return _HomePalette(
+      dark: false,
+      background: const [
+        AppColors.homeLightTop,
+        AppColors.homeLightMid,
+        AppColors.homeLightBottom,
+      ],
+      glowBlue: AppColors.homeAccentBlue,
+      glowRed: AppColors.homeRed,
+      textPrimary: AppColors.homeInk,
+      textSecondary: AppColors.homeInkMuted,
+      textMuted: AppColors.homeInkMuted,
+      glassFill: Colors.white.withValues(alpha: .62),
+      glassBorder: AppColors.navy.withValues(alpha: .10),
+      glassShadow: AppColors.navy.withValues(alpha: .12),
+      tileFill: Colors.white.withValues(alpha: .72),
+      tileHover: Colors.white.withValues(alpha: .94),
+      tileBorder: AppColors.navy.withValues(alpha: .10),
+      tileBorderHover: AppColors.homeBlueBottom.withValues(alpha: .34),
+      controlFill: Colors.white.withValues(alpha: .55),
+      controlBorder: AppColors.navy.withValues(alpha: .35),
+      divider: AppColors.navy.withValues(alpha: .12),
+      phoneFrame: AppColors.homeInk,
+      phoneScreen: AppColors.surface,
+      phoneText: AppColors.homeInk,
+      phoneMuted: AppColors.homeInkMuted,
+      phoneTileFill: AppColors.surface,
+      phoneTileBorder: AppColors.borderSubtle,
+      swooshInner: Colors.white,
+      loginBorder: AppColors.navy.withValues(alpha: .35),
+      loginText: AppColors.homeInk,
+      wordmarkSickle: AppColors.homeInk,
+      wordmarkWarriors: AppColors.homeInk,
+      taglinePrimary: AppColors.homeBlueBottom,
+      taglineSecondary: AppColors.homeInk,
+    );
+  }
+}
+
+class _HomeBackground extends StatelessWidget {
+  const _HomeBackground({required this.palette});
+
+  final _HomePalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          Positioned(
+            top: -100,
+            left: -100,
+            child: _HomeGlow(
+              color: palette.glowBlue,
+              size: 560,
+              opacity: palette.dark ? .26 : .16,
+            ),
+          ),
+          Positioned(
+            top: -60,
+            right: -140,
+            child: _HomeGlow(
+              color: palette.glowBlue,
+              size: 520,
+              opacity: palette.dark ? .42 : .22,
+            ),
+          ),
+          Positioned(
+            top: 360,
+            left: -190,
+            child: _HomeGlow(
+              color: palette.glowBlue,
+              size: 400,
+              opacity: .12,
+            ),
+          ),
+          Positioned(
+            top: 360,
+            right: -160,
+            child: _HomeGlow(
+              color: palette.glowBlue,
+              size: 440,
+              opacity: palette.dark ? .16 : .10,
+            ),
+          ),
+          Positioned(
+            bottom: -120,
+            left: -110,
+            child: _HomeGlow(
+              color: palette.glowRed,
+              size: 380,
+              opacity: palette.dark ? .12 : .09,
             ),
           ),
         ],
@@ -339,8 +291,8 @@ class _PublicHero extends StatelessWidget {
   }
 }
 
-class _HeroGlow extends StatelessWidget {
-  const _HeroGlow({
+class _HomeGlow extends StatelessWidget {
+  const _HomeGlow({
     required this.color,
     required this.size,
     required this.opacity,
@@ -352,17 +304,129 @@ class _HeroGlow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: opacity),
-              color.withValues(alpha: 0),
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color.withValues(alpha: opacity),
+            color.withValues(alpha: 0),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.palette});
+
+  final _HomePalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final theme = ThemeScope.maybeOf(context);
+    final locale = LocaleScope.maybeOf(context);
+
+    return Row(
+      key: const ValueKey('public-top-bar'),
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        _SosPill(palette: palette),
+        const SizedBox(width: AppSpacing.sm),
+        SizedBox(
+          width: 32,
+          height: 32,
+          child: IconButton(
+            key: const ValueKey('public-theme-toggle'),
+            tooltip:
+                palette.dark ? s.tr('common.lightMode') : s.tr('common.darkMode'),
+            onPressed:
+                theme == null
+                    ? null
+                    : () => theme.setMode(
+                      palette.dark ? ThemeMode.light : ThemeMode.dark,
+                    ),
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            icon: Icon(
+              palette.dark
+                  ? Icons.light_mode_rounded
+                  : Icons.dark_mode_rounded,
+              size: 20,
+              color: palette.textPrimary,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        if (locale != null)
+          _LanguagePill(palette: palette, locale: locale),
+      ],
+    );
+  }
+}
+
+class _SosPill extends StatelessWidget {
+  const _SosPill({required this.palette});
+
+  final _HomePalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    return Tooltip(
+      message: s.tr('home.sosHint'),
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.homeRed, AppColors.homeRedDeep],
+            ),
+            borderRadius: AppShapes.pill,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.homeRed.withValues(alpha: .35),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
             ],
+          ),
+          child: InkWell(
+            key: const ValueKey('public-header-sos'),
+            borderRadius: AppShapes.pill,
+            onTap: () => goTo(context, '/emergency'),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm + 2,
+                vertical: AppSpacing.xs,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.phone_in_talk_rounded,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    s.tr('home.sos'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: .5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -370,217 +434,341 @@ class _HeroGlow extends StatelessWidget {
   }
 }
 
-class _HeroContent extends StatelessWidget {
-  const _HeroContent({required this.isDesktop});
+class _LanguagePill extends StatelessWidget {
+  const _LanguagePill({required this.palette, required this.locale});
 
-  final bool isDesktop;
+  final _HomePalette palette;
+  final LocaleController locale;
 
   @override
   Widget build(BuildContext context) {
     final s = AppLocalizations.of(context);
-    final align =
-        isDesktop ? CrossAxisAlignment.start : CrossAxisAlignment.center;
-    final textAlign = isDesktop ? TextAlign.start : TextAlign.center;
-
-    return Column(
-      crossAxisAlignment: align,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _HeroBrandLockup(isDesktop: isDesktop),
-        const SizedBox(height: AppSpacing.xxl),
-        Container(
-          width: 44,
-          height: 4,
-          decoration: const BoxDecoration(
-            color: AppColors.emergency,
-            borderRadius: AppShapes.pill,
+    return Tooltip(
+      message: s.tr('common.language'),
+      child: OutlinedButton(
+        key: const ValueKey('public-language-toggle'),
+        onPressed: () => locale.setLanguage(locale.isSwahili ? 'en' : 'sw'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: palette.textPrimary,
+          backgroundColor: palette.controlFill,
+          side: BorderSide(color: palette.controlBorder, width: 1.5),
+          shape: const RoundedRectangleBorder(borderRadius: AppShapes.pill),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm + 2,
+            vertical: AppSpacing.xs,
           ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Text(
-          s.tr('home.heroTitle'),
-          textAlign: textAlign,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: isDesktop ? 56 : 38,
+          minimumSize: const Size(0, 28),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: const TextStyle(
+            fontSize: 11,
             fontWeight: FontWeight.w800,
-            height: 1.04,
-            letterSpacing: isDesktop ? -1.4 : -0.8,
+            letterSpacing: .3,
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          s.tr('home.heroSubtitle'),
-          textAlign: textAlign,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: .82),
-            fontSize: isDesktop ? 21 : 17,
-            fontWeight: FontWeight.w500,
-            height: 1.35,
-            letterSpacing: .1,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        Wrap(
-          spacing: AppSpacing.md,
-          runSpacing: AppSpacing.md,
-          alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            FilledButton.icon(
-              key: const ValueKey('home-cta-join'),
-              onPressed: () => Navigator.pushNamed(context, '/signup'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.emergency,
-                foregroundColor: Colors.white,
-                elevation: 2,
-                shadowColor: AppColors.emergency.withValues(alpha: .55),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xl,
-                  vertical: AppSpacing.md + 2,
-                ),
-                shape: const RoundedRectangleBorder(
-                  borderRadius: AppShapes.medium,
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              icon: const Icon(Icons.groups_2_outlined, size: 19),
-              label: Text(s.tr('home.heroPrimaryCta')),
-            ),
-            OutlinedButton(
-              key: const ValueKey('home-cta-login'),
-              onPressed: () => Navigator.pushNamed(context, '/login'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: Colors.white.withValues(alpha: .06),
-                side: BorderSide(
-                  color: Colors.white.withValues(alpha: .38),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xl,
-                  vertical: AppSpacing.md + 2,
-                ),
-                shape: const RoundedRectangleBorder(
-                  borderRadius: AppShapes.medium,
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              child: Text(s.tr('common.signIn')),
+            Icon(Icons.language_rounded, size: 14, color: palette.textPrimary),
+            const SizedBox(width: AppSpacing.xs),
+            Text(locale.isSwahili ? 'SW' : 'EN'),
+            const SizedBox(width: AppSpacing.xxs),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 14,
+              color: palette.textPrimary,
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 }
 
-class _HeroBrandLockup extends StatelessWidget {
-  const _HeroBrandLockup({required this.isDesktop});
+class _Hero extends StatelessWidget {
+  const _Hero({required this.palette});
 
-  final bool isDesktop;
+  final _HomePalette palette;
 
   @override
   Widget build(BuildContext context) {
     final s = AppLocalizations.of(context);
-    final logo = Container(
-      key: const ValueKey('hero-logo'),
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: AppShapes.card,
-        border: Border.all(color: AppColors.blue.withValues(alpha: .18)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.blue.withValues(alpha: .35),
-            offset: const Offset(0, 12),
-            blurRadius: 28,
-            spreadRadius: -6,
-          ),
-        ],
-      ),
-      child: AppLogo(height: isDesktop ? 56 : 46),
-    );
-    final wordmark = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment:
-          isDesktop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+    return Column(
+      key: const ValueKey('public-hero'),
       children: [
+        _BrandMark(palette: palette),
+        const SizedBox(height: AppSpacing.xxs),
+        _Wordmark(palette: palette),
+        const SizedBox(height: AppSpacing.xs),
         Text(
-          AppStrings.appName,
+          s.tr('home.heroTitle'),
+          textAlign: TextAlign.center,
           style: TextStyle(
-            color: Colors.white,
-            fontSize: isDesktop ? 20 : 17,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -.3,
-            height: 1.1,
+            color: palette.taglinePrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            height: 1.2,
+            letterSpacing: -.1,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppSpacing.xxs),
         Text(
-          s.tr('home.tagline'),
+          s.tr('home.heroSubtitle'),
+          textAlign: TextAlign.center,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: .66),
-            fontSize: isDesktop ? 12 : 10.5,
+            color: palette.taglineSecondary,
+            fontSize: 13,
             fontWeight: FontWeight.w500,
-            letterSpacing: .8,
+            height: 1.2,
+            letterSpacing: .1,
           ),
         ),
-      ],
-    );
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        logo,
-        const SizedBox(width: AppSpacing.md),
-        Flexible(child: wordmark),
+        const SizedBox(height: AppSpacing.md),
+        _HeroActions(palette: palette),
       ],
     );
   }
 }
 
-class _IntegratedPhone extends StatelessWidget {
-  const _IntegratedPhone({
-    super.key,
-    required this.theme,
-    required this.services,
-    this.desiredScale = 1,
-  });
+class _BrandMark extends StatelessWidget {
+  const _BrandMark({required this.palette});
 
-  final ThemeData theme;
-  final List<_ServiceSpec> services;
-  final double desiredScale;
+  final _HomePalette palette;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final naturalWidth =
-            math.max(200.0, math.min(constraints.maxWidth, 500.0));
-        final phoneWidth =
-            math.max(200.0, math.min(300.0, naturalWidth - 72));
-        final naturalHeight = phoneWidth * 2.02 + 48;
-        final scale =
-            math.min(desiredScale, constraints.maxWidth / naturalWidth);
-        return SizedBox(
-          width: naturalWidth * scale,
-          height: naturalHeight * scale,
-          child: FittedBox(
-            fit: BoxFit.contain,
-            child: SizedBox(
-              width: naturalWidth,
-              height: naturalHeight,
-              child: _PhoneShowcase(theme: theme, services: services),
+    return SizedBox(
+      key: const ValueKey('hero-logo'),
+      width: 132,
+      height: 84,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 132,
+            height: 84,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                colors: [
+                  palette.glowBlue.withValues(
+                    alpha: palette.dark ? .26 : .16,
+                  ),
+                  palette.glowBlue.withValues(alpha: 0),
+                ],
+              ),
             ),
           ),
+          Image.asset(
+            'assets/brand/sicklers_warriors_logo_transparent.png',
+            height: 84,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Wordmark extends StatelessWidget {
+  const _Wordmark({required this.palette});
+
+  final _HomePalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final titleSize = constraints.maxWidth >= 430 ? 40.0 : 34.0;
+        return Column(
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    s.tr('home.wordmarkSickle'),
+                    style: TextStyle(
+                      color: palette.wordmarkSickle,
+                      fontSize: titleSize,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1.8,
+                      height: .92,
+                    ),
+                  ),
+                  Text(
+                    s.tr('home.wordmarkCell'),
+                    style: TextStyle(
+                      color: AppColors.homeRed,
+                      fontSize: titleSize,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1.8,
+                      height: .92,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(height: 1, color: palette.divider),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  child: Text(
+                    s.tr('home.wordmarkWarriors'),
+                    style: TextStyle(
+                      color: palette.wordmarkWarriors,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 4.5,
+                      height: 1.1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Container(height: 1, color: palette.divider),
+                ),
+              ],
+            ),
+          ],
         );
       },
+    );
+  }
+}
+
+class _HeroActions extends StatelessWidget {
+  const _HeroActions({required this.palette});
+
+  final _HomePalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: _GradientPillButton(
+                key: const ValueKey('home-cta-join'),
+                label: s.tr('home.heroPrimaryCta'),
+                icon: Icons.person_add_alt_1_rounded,
+                onPressed: () => Navigator.pushNamed(context, '/signup'),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md + 3),
+            Expanded(
+              flex: 1,
+              child: OutlinedButton.icon(
+                key: const ValueKey('home-cta-login'),
+                onPressed: () => Navigator.pushNamed(context, '/login'),
+                icon: const Icon(Icons.login_rounded, size: 15),
+                label: Text(
+                  s.tr('common.signIn'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: palette.loginText,
+                  backgroundColor:
+                      palette.dark
+                          ? Colors.white.withValues(alpha: .04)
+                          : Colors.white.withValues(alpha: .55),
+                  side: BorderSide(color: palette.loginBorder, width: 1.5),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: AppShapes.pill,
+                  ),
+                  minimumSize: const Size.fromHeight(40),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GradientPillButton extends StatelessWidget {
+  const _GradientPillButton({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.homeRed, AppColors.homeRedDeep],
+          ),
+          borderRadius: AppShapes.pill,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.homeRed.withValues(alpha: .35),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: InkWell(
+          borderRadius: AppShapes.pill,
+          onTap: onPressed,
+          child: SizedBox(
+            height: 40,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 15, color: Colors.white),
+                  const SizedBox(width: AppSpacing.xs + 2),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -588,506 +776,525 @@ class _IntegratedPhone extends StatelessWidget {
 class _HomeService {
   const _HomeService({
     required this.id,
-    required this.label,
+    required this.labelKey,
     required this.icon,
     required this.route,
-    this.emergency = false,
+    required this.accent,
+    this.badge,
+    this.healthIcon = false,
   });
 
   final String id;
-  final String label;
+  final String labelKey;
   final IconData icon;
   final String route;
-  final bool emergency;
+  final Color accent;
+  final String? badge;
+  final bool healthIcon;
 }
 
-List<_HomeService> _homeServices(AppLocalizations s) => [
-      _HomeService(
-        id: 'health',
-        label: s.tr('srv.healthTitle'),
-        icon: Icons.health_and_safety_outlined,
-        route: '/health',
-      ),
-      _HomeService(
-        id: 'hydration',
-        label: s.tr('home.serviceHydration'),
-        icon: Icons.water_drop_outlined,
-        route: '/hydration',
-      ),
-      _HomeService(
-        id: 'blood',
-        label: s.tr('srv.bloodTitle'),
-        icon: Icons.bloodtype_outlined,
-        route: '/blood-donation',
-        emergency: true,
-      ),
-      _HomeService(
-        id: 'education',
-        label: s.tr('home.serviceEducation'),
-        icon: Icons.school_outlined,
-        route: '/education',
-      ),
-      _HomeService(
-        id: 'community',
-        label: s.tr('home.serviceCommunity'),
-        icon: Icons.forum_outlined,
-        route: '/community',
-      ),
-      _HomeService(
-        id: 'ai',
-        label: s.tr('home.serviceAi'),
-        icon: Icons.auto_awesome_outlined,
-        route: '/ai-assistant',
-      ),
-      _HomeService(
-        id: 'donate',
-        label: s.tr('srv.donateTitle'),
-        icon: Icons.volunteer_activism_outlined,
-        route: '/donations',
-        emergency: true,
-      ),
-    ];
+const List<_HomeService> _homeServices = [
+  _HomeService(
+    id: 'health',
+    labelKey: 'srv.healthTitle',
+    icon: Icons.favorite_rounded,
+    route: '/health',
+    accent: AppColors.homeRed,
+    healthIcon: true,
+  ),
+  _HomeService(
+    id: 'hydration',
+    labelKey: 'home.serviceHydration',
+    icon: Icons.water_drop_rounded,
+    route: '/hydration',
+    accent: AppColors.homeAccentBlue,
+  ),
+  _HomeService(
+    id: 'blood',
+    labelKey: 'srv.bloodTitle',
+    icon: Icons.bloodtype_rounded,
+    route: '/blood-donation',
+    accent: AppColors.homeRed,
+  ),
+  _HomeService(
+    id: 'education',
+    labelKey: 'srv.educationTitle',
+    icon: Icons.school_rounded,
+    route: '/education',
+    accent: AppColors.homeAccentBlue,
+  ),
+  _HomeService(
+    id: 'community',
+    labelKey: 'srv.communityTitle',
+    icon: Icons.groups_rounded,
+    route: '/community',
+    accent: AppColors.homeRed,
+    badge: '5',
+  ),
+  _HomeService(
+    id: 'ai',
+    labelKey: 'home.serviceAi',
+    icon: Icons.smart_toy_rounded,
+    route: '/ai-assistant',
+    accent: AppColors.homeAccentBlue,
+  ),
+];
 
-List<_ServiceSpec> _phoneServices(AppLocalizations s) => [
-      _ServiceSpec(
-        title: s.tr('srv.healthTitle'),
-        icon: Icons.health_and_safety_outlined,
-        actions: const [
-          _SectionAction(labelKey: 'act.healthDashboard', route: '/health'),
-          _SectionAction(labelKey: 'act.manageMedication', route: '/medication'),
-        ],
-      ),
-      _ServiceSpec(
-        title: s.tr('srv.doctorTitle'),
-        icon: Icons.medical_services_outlined,
-        actions: const [
-          _SectionAction(labelKey: 'act.findDoctor', route: '/doctors'),
-          _SectionAction(labelKey: 'act.visitClinic', route: '/clinic'),
-        ],
-      ),
-      _ServiceSpec(
-        title: s.tr('srv.bloodTitle'),
-        icon: Icons.bloodtype_outlined,
-        emergency: true,
-        actions: const [
-          _SectionAction(labelKey: 'act.bloodNetwork', route: '/blood-donation'),
-          _SectionAction(labelKey: 'act.donateBlood', route: '/donor-home'),
-        ],
-      ),
-      _ServiceSpec(
-        title: s.tr('srv.emergencyTitle'),
-        icon: Icons.emergency_outlined,
-        emergency: true,
-        actions: const [
-          _SectionAction(labelKey: 'act.emergencySos', route: '/emergency'),
-        ],
-      ),
-      _ServiceSpec(
-        title: s.tr('srv.educationTitle'),
-        icon: Icons.school_outlined,
-        actions: const [
-          _SectionAction(labelKey: 'act.openAcademy', route: '/education'),
-        ],
-      ),
-      _ServiceSpec(
-        title: s.tr('srv.communityTitle'),
-        icon: Icons.forum_outlined,
-        actions: const [
-          _SectionAction(labelKey: 'act.joinCommunity', route: '/community'),
-          _SectionAction(labelKey: 'act.messages', route: '/messages'),
-          _SectionAction(labelKey: 'act.aiCoach', route: '/ai-assistant'),
-        ],
-      ),
-      _ServiceSpec(
-        title: s.tr('srv.donateTitle'),
-        icon: Icons.volunteer_activism_outlined,
-        actions: const [
-          _SectionAction(labelKey: 'act.makeDonation', route: '/donations'),
-          _SectionAction(labelKey: 'act.changiaHub', route: '/changia'),
-        ],
-      ),
-    ];
+class _ServiceMenu extends StatelessWidget {
+  const _ServiceMenu({required this.palette});
 
-class _GlassServicesPanel extends StatelessWidget {
-  const _GlassServicesPanel({
-    super.key,
-    required this.services,
-    required this.label,
-  });
-
-  final List<_HomeService> services;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: AppShapes.hero,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.navy.withValues(alpha: .28),
-            offset: const Offset(0, 18),
-            blurRadius: 40,
-            spreadRadius: -10,
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: AppShapes.hero,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .06),
-              borderRadius: AppShapes.hero,
-              border: Border.all(color: Colors.white.withValues(alpha: .14)),
-            ),
-            child: LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 1000
-                  ? 7
-                  : constraints.maxWidth >= 640
-                      ? 4
-                      : constraints.maxWidth >= 480
-                          ? 3
-                          : 2;
-              final compact = constraints.maxWidth < 520;
-              const gap = AppSpacing.sm;
-              final cardWidth =
-                  (constraints.maxWidth - gap * (columns - 1)) / columns;
-              final cardHeight = compact ? 58.0 : 112.0;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 30,
-                        height: 30,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: .10),
-                          borderRadius: AppShapes.small,
-                        ),
-                        child: const Icon(
-                          Icons.grid_view_rounded,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          label,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: .1,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
-                    children: [
-                      for (final service in services)
-                        SizedBox(
-                          width: cardWidth,
-                          height: cardHeight,
-                          child: _ServiceCard(
-                            service: service,
-                            compact: compact,
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({required this.service, required this.compact});
-
-  final _HomeService service;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent =
-        service.emergency ? AppColors.emergency : AppColors.blue;
-    final icon = Container(
-      width: compact ? 34 : 38,
-      height: compact ? 34 : 38,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: .22),
-        borderRadius: AppShapes.small,
-        border: Border.all(color: accent.withValues(alpha: .35)),
-      ),
-      child: Icon(
-        service.icon,
-        size: compact ? 18 : 20,
-        color: Colors.white,
-      ),
-    );
-    final label = Text(
-      service.label,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: compact ? 12 : 12.5,
-        fontWeight: FontWeight.w600,
-        height: 1.2,
-      ),
-    );
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: ValueKey('home-service-${service.id}'),
-        borderRadius: AppShapes.card,
-        onTap: () => goTo(context, service.route),
-        overlayColor: WidgetStatePropertyAll(
-          Colors.white.withValues(alpha: .08),
-        ),
-        child: Container(
-          padding: EdgeInsets.all(
-            compact ? AppSpacing.md : AppSpacing.md + 2,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .055),
-            borderRadius: AppShapes.card,
-            border: Border.all(color: Colors.white.withValues(alpha: .13)),
-          ),
-          child: compact
-              ? Row(
-                  children: [
-                    icon,
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: label),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    icon,
-                    const SizedBox(height: AppSpacing.sm),
-                    label,
-                  ],
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-// ==================================================== service area sections
-
-/// One public service area rendered as a quick-action tile in the phone
-/// mockup: localized title, icon and priority action routes.
-class _ServiceSpec {
-  const _ServiceSpec({
-    required this.title,
-    required this.icon,
-    required this.actions,
-    this.emergency = false,
-  });
-
-  final String title;
-  final IconData icon;
-  final List<_SectionAction> actions;
-  final bool emergency;
-}
-
-/// Phone mockup of the signed-in app: status notch, brand app bar, a compact
-/// greeting, a 7-tile quick-action grid (every tile routes to its real
-/// destination) and a red SOS strip — ringed by six floating healthcare icons
-/// that reveal with a short staggered rise. The reveal is finite, so widget
-/// tests that settle the page still finish.
-///
-/// The mockup itself is unchanged from the signed-in app preview; the public
-/// hero only scales and positions it as a companion visual.
-class _PhoneShowcase extends StatefulWidget {
-  const _PhoneShowcase({required this.theme, required this.services});
-
-  final ThemeData theme;
-  final List<_ServiceSpec> services;
-
-  @override
-  State<_PhoneShowcase> createState() => _PhoneShowcaseState();
-}
-
-class _PhoneShowcaseState extends State<_PhoneShowcase>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _reveal = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _reveal.value = 1;
-    } else if (!_reveal.isAnimating && !_reveal.isCompleted) {
-      _reveal.forward();
-    }
-  }
-
-  @override
-  void dispose() {
-    _reveal.dispose();
-    super.dispose();
-  }
+  final _HomePalette palette;
 
   @override
   Widget build(BuildContext context) {
     final s = AppLocalizations.of(context);
-    final theme = widget.theme;
-    final dark = theme.brightness == Brightness.dark;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final colW = constraints.maxWidth;
-        final phoneW = math.max(200.0, math.min(300.0, colW - 72));
-        final phoneH = phoneW * 2.02;
-        final stackH = phoneH + 48;
-
-        const bubbles = <({IconData icon, Color color})>[
-          (icon: Icons.health_and_safety_outlined, color: AppColors.blue),
-          (icon: Icons.water_drop_outlined, color: AppColors.emergency),
-          (icon: Icons.forum_outlined, color: AppColors.blue),
-          (icon: Icons.school_outlined, color: AppColors.navy),
-          (icon: Icons.favorite, color: AppColors.emergency),
-          (icon: Icons.monitor_heart_outlined, color: AppColors.blue),
-        ];
-
-        return SizedBox(
-          width: colW,
-          height: stackH,
-          child: ListenableBuilder(
-            listenable: _reveal,
-            builder: (context, _) {
-              Widget bubbleAt(int index) {
-                final b = bubbles[index];
-                final t = Interval(
-                  index * 0.08,
-                  math.min(1.0, index * 0.08 + 0.55),
-                  curve: Curves.easeOutCubic,
-                ).transform(_reveal.value);
-
-                // Two flanking columns of icons, three down each side.
-                final leftSide = index.isEven;
-                final slot = index ~/ 2;
-                final top = slot == 0
-                    ? stackH * .07
-                    : slot == 1
-                        ? stackH * .44
-                        : null;
-                final bottom = slot == 2 ? 6.0 : null;
-                return Positioned(
-                  left: leftSide
-                      ? (slot == 2 ? colW * .12 : 0.0)
-                      : null,
-                  right: leftSide
-                      ? null
-                      : (slot == 2 ? colW * .10 : 0.0),
-                  top: top,
-                  bottom: bottom,
-                  child: Opacity(
-                    opacity: t,
-                    child: Transform.translate(
-                      offset: Offset(0, (1 - t) * 20),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.navy.withValues(alpha: .18),
-                              offset: const Offset(0, 8),
-                              blurRadius: 18,
+    return Container(
+      key: const ValueKey('hero-services'),
+      decoration: BoxDecoration(
+        borderRadius: AppShapes.homeCard,
+        boxShadow: [
+          BoxShadow(
+            color: palette.glassShadow,
+            blurRadius: 36,
+            offset: const Offset(0, 18),
+            spreadRadius: -12,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: AppShapes.homeCard,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.sm + 2),
+            decoration: BoxDecoration(
+              color: palette.glassFill,
+              borderRadius: AppShapes.homeCard,
+              border: Border.all(color: palette.glassBorder),
+            ),
+            child: Semantics(
+              label: s.tr('home.servicesLabel'),
+              container: true,
+              child: Column(
+                children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      const gap = AppSpacing.sm;
+                      final tileWidth =
+                          (constraints.maxWidth - gap * 2) / 3;
+                      final tileHeight =
+                          math.max(76.0, math.min(96.0, tileWidth * .78));
+                      return Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: [
+                          for (final service in _homeServices)
+                            SizedBox(
+                              width: tileWidth,
+                              height: tileHeight,
+                              child: _HomeTile(
+                                palette: palette,
+                                service: service,
+                              ),
                             ),
-                          ],
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _DonateRow(palette: palette),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeTile extends StatefulWidget {
+  const _HomeTile({required this.palette, required this.service});
+
+  final _HomePalette palette;
+  final _HomeService service;
+
+  @override
+  State<_HomeTile> createState() => _HomeTileState();
+}
+
+class _HomeTileState extends State<_HomeTile> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final palette = widget.palette;
+    final service = widget.service;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final duration =
+        reduceMotion ? Duration.zero : const Duration(milliseconds: 160);
+
+    final icon =
+        service.healthIcon
+            ? Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(service.icon, size: 26, color: service.accent),
+                const Icon(
+                  Icons.monitor_heart_rounded,
+                  size: 15,
+                  color: Colors.white,
+                ),
+              ],
+            )
+            : Icon(service.icon, size: 24, color: service.accent);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedScale(
+        scale: _hovered && !reduceMotion ? 1.025 : 1,
+        duration: duration,
+        curve: Curves.easeOut,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: ValueKey('home-service-${service.id}'),
+            borderRadius: AppShapes.homeTile,
+            onTap: () => goTo(context, service.route),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: AnimatedContainer(
+                    duration: duration,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs + 2,
+                      vertical: AppSpacing.xs + 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _hovered ? palette.tileHover : palette.tileFill,
+                      borderRadius: AppShapes.homeTile,
+                      border: Border.all(
+                        color:
+                            _hovered
+                                ? palette.tileBorderHover
+                                : palette.tileBorder,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: service.accent.withValues(
+                              alpha: palette.dark ? .16 : .12,
+                            ),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: service.accent.withValues(
+                                alpha: palette.dark ? .28 : .20,
+                              ),
+                            ),
+                          ),
+                          child: icon,
                         ),
-                        child: Icon(b.icon, size: 21, color: b.color),
+                        const SizedBox(height: AppSpacing.xs + 2),
+                        Text(
+                          s.tr(service.labelKey),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: palette.textPrimary,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            height: 1.15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (service.badge != null)
+                  Positioned(
+                    top: AppSpacing.xs,
+                    right: AppSpacing.xs,
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.homeRed,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color:
+                              palette.dark
+                                  ? AppColors.homeNavyMid
+                                  : Colors.white,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text(
+                        service.badge!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ),
-                );
-              }
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-              return Stack(
-                clipBehavior: Clip.none,
+class _DonateRow extends StatefulWidget {
+  const _DonateRow({required this.palette});
+
+  final _HomePalette palette;
+
+  @override
+  State<_DonateRow> createState() => _DonateRowState();
+}
+
+class _DonateRowState extends State<_DonateRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final palette = widget.palette;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final duration =
+        reduceMotion ? Duration.zero : const Duration(milliseconds: 160);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedScale(
+        scale: _hovered && !reduceMotion ? 1.015 : 1,
+        duration: duration,
+        curve: Curves.easeOut,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: const ValueKey('home-donate'),
+            borderRadius: AppShapes.homeTile,
+            onTap: () => goTo(context, '/donations'),
+            child: AnimatedContainer(
+              duration: duration,
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
+              decoration: BoxDecoration(
+                color: _hovered ? palette.tileHover : palette.tileFill,
+                borderRadius: AppShapes.homeTile,
+                border: Border.all(
+                  color:
+                      _hovered ? palette.tileBorderHover : palette.tileBorder,
+                ),
+              ),
+              child: Row(
                 children: [
-                  Positioned(
-                    top: 24,
-                    left: (colW - phoneW) / 2,
-                    width: phoneW,
-                    height: phoneH,
-                    child: _phone(context, s, dark),
+                  Icon(
+                    Icons.volunteer_activism_rounded,
+                    size: 20,
+                    color: palette.textPrimary,
                   ),
-                  for (var i = 0; i < bubbles.length; i++) bubbleAt(i),
+                  const SizedBox(width: AppSpacing.sm),
+                  Container(width: 1, height: 20, color: palette.divider),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      s.tr('srv.donateTitle'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: palette.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: palette.textSecondary,
+                  ),
                 ],
-              );
-            },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PhoneStage extends StatelessWidget {
+  const _PhoneStage({required this.palette});
+
+  final _HomePalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final services = _phoneServices(s);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stageWidth = constraints.maxWidth;
+        final phoneWidth =
+            math.min(340.0, math.max(280.0, stageWidth * .86));
+        final phoneHeight = phoneWidth * 2.02 + 12;
+        return ClipRect(
+          child: SizedBox(
+            key: const ValueKey('hero-phone'),
+            height: 360,
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _SwooshPainter(palette: palette),
+                  ),
+                ),
+                Positioned(
+                  top: 2,
+                  left: stageWidth - phoneWidth + 88,
+                  width: phoneWidth,
+                  height: phoneHeight,
+                  child: Transform(
+                    key: const ValueKey('hero-phone-tilt'),
+                    alignment: Alignment.topCenter,
+                    transform:
+                        Matrix4.identity()
+                          ..setEntry(3, 2, .0014)
+                          ..rotateZ(-14 * math.pi / 180)
+                          ..rotateX(.04),
+                    child: IgnorePointer(
+                      child: ExcludeSemantics(
+                        child: _ExistingPhoneMockup(
+                          services: services,
+                          palette: palette,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
+}
 
-  Widget _phone(
-    BuildContext context,
-    AppLocalizations s,
-    bool dark,
-  ) {
-    final theme = widget.theme;
-    final scheme = theme.colorScheme;
+class _PhoneServiceSpec {
+  const _PhoneServiceSpec({
+    required this.title,
+    required this.icon,
+    required this.route,
+    this.emergency = false,
+  });
+
+  final String title;
+  final IconData icon;
+  final String route;
+  final bool emergency;
+}
+
+List<_PhoneServiceSpec> _phoneServices(AppLocalizations s) => [
+  _PhoneServiceSpec(
+    title: s.tr('srv.healthTitle'),
+    icon: Icons.health_and_safety_outlined,
+    route: '/health',
+  ),
+  _PhoneServiceSpec(
+    title: s.tr('srv.doctorTitle'),
+    icon: Icons.medical_services_outlined,
+    route: '/doctors',
+  ),
+  _PhoneServiceSpec(
+    title: s.tr('srv.bloodTitle'),
+    icon: Icons.bloodtype_outlined,
+    route: '/blood-donation',
+    emergency: true,
+  ),
+  _PhoneServiceSpec(
+    title: s.tr('srv.emergencyTitle'),
+    icon: Icons.emergency_outlined,
+    route: '/emergency',
+    emergency: true,
+  ),
+  _PhoneServiceSpec(
+    title: s.tr('srv.educationTitle'),
+    icon: Icons.school_outlined,
+    route: '/education',
+  ),
+  _PhoneServiceSpec(
+    title: s.tr('srv.communityTitle'),
+    icon: Icons.forum_outlined,
+    route: '/community',
+  ),
+  _PhoneServiceSpec(
+    title: s.tr('srv.donateTitle'),
+    icon: Icons.volunteer_activism_outlined,
+    route: '/donations',
+  ),
+];
+
+class _ExistingPhoneMockup extends StatelessWidget {
+  const _ExistingPhoneMockup({required this.services, required this.palette});
+
+  final List<_PhoneServiceSpec> services;
+  final _HomePalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppLocalizations.of(context);
+    final phoneTheme = ThemeData(
+      useMaterial3: true,
+      brightness: palette.dark ? Brightness.dark : Brightness.light,
+    );
+
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: AppColors.navy,
-        borderRadius: AppShapes.hero,
-        border: Border.all(color: AppColors.dividerOnDark),
+        color: palette.phoneFrame,
+        borderRadius: AppShapes.homePhone,
+        border: Border.all(color: Colors.white.withValues(alpha: .16)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.navy.withValues(alpha: dark ? .45 : .28),
-            offset: const Offset(0, 24),
-            blurRadius: 40,
-            spreadRadius: -10,
+            color: AppColors.homeNavyTop.withValues(alpha: .55),
+            offset: const Offset(0, 28),
+            blurRadius: 50,
+            spreadRadius: -12,
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: AppShapes.card,
+        borderRadius: AppShapes.homeCard,
         child: ColoredBox(
-          color: dark ? AppColors.navyDeep : AppColors.surface,
+          color: palette.phoneScreen,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
-                height: 22,
-                color: AppColors.navy,
+                height: 24,
+                color: palette.phoneFrame,
                 alignment: Alignment.center,
                 child: Container(
-                  width: 56,
+                  width: 58,
                   height: 6,
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: .45),
@@ -1096,17 +1303,21 @@ class _PhoneShowcaseState extends State<_PhoneShowcase>
                 ),
               ),
               Container(
-                color: AppColors.navy,
+                color: palette.phoneFrame,
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.sm,
+                  AppSpacing.sm + 2,
                   0,
-                  AppSpacing.sm,
+                  AppSpacing.sm + 2,
                   AppSpacing.sm,
                 ),
                 child: Row(
                   children: [
-                    const AppLogo(height: 16),
-                    const SizedBox(width: AppSpacing.xs),
+                    Image.asset(
+                      'assets/brand/sicklers_warriors_logo_transparent.png',
+                      height: 18,
+                      filterQuality: FilterQuality.high,
+                    ),
+                    const SizedBox(width: AppSpacing.xs + 2),
                     Expanded(
                       child: Text(
                         AppStrings.appName,
@@ -1123,7 +1334,7 @@ class _PhoneShowcaseState extends State<_PhoneShowcase>
                       width: 24,
                       height: 24,
                       decoration: const BoxDecoration(
-                        color: AppColors.emergency,
+                        color: AppColors.homeRed,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -1145,9 +1356,9 @@ class _PhoneShowcaseState extends State<_PhoneShowcase>
                       children: [
                         Text(
                           AppStrings.greeting,
-                          style: theme.textTheme.titleMedium?.copyWith(
+                          style: phoneTheme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
-                            color: scheme.onSurface,
+                            color: palette.phoneText,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xxs),
@@ -1155,38 +1366,41 @@ class _PhoneShowcaseState extends State<_PhoneShowcase>
                           s.tr('home.phoneSubtitle'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
+                          style: phoneTheme.textTheme.bodySmall?.copyWith(
+                            color: palette.phoneMuted,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.md),
                         Text(
                           s.tr('home.phoneQuickActions'),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
+                          style: phoneTheme.textTheme.labelSmall?.copyWith(
+                            color: palette.phoneMuted,
                             fontWeight: FontWeight.w700,
                             letterSpacing: .6,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         for (var start = 0;
-                            start < widget.services.length;
+                            start < services.length;
                             start += 3)
                           Padding(
-                            padding:
-                                const EdgeInsets.only(bottom: AppSpacing.sm),
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.sm,
+                            ),
                             child: Row(
                               children: [
                                 for (var j = start;
-                                    j <
-                                        math.min(
-                                          start + 3,
-                                          widget.services.length,
-                                        );
+                                    j < math.min(start + 3, services.length);
                                     j++) ...[
                                   if (j > start)
                                     const SizedBox(width: AppSpacing.sm),
-                                  Expanded(child: _phoneTile(context, widget.services[j])),
+                                  Expanded(
+                                    child: _phoneTile(
+                                      context,
+                                      phoneTheme,
+                                      services[j],
+                                    ),
+                                  ),
                                 ],
                               ],
                             ),
@@ -1205,24 +1419,21 @@ class _PhoneShowcaseState extends State<_PhoneShowcase>
     );
   }
 
-  Widget _phoneTile(BuildContext context, _ServiceSpec spec) {
-    final dark = widget.theme.brightness == Brightness.dark;
-    final accent = spec.emergency ? AppColors.emergency : AppColors.blue;
+  Widget _phoneTile(
+    BuildContext context,
+    ThemeData theme,
+    _PhoneServiceSpec spec,
+  ) {
+    final accent = spec.emergency ? AppColors.homeRed : AppColors.homeAccentBlue;
     return Material(
-      color: dark
-          ? Colors.white.withValues(alpha: .06)
-          : widget.theme.colorScheme.primaryContainer.withValues(alpha: 0.36),
+      color: palette.phoneTileFill,
       shape: RoundedRectangleBorder(
         borderRadius: AppShapes.small,
-        side: BorderSide(
-          color: dark
-              ? AppColors.dividerOnDark
-              : AppColors.blue.withValues(alpha: .16),
-        ),
+        side: BorderSide(color: palette.phoneTileBorder),
       ),
       child: InkWell(
         borderRadius: AppShapes.small,
-        onTap: () => goTo(context, spec.actions.first.route),
+        onTap: () => goTo(context, spec.route),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.xs,
@@ -1238,11 +1449,11 @@ class _PhoneShowcaseState extends State<_PhoneShowcase>
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: widget.theme.textTheme.bodySmall?.copyWith(
+                style: theme.textTheme.bodySmall?.copyWith(
                   fontSize: 9.5,
                   height: 1.2,
                   fontWeight: FontWeight.w600,
-                  color: widget.theme.colorScheme.onSurface,
+                  color: palette.phoneText,
                 ),
               ),
             ],
@@ -1254,7 +1465,7 @@ class _PhoneShowcaseState extends State<_PhoneShowcase>
 
   Widget _phoneSos(BuildContext context, AppLocalizations s) {
     return Material(
-      color: AppColors.emergency,
+      color: AppColors.homeRed,
       shape: RoundedRectangleBorder(borderRadius: AppShapes.small),
       child: InkWell(
         borderRadius: AppShapes.small,
@@ -1269,7 +1480,7 @@ class _PhoneShowcaseState extends State<_PhoneShowcase>
               const Icon(
                 Icons.emergency_outlined,
                 size: 15,
-                color: AppColors.textOnEmergency,
+                color: Colors.white,
               ),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
@@ -1278,17 +1489,13 @@ class _PhoneShowcaseState extends State<_PhoneShowcase>
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.textOnEmergency,
+                    color: Colors.white,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                size: 16,
-                color: AppColors.textOnEmergency,
-              ),
+              const Icon(Icons.chevron_right, size: 16, color: Colors.white),
             ],
           ),
         ),
@@ -1297,10 +1504,50 @@ class _PhoneShowcaseState extends State<_PhoneShowcase>
   }
 }
 
-class _SectionAction {
-  const _SectionAction({required this.labelKey, required this.route});
+class _SwooshPainter extends CustomPainter {
+  const _SwooshPainter({required this.palette});
 
-  final String labelKey;
-  final String route;
+  final _HomePalette palette;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path =
+        Path()
+          ..moveTo(-size.width * .12, size.height * .72)
+          ..cubicTo(
+            size.width * .16,
+            size.height * .22,
+            size.width * .40,
+            size.height * .92,
+            size.width * 1.05,
+            size.height * .26,
+          );
+    final deep =
+        Paint()
+          ..color = AppColors.homeRedDeep
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 58
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
+    final red =
+        Paint()
+          ..color = AppColors.homeRed
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 54
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
+    final inner =
+        Paint()
+          ..color = palette.swooshInner
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 10
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(path, deep);
+    canvas.drawPath(path, red);
+    canvas.drawPath(path, inner);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SwooshPainter oldDelegate) => false;
 }
-
