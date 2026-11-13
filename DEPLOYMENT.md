@@ -13,11 +13,20 @@
 - CORS_ALLOWED_ORIGINS: https://<admin-static>.onrender.com,https://<public-web>.onrender.com (comma-separated, no trailing slash)
 - CSRF_TRUSTED_ORIGINS: same as CORS (https://)
 - SERVE_MEDIA: false
-- DB_* from Render Postgres
+- DATABASE_URL: Render Postgres **Internal Database URL** (preferred; same region),
+  or the full **External Database URL** with `?sslmode=require`. Never use the
+  resolved IP address. `DATABASE_URL` takes precedence over `DB_*`.
+- DB_*: alternative to `DATABASE_URL`; if used, `DB_HOST` must be the full
+  Render hostname and external connections need `DB_SSLMODE=require`.
 
 ## Build/Start (Render)
 - Build: bash build.sh
 - Start: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+- Migrations: `build.sh` runs `python manage.py migrate`. Keep this on Render's
+  free tier because pre-deploy commands require a paid compute plan. If the
+  service is moved to a paid plan, move the `migrate` line to
+  `preDeployCommand` and remove it from `build.sh`; do not run migrations in
+  `startCommand`.
 
 ## Admin access
 Create first superuser with role:

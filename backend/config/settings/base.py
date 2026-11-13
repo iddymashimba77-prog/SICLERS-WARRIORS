@@ -6,6 +6,9 @@ All environment-specific settings override values defined here.
 
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlparse
+
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -100,20 +103,68 @@ ASGI_APPLICATION = "config.asgi.application"
 # Database
 # ---------------------------------------------------------------------------
 
-DATABASES = {
-    "default": {
+def _postgres_database_config() -> dict:
+    """Build the default database config from DATABASE_URL or discrete DB_* vars.
+
+    Render supplies a single DATABASE_URL. Prefer it when present so the full
+    hostname and any ``?sslmode=`` query parameter are preserved. The discrete
+    DB_* variables remain supported for local development and existing deploys.
+    """
+    conn_max_age = int(os.environ.get("DB_CONN_MAX_AGE", "0"))
+    database_url = os.environ.get("DATABASE_URL", "").strip()
+
+    if database_url:
+        parsed = urlparse(database_url)
+        if parsed.scheme not in ("postgres", "postgresql"):
+            raise ImproperlyConfigured(
+                "DATABASE_URL must use the postgres:// or postgresql:// scheme."
+            )
+
+        query = parse_qs(parsed.query)
+        config = {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": (
+                unquote(parsed.path.lstrip("/"))
+                or os.environ.get("DB_NAME", "sickle_cell")
+            ),
+            "USER": (
+                unquote(parsed.username or "")
+                or os.environ.get("DB_USER", "sw_db_user")
+            ),
+            "PASSWORD": (
+                unquote(parsed.password or "")
+                or os.environ.get("DB_PASSWORD", "")
+            ),
+            "HOST": parsed.hostname or os.environ.get("DB_HOST", "127.0.0.1"),
+            "PORT": str(parsed.port or os.environ.get("DB_PORT", "5432")),
+            # Connection reuse (Stage 4.18): persistent connections cut
+            # per-request connect cost. Env-controlled; 0 keeps Django's
+            # short-lived behavior until a deployer opts in.
+            "CONN_MAX_AGE": conn_max_age,
+        }
+        sslmode = (
+            query.get("sslmode", [""])[0] or os.environ.get("DB_SSLMODE", "")
+        ).strip()
+        if sslmode:
+            config["OPTIONS"] = {"sslmode": sslmode}
+        return config
+
+    config = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("DB_NAME", "sickle_cell"),
         "USER": os.environ.get("DB_USER", "sw_db_user"),
         "PASSWORD": os.environ.get("DB_PASSWORD", "sw_db_dev_password"),
         "HOST": os.environ.get("DB_HOST", "127.0.0.1"),
         "PORT": os.environ.get("DB_PORT", "5432"),
-        # Connection reuse (Stage 4.18): persistent connections cut per-request
-        # connect cost. Env-controlled; 0 (default) keeps Django's short-lived
-        # behavior until a deployer opts in.
-        "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "0")),
+        "CONN_MAX_AGE": conn_max_age,
     }
-}
+    sslmode = os.environ.get("DB_SSLMODE", "").strip()
+    if sslmode:
+        config["OPTIONS"] = {"sslmode": sslmode}
+    return config
+
+
+DATABASES = {"default": _postgres_database_config()}
 
 # ---------------------------------------------------------------------------
 # Cache (Stage 4.18 — NFR-PERF-001)
