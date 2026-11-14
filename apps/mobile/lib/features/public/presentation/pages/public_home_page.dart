@@ -92,6 +92,8 @@ class _HomePalette {
     required this.background,
     required this.glowBlue,
     required this.glowRed,
+    required this.accentBlue,
+    required this.accentRed,
     required this.textPrimary,
     required this.textSecondary,
     required this.textMuted,
@@ -124,6 +126,8 @@ class _HomePalette {
   final List<Color> background;
   final Color glowBlue;
   final Color glowRed;
+  final Color accentBlue;
+  final Color accentRed;
   final Color textPrimary;
   final Color textSecondary;
   final Color textMuted;
@@ -160,10 +164,12 @@ class _HomePalette {
           AppColors.homeNavyMid,
           AppColors.homeBlueBottom,
         ],
-        glowBlue: AppColors.homeAccentBlue,
+        glowBlue: AppColors.homeAccentBlueSoft,
         glowRed: AppColors.homeRed,
+        accentBlue: AppColors.homeAccentBlueSoft,
+        accentRed: AppColors.homeRedSoft,
         textPrimary: Colors.white,
-        textSecondary: AppColors.homeLavender,
+        textSecondary: AppColors.homeTextSoft,
         textMuted: Colors.white.withValues(alpha: .70),
         glassFill: Colors.white.withValues(alpha: .08),
         glassBorder: Colors.white.withValues(alpha: .18),
@@ -178,7 +184,7 @@ class _HomePalette {
         phoneFrame: AppColors.homeNavyTop,
         phoneScreen: AppColors.homePhoneScreen,
         phoneText: Colors.white,
-        phoneMuted: AppColors.homeLavender,
+        phoneMuted: AppColors.homeTextSoft,
         phoneTileFill: Colors.white.withValues(alpha: .09),
         phoneTileBorder: Colors.white.withValues(alpha: .16),
         swooshInner: Colors.white,
@@ -186,7 +192,7 @@ class _HomePalette {
         loginText: Colors.white,
         wordmarkSickle: Colors.white,
         wordmarkWarriors: Colors.white,
-        taglinePrimary: AppColors.homeLavender,
+        taglinePrimary: AppColors.homeTextSoft,
         taglineSecondary: Colors.white,
       );
     }
@@ -199,6 +205,8 @@ class _HomePalette {
       ],
       glowBlue: AppColors.homeAccentBlue,
       glowRed: AppColors.homeRed,
+      accentBlue: AppColors.homeAccentBlue,
+      accentRed: AppColors.homeRed,
       textPrimary: AppColors.homeInk,
       textSecondary: AppColors.homeInkMuted,
       textMuted: AppColors.homeInkMuted,
@@ -223,7 +231,7 @@ class _HomePalette {
       loginText: AppColors.homeInk,
       wordmarkSickle: AppColors.homeInk,
       wordmarkWarriors: AppColors.homeInk,
-      taglinePrimary: AppColors.homeBlueBottom,
+      taglinePrimary: AppColors.homeAccentBlue,
       taglineSecondary: AppColors.homeInk,
     );
   }
@@ -779,7 +787,7 @@ class _HomeService {
     required this.labelKey,
     required this.icon,
     required this.route,
-    required this.accent,
+    this.emergency = false,
     this.badge,
     this.healthIcon = false,
   });
@@ -788,7 +796,7 @@ class _HomeService {
   final String labelKey;
   final IconData icon;
   final String route;
-  final Color accent;
+  final bool emergency;
   final String? badge;
   final bool healthIcon;
 }
@@ -799,7 +807,7 @@ const List<_HomeService> _homeServices = [
     labelKey: 'srv.healthTitle',
     icon: Icons.favorite_rounded,
     route: '/health',
-    accent: AppColors.homeRed,
+    emergency: true,
     healthIcon: true,
   ),
   _HomeService(
@@ -807,28 +815,26 @@ const List<_HomeService> _homeServices = [
     labelKey: 'home.serviceHydration',
     icon: Icons.water_drop_rounded,
     route: '/hydration',
-    accent: AppColors.homeAccentBlue,
   ),
   _HomeService(
     id: 'blood',
     labelKey: 'srv.bloodTitle',
     icon: Icons.bloodtype_rounded,
     route: '/blood-donation',
-    accent: AppColors.homeRed,
+    emergency: true,
   ),
   _HomeService(
     id: 'education',
     labelKey: 'srv.educationTitle',
     icon: Icons.school_rounded,
     route: '/education',
-    accent: AppColors.homeAccentBlue,
   ),
   _HomeService(
     id: 'community',
     labelKey: 'srv.communityTitle',
     icon: Icons.groups_rounded,
     route: '/community',
-    accent: AppColors.homeRed,
+    emergency: true,
     badge: '5',
   ),
   _HomeService(
@@ -836,7 +842,6 @@ const List<_HomeService> _homeServices = [
     labelKey: 'home.serviceAi',
     icon: Icons.smart_toy_rounded,
     route: '/ai-assistant',
-    accent: AppColors.homeAccentBlue,
   ),
 ];
 
@@ -931,6 +936,7 @@ class _HomeTileState extends State<_HomeTile> {
     final s = AppLocalizations.of(context);
     final palette = widget.palette;
     final service = widget.service;
+    final accent = service.emergency ? palette.accentRed : palette.accentBlue;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final duration =
         reduceMotion ? Duration.zero : const Duration(milliseconds: 160);
@@ -940,7 +946,7 @@ class _HomeTileState extends State<_HomeTile> {
             ? Stack(
               alignment: Alignment.center,
               children: [
-                Icon(service.icon, size: 26, color: service.accent),
+                Icon(service.icon, size: 26, color: accent),
                 const Icon(
                   Icons.monitor_heart_rounded,
                   size: 15,
@@ -948,7 +954,7 @@ class _HomeTileState extends State<_HomeTile> {
                 ),
               ],
             )
-            : Icon(service.icon, size: 24, color: service.accent);
+            : Icon(service.icon, size: 24, color: accent);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -991,12 +997,12 @@ class _HomeTileState extends State<_HomeTile> {
                           height: 32,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: service.accent.withValues(
+                            color: accent.withValues(
                               alpha: palette.dark ? .16 : .12,
                             ),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: service.accent.withValues(
+                              color: accent.withValues(
                                 alpha: palette.dark ? .28 : .20,
                               ),
                             ),
@@ -1151,14 +1157,35 @@ class _PhoneStage extends StatelessWidget {
     final services = _phoneServices(s);
     return LayoutBuilder(
       builder: (context, constraints) {
+        const stageHeight = 360.0;
+        const topMargin = 2.0;
+        const sideMargin = 8.0;
+        const tilt = 14 * math.pi / 180;
+        final cosTilt = math.cos(tilt);
+        final sinTilt = math.sin(tilt);
         final stageWidth = constraints.maxWidth;
-        final phoneWidth =
-            math.min(340.0, math.max(280.0, stageWidth * .86));
+
+        // Fit the tilted phone inside the stage, then centre its visual
+        // bounding box rather than its unrotated layout box.
+        final maxPhoneWidth =
+            (stageWidth -
+                sideMargin * 2 -
+                sinTilt * (stageHeight - topMargin)) /
+            (cosTilt - sinTilt * sinTilt / 2);
+        final phoneWidth = math.max(
+          150.0,
+          math.min(math.min(340.0, stageWidth * .86), maxPhoneWidth),
+        );
         final phoneHeight = phoneWidth * 2.02 + 12;
+        final topInset = topMargin + sinTilt * phoneWidth / 2;
+        final visibleHeight = math.min(phoneHeight, stageHeight - topInset);
+        final phoneLeft =
+            stageWidth / 2 - sinTilt * visibleHeight / 2 - phoneWidth / 2;
+
         return ClipRect(
           child: SizedBox(
             key: const ValueKey('hero-phone'),
-            height: 360,
+            height: stageHeight,
             child: Stack(
               clipBehavior: Clip.hardEdge,
               children: [
@@ -1168,8 +1195,8 @@ class _PhoneStage extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  top: 2,
-                  left: stageWidth - phoneWidth + 88,
+                  top: topInset,
+                  left: phoneLeft,
                   width: phoneWidth,
                   height: phoneHeight,
                   child: Transform(
@@ -1178,7 +1205,7 @@ class _PhoneStage extends StatelessWidget {
                     transform:
                         Matrix4.identity()
                           ..setEntry(3, 2, .0014)
-                          ..rotateZ(-14 * math.pi / 180)
+                          ..rotateZ(-tilt)
                           ..rotateX(.04),
                     child: IgnorePointer(
                       child: ExcludeSemantics(
@@ -1424,7 +1451,7 @@ class _ExistingPhoneMockup extends StatelessWidget {
     ThemeData theme,
     _PhoneServiceSpec spec,
   ) {
-    final accent = spec.emergency ? AppColors.homeRed : AppColors.homeAccentBlue;
+    final accent = spec.emergency ? palette.accentRed : palette.accentBlue;
     return Material(
       color: palette.phoneTileFill,
       shape: RoundedRectangleBorder(

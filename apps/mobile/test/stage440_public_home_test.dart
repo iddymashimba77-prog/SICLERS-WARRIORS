@@ -325,6 +325,27 @@ void main() {
         findsOneWidget,
         reason: 'phone at ${width}px',
       );
+
+      final stage = tester.getRect(find.byKey(const ValueKey('hero-phone')));
+      final phone = tester.getRect(
+        find.byKey(const ValueKey('hero-phone-tilt')),
+      );
+      expect(
+        phone.left,
+        greaterThanOrEqualTo(stage.left),
+        reason: 'phone clipped on the left at ${width}px',
+      );
+      expect(
+        phone.right,
+        lessThanOrEqualTo(stage.right),
+        reason: 'phone clipped on the right at ${width}px',
+      );
+      expect(
+        phone.top,
+        greaterThanOrEqualTo(stage.top),
+        reason: 'phone clipped at the top at ${width}px',
+      );
+
       expect(
         tester.takeException(),
         isNull,
