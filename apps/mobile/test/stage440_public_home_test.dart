@@ -354,6 +354,39 @@ void main() {
     }
   });
 
+  testWidgets('fills the viewport and anchors the phone stage to the bottom', (
+    tester,
+  ) async {
+    addTearDown(tester.view.reset);
+    for (final size in const [
+      Size(768, 1024),
+      Size(1280, 1200),
+      Size(390, 1600),
+    ]) {
+      await _pumpAt(tester, size);
+
+      final scroll = tester.getRect(find.byType(CustomScrollView));
+      expect(scroll.top, 0, reason: 'scroll top at ${size.height}px');
+      expect(
+        scroll.height,
+        size.height,
+        reason: 'scroll viewport at ${size.height}px',
+      );
+
+      final stage = tester.getRect(find.byKey(const ValueKey('hero-phone')));
+      expect(
+        stage.bottom,
+        size.height,
+        reason: 'phone stage bottom at ${size.height}px',
+      );
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'overflow at ${size.height}px',
+      );
+    }
+  });
+
   testWidgets('the light theme keeps the same layout', (tester) async {
     addTearDown(tester.view.reset);
     final theme = ThemeController(AppPreferences.memory())

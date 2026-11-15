@@ -35,16 +35,15 @@ class PublicHomePage extends StatelessWidget {
           ),
         ),
         child: ClipRect(
-          child: SingleChildScrollView(
-            child: Stack(
-              children: [
-                Positioned.fill(child: _HomeBackground(palette: palette)),
-                SafeArea(
-                  bottom: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Center(
+          child: Stack(
+            children: [
+              Positioned.fill(child: _HomeBackground(palette: palette)),
+              CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: SafeArea(
+                      bottom: false,
+                      child: Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 480),
                           child: Padding(
@@ -67,18 +66,42 @@ class PublicHomePage extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 520),
-                          child: _PhoneStage(palette: palette),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  SliverLayoutBuilder(
+                    builder: (context, constraints) {
+                      const phoneStageHeight = 360.0;
+                      final remaining =
+                          constraints.viewportMainAxisExtent -
+                          constraints.precedingScrollExtent;
+                      final footerHeight = math.max(
+                        phoneStageHeight + AppSpacing.sm,
+                        remaining,
+                      );
+                      return SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: footerHeight,
+                          child: Column(
+                            children: [
+                              const Spacer(),
+                              const SizedBox(height: AppSpacing.sm),
+                              Center(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 520,
+                                  ),
+                                  child: _PhoneStage(palette: palette),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
