@@ -38,12 +38,15 @@ void main() {
             '${offenders.join('\n')}');
   });
 
-  test('public home uses the official brand blues', () {
+  test('public home uses the logged-in dark navy surfaces', () {
     expect(AppColors.homeNavyTop, AppColors.navy);
-    expect(AppColors.homeBlueBottom, AppColors.blue);
-    expect(AppColors.homePhoneScreen, AppColors.blue);
-    expect(AppColors.homeAccentBlue, AppColors.blue);
+    expect(AppColors.homeNavyMid, AppColors.darkSurface);
+    expect(AppColors.homeDarkBottom, AppColors.darkSurfaceLow);
+    expect(AppColors.homePhoneScreen, AppColors.darkSurface);
     expect(AppColors.homeAccentBlueSoft, AppColors.blueOnDark);
+    expect(AppColors.homeBlueBottom, AppColors.blue);
+    expect(AppColors.homeDarkBottom, isNot(AppColors.blue));
+    expect(AppColors.homePhoneScreen, isNot(AppColors.blue));
   });
 
   test('no raw color literals outside the palette tokens', () {

@@ -53,14 +53,35 @@ class AppColors {
   /// theme primary so dark-mode accents share one token.
   static const Color blueOnDark = Color(0xFF8FBCF0);
 
+  // ------------------------------------------------------- dark surfaces
+  /// Logged-in dark shell background.
+  static const Color darkSurfaceLowest = Color(0xFF0A111E);
+  static const Color darkSurface = Color(0xFF0D1626);
+  static const Color darkSurfaceLow = Color(0xFF111C2F);
+  static const Color darkSurfaceContainer = Color(0xFF16223A);
+  static const Color darkSurfaceHigh = Color(0xFF1B2945);
+  static const Color darkSurfaceHighest = Color(0xFF213150);
+
+  /// Logged-in dark app bar and hairline borders.
+  static const Color darkAppBar = Color(0xFF0E1626);
+  static const Color darkOutline = Color(0xFF33455F);
+  static const Color darkOutlineVariant = Color(0xFF26364E);
+
+  /// Logged-in dark text tones.
+  static const Color darkText = Color(0xFFE6EDF6);
+  static const Color darkTextMuted = Color(0xFF9FB0C5);
+
   // ------------------------------------------------- public home (reference)
-  /// Public home gradient stops — official navy to the official brand blue.
+  /// Public home dark gradient — official navy through logged-in dark
+  /// surfaces. The supporting brand blue is retained for light-mode accents
+  /// only; it is not a dominant public-home background.
   static const Color homeNavyTop = navy;
-  static const Color homeNavyMid = navyDeep;
+  static const Color homeNavyMid = darkSurface;
+  static const Color homeDarkBottom = darkSurfaceLow;
   static const Color homeBlueBottom = blue;
 
-  /// Official brand blue behind the public-home phone preview.
-  static const Color homePhoneScreen = blue;
+  /// Logged-in dark surface behind the public-home phone preview.
+  static const Color homePhoneScreen = darkSurface;
 
   /// Brand red for SOS / primary public actions.
   static const Color homeRed = emergency;

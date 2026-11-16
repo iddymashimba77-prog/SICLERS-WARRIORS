@@ -192,31 +192,31 @@ class _HomePalette {
         background: const [
           AppColors.homeNavyTop,
           AppColors.homeNavyMid,
-          AppColors.homeBlueBottom,
+          AppColors.homeDarkBottom,
         ],
         glowBlue: AppColors.homeAccentBlueSoft,
         glowRed: AppColors.homeRed,
-        accentBlue: AppColors.homeTextSoft,
+        accentBlue: AppColors.homeAccentBlueSoft,
         accentRed: AppColors.homeRedSoft,
         textPrimary: Colors.white,
         textSecondary: AppColors.homeTextSoft,
         textMuted: Colors.white.withValues(alpha: .70),
-        glassFill: Colors.white.withValues(alpha: .08),
-        glassBorder: Colors.white.withValues(alpha: .18),
-        glassShadow: AppColors.homeNavyTop.withValues(alpha: .38),
-        tileFill: Colors.white.withValues(alpha: .06),
-        tileHover: Colors.white.withValues(alpha: .12),
-        tileBorder: Colors.white.withValues(alpha: .14),
-        tileBorderHover: Colors.white.withValues(alpha: .30),
-        controlFill: Colors.white.withValues(alpha: .06),
-        controlBorder: Colors.white.withValues(alpha: .55),
-        divider: Colors.white.withValues(alpha: .18),
+        glassFill: AppColors.darkSurfaceLow.withValues(alpha: .82),
+        glassBorder: AppColors.darkOutline.withValues(alpha: .65),
+        glassShadow: AppColors.homeNavyTop.withValues(alpha: .55),
+        tileFill: AppColors.darkSurfaceContainer.withValues(alpha: .55),
+        tileHover: AppColors.darkSurfaceHigh.withValues(alpha: .82),
+        tileBorder: AppColors.darkOutlineVariant,
+        tileBorderHover: AppColors.blueOnDark.withValues(alpha: .45),
+        controlFill: AppColors.darkSurfaceLow.withValues(alpha: .72),
+        controlBorder: AppColors.darkOutline,
+        divider: AppColors.darkOutlineVariant,
         phoneFrame: AppColors.homeNavyTop,
         phoneScreen: AppColors.homePhoneScreen,
         phoneText: Colors.white,
-        phoneMuted: AppColors.homeTextSoft,
-        phoneTileFill: Colors.white.withValues(alpha: .09),
-        phoneTileBorder: Colors.white.withValues(alpha: .16),
+        phoneMuted: AppColors.darkTextMuted,
+        phoneTileFill: AppColors.darkSurfaceLow,
+        phoneTileBorder: AppColors.darkOutlineVariant,
         swooshInner: Colors.white,
         loginBorder: Colors.white.withValues(alpha: .55),
         loginText: Colors.white,
@@ -284,7 +284,7 @@ class _HomeBackground extends StatelessWidget {
             child: _HomeGlow(
               color: palette.glowBlue,
               size: 560,
-              opacity: palette.dark ? .26 : .16,
+              opacity: palette.dark ? .14 : .16,
             ),
           ),
           Positioned(
@@ -293,7 +293,7 @@ class _HomeBackground extends StatelessWidget {
             child: _HomeGlow(
               color: palette.glowBlue,
               size: 520,
-              opacity: palette.dark ? .42 : .22,
+              opacity: palette.dark ? .20 : .22,
             ),
           ),
           Positioned(
@@ -302,7 +302,7 @@ class _HomeBackground extends StatelessWidget {
             child: _HomeGlow(
               color: palette.glowBlue,
               size: 400,
-              opacity: .12,
+              opacity: palette.dark ? .07 : .12,
             ),
           ),
           Positioned(
@@ -311,7 +311,7 @@ class _HomeBackground extends StatelessWidget {
             child: _HomeGlow(
               color: palette.glowBlue,
               size: 440,
-              opacity: palette.dark ? .16 : .10,
+              opacity: palette.dark ? .09 : .10,
             ),
           ),
           Positioned(
@@ -320,7 +320,7 @@ class _HomeBackground extends StatelessWidget {
             child: _HomeGlow(
               color: palette.glowRed,
               size: 380,
-              opacity: palette.dark ? .12 : .09,
+              opacity: palette.dark ? .10 : .09,
             ),
           ),
         ],
@@ -587,9 +587,7 @@ class _BrandMark extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 colors: [
-                  palette.glowBlue.withValues(
-                    alpha: palette.dark ? .26 : .16,
-                  ),
+                  palette.glowBlue.withValues(alpha: .16),
                   palette.glowBlue.withValues(alpha: 0),
                 ],
               ),
@@ -719,10 +717,7 @@ class _HeroActions extends StatelessWidget {
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: palette.loginText,
-                  backgroundColor:
-                      palette.dark
-                          ? Colors.white.withValues(alpha: .04)
-                          : Colors.white.withValues(alpha: .55),
+                  backgroundColor: palette.controlFill,
                   side: BorderSide(color: palette.loginBorder, width: 1.5),
                   shape: const RoundedRectangleBorder(
                     borderRadius: AppShapes.pill,

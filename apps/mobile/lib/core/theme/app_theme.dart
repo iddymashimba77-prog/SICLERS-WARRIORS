@@ -75,16 +75,16 @@ class AppTheme {
       onError: AppColors.navy,
       errorContainer: Color(0xFF4A1520),
       onErrorContainer: Color(0xFFFFC4CE),
-      surface: Color(0xFF0D1626),
-      onSurface: Color(0xFFE6EDF6),
-      onSurfaceVariant: Color(0xFF9FB0C5),
-      surfaceContainerLowest: Color(0xFF0A111E),
-      surfaceContainerLow: Color(0xFF111C2F),
-      surfaceContainer: Color(0xFF16223A),
-      surfaceContainerHigh: Color(0xFF1B2945),
-      surfaceContainerHighest: Color(0xFF213150),
-      outline: Color(0xFF33455F),
-      outlineVariant: Color(0xFF26364E),
+      surface: AppColors.darkSurface,
+      onSurface: AppColors.darkText,
+      onSurfaceVariant: AppColors.darkTextMuted,
+      surfaceContainerLowest: AppColors.darkSurfaceLowest,
+      surfaceContainerLow: AppColors.darkSurfaceLow,
+      surfaceContainer: AppColors.darkSurfaceContainer,
+      surfaceContainerHigh: AppColors.darkSurfaceHigh,
+      surfaceContainerHighest: AppColors.darkSurfaceHighest,
+      outline: AppColors.darkOutline,
+      outlineVariant: AppColors.darkOutlineVariant,
       inverseSurface: Color(0xFFE6EDF6),
       onInverseSurface: AppColors.navy,
       inversePrimary: AppColors.blue,
@@ -100,7 +100,7 @@ class AppTheme {
   }) {
     final bool isDark = brightness == Brightness.dark;
     final Color surface = colorScheme.surface;
-    final Color appBarBg = isDark ? const Color(0xFF0E1626) : AppColors.navy;
+    final Color appBarBg = isDark ? AppColors.darkAppBar : AppColors.navy;
     final Color border = colorScheme.outlineVariant;
 
     final InputDecorationTheme inputTheme = InputDecorationTheme(
