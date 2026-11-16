@@ -16,6 +16,7 @@ class PublicHomePage extends StatelessWidget {
   const PublicHomePage({super.key});
 
   static const String routeName = '/';
+  static const double phoneStageLift = 20;
 
   @override
   Widget build(BuildContext context) {
@@ -85,12 +86,18 @@ class PublicHomePage extends StatelessWidget {
                             children: [
                               const Spacer(),
                               const SizedBox(height: AppSpacing.sm),
-                              Center(
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 520,
+                              Transform.translate(
+                                offset: const Offset(
+                                  0,
+                                  -PublicHomePage.phoneStageLift,
+                                ),
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 520,
+                                    ),
+                                    child: _PhoneStage(palette: palette),
                                   ),
-                                  child: _PhoneStage(palette: palette),
                                 ),
                               ),
                             ],

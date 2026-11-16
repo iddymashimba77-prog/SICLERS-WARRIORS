@@ -354,7 +354,7 @@ void main() {
     }
   });
 
-  testWidgets('fills the viewport and anchors the phone stage to the bottom', (
+  testWidgets('fills the viewport and lifts the phone stage above the bottom', (
     tester,
   ) async {
     addTearDown(tester.view.reset);
@@ -376,8 +376,48 @@ void main() {
       final stage = tester.getRect(find.byKey(const ValueKey('hero-phone')));
       expect(
         stage.bottom,
-        size.height,
-        reason: 'phone stage bottom at ${size.height}px',
+        size.height - PublicHomePage.phoneStageLift,
+        reason: 'phone stage gap at ${size.height}px',
+      );
+      expect(
+        stage.bottom,
+        lessThan(size.height),
+        reason: 'phone stage below the bottom at ${size.height}px',
+      );
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'overflow at ${size.height}px',
+      );
+    }
+  });
+
+  testWidgets('keeps the phone stage gap after scrolling on short screens', (
+    tester,
+  ) async {
+    addTearDown(tester.view.reset);
+    for (final size in const [
+      Size(360, 800),
+      Size(390, 844),
+      Size(430, 932),
+    ]) {
+      await _pumpAt(tester, size);
+      await tester.drag(
+        find.byType(CustomScrollView),
+        const Offset(0, -2000),
+      );
+      await tester.pumpAndSettle();
+
+      final stage = tester.getRect(find.byKey(const ValueKey('hero-phone')));
+      expect(
+        stage.bottom,
+        size.height - PublicHomePage.phoneStageLift,
+        reason: 'phone stage gap at ${size.height}px',
+      );
+      expect(
+        stage.bottom,
+        lessThan(size.height),
+        reason: 'phone stage below the bottom at ${size.height}px',
       );
       expect(
         tester.takeException(),
