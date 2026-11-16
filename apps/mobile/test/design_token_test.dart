@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:sicklers_warriors/core/theme/app_colors.dart';
+
 /// Design-token gate (FRONTEND-1 / Band 2 consolidation).
 ///
 /// The palette lives in `AppColors` and the radius scale in `AppShapes`. Both
@@ -34,6 +36,14 @@ void main() {
     expect(offenders, isEmpty,
         reason: 'Use AppShapes tokens instead of raw radius literals:\n'
             '${offenders.join('\n')}');
+  });
+
+  test('public home uses the official brand blues', () {
+    expect(AppColors.homeNavyTop, AppColors.navy);
+    expect(AppColors.homeBlueBottom, AppColors.blue);
+    expect(AppColors.homePhoneScreen, AppColors.blue);
+    expect(AppColors.homeAccentBlue, AppColors.blue);
+    expect(AppColors.homeAccentBlueSoft, AppColors.blueOnDark);
   });
 
   test('no raw color literals outside the palette tokens', () {

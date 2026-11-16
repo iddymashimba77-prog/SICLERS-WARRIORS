@@ -59,11 +59,11 @@ class AppTheme {
   static final ThemeData dark = _build(
     brightness: Brightness.dark,
     colorScheme: const ColorScheme.dark(
-      primary: Color(0xFF8FBCF0),
+      primary: AppColors.blueOnDark,
       onPrimary: AppColors.navy,
       primaryContainer: Color(0xFF1C3A63),
       onPrimaryContainer: Color(0xFFCDE0F5),
-      secondary: Color(0xFF8FBCF0),
+      secondary: AppColors.blueOnDark,
       onSecondary: AppColors.navy,
       secondaryContainer: Color(0xFF1C3A63),
       onSecondaryContainer: Color(0xFFCDE0F5),

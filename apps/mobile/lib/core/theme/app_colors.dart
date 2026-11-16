@@ -49,23 +49,27 @@ class AppColors {
   /// Deeper navy stop used inside navy gradients.
   static const Color navyDeep = Color(0xFF0E2A4F);
 
+  /// Accessible blue tint for text/icons on dark surfaces. Matches the dark
+  /// theme primary so dark-mode accents share one token.
+  static const Color blueOnDark = Color(0xFF8FBCF0);
+
   // ------------------------------------------------- public home (reference)
-  /// Public home gradient stops — official navy to a deep brand-blue shade.
+  /// Public home gradient stops — official navy to the official brand blue.
   static const Color homeNavyTop = navy;
   static const Color homeNavyMid = navyDeep;
-  static const Color homeBlueBottom = Color(0xFF123A6B);
+  static const Color homeBlueBottom = blue;
 
-  /// Dark blue screen behind the public-home phone preview.
-  static const Color homePhoneScreen = Color(0xFF012C7F);
+  /// Official brand blue behind the public-home phone preview.
+  static const Color homePhoneScreen = blue;
 
   /// Brand red for SOS / primary public actions.
   static const Color homeRed = emergency;
   static const Color homeRedDeep = darkRed;
   static const Color homeRedSoft = Color(0xFFF26D7D);
 
-  /// Brand blue accents for public-home icons, glows and secondary copy.
+  /// Brand blue accents for public-home light icons and dark-surface glows.
   static const Color homeAccentBlue = blue;
-  static const Color homeAccentBlueSoft = Color(0xFF6FA8E8);
+  static const Color homeAccentBlueSoft = blueOnDark;
   static const Color homeTextSoft = Color(0xFFD6E4F5);
 
   /// Ink and screen tones for the light-adapted public home / phone preview.

@@ -196,7 +196,7 @@ class _HomePalette {
         ],
         glowBlue: AppColors.homeAccentBlueSoft,
         glowRed: AppColors.homeRed,
-        accentBlue: AppColors.homeAccentBlueSoft,
+        accentBlue: AppColors.homeTextSoft,
         accentRed: AppColors.homeRedSoft,
         textPrimary: Colors.white,
         textSecondary: AppColors.homeTextSoft,
