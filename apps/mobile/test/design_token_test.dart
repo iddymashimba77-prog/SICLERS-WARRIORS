@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:sicklers_warriors/core/theme/app_colors.dart';
@@ -38,13 +39,20 @@ void main() {
             '${offenders.join('\n')}');
   });
 
-  test('public home uses the logged-in dark navy surfaces', () {
-    expect(AppColors.homeNavyTop, AppColors.navy);
-    expect(AppColors.homeNavyMid, AppColors.darkSurface);
-    expect(AppColors.homeDarkBottom, AppColors.darkSurfaceLow);
-    expect(AppColors.homePhoneScreen, AppColors.darkSurface);
+  test('public home uses a softened, homepage-only dark navy palette', () {
+    expect(AppColors.homeNavyTop, const Color(0xFF112543));
+    expect(AppColors.homeNavyMid, const Color(0xFF121C2D));
+    expect(AppColors.homeDarkBottom, const Color(0xFF172236));
+    expect(AppColors.homeDarkCard, const Color(0xFF1C2A3F));
+    expect(AppColors.homeDarkCardHover, const Color(0xFF223049));
+    expect(AppColors.homeDarkOutline, const Color(0xFF3A4B61));
+    expect(AppColors.homeDarkOutlineVariant, const Color(0xFF2C3B51));
+    expect(AppColors.homePhoneScreen, AppColors.homeNavyMid);
     expect(AppColors.homeAccentBlueSoft, AppColors.blueOnDark);
     expect(AppColors.homeBlueBottom, AppColors.blue);
+    expect(AppColors.homeNavyTop, isNot(AppColors.navy));
+    expect(AppColors.homeNavyMid, isNot(AppColors.darkSurface));
+    expect(AppColors.homeDarkBottom, isNot(AppColors.darkSurfaceLow));
     expect(AppColors.homeDarkBottom, isNot(AppColors.blue));
     expect(AppColors.homePhoneScreen, isNot(AppColors.blue));
   });

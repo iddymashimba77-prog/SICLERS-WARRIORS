@@ -72,16 +72,22 @@ class AppColors {
   static const Color darkTextMuted = Color(0xFF9FB0C5);
 
   // ------------------------------------------------- public home (reference)
-  /// Public home dark gradient — official navy through logged-in dark
-  /// surfaces. The supporting brand blue is retained for light-mode accents
-  /// only; it is not a dominant public-home background.
-  static const Color homeNavyTop = navy;
-  static const Color homeNavyMid = darkSurface;
-  static const Color homeDarkBottom = darkSurfaceLow;
+  /// Public home dark gradient — a softened, homepage-only navy family. The
+  /// logged-in `navy` / `darkSurface*` tokens stay unchanged.
+  static const Color homeNavyTop = Color(0xFF112543);
+  static const Color homeNavyMid = Color(0xFF121C2D);
+  static const Color homeDarkBottom = Color(0xFF172236);
   static const Color homeBlueBottom = blue;
 
-  /// Logged-in dark surface behind the public-home phone preview.
-  static const Color homePhoneScreen = darkSurface;
+  /// Softened homepage card, border and muted-text tones.
+  static const Color homeDarkCard = Color(0xFF1C2A3F);
+  static const Color homeDarkCardHover = Color(0xFF223049);
+  static const Color homeDarkOutline = Color(0xFF3A4B61);
+  static const Color homeDarkOutlineVariant = Color(0xFF2C3B51);
+  static const Color homeDarkTextMuted = Color(0xFFA5B3C5);
+
+  /// Softened dark surface behind the public-home phone preview.
+  static const Color homePhoneScreen = homeNavyMid;
 
   /// Brand red for SOS / primary public actions.
   static const Color homeRed = emergency;
